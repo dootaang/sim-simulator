@@ -5,6 +5,7 @@ import { renderNpcGallery, buildNpcClusters } from './npcGallery.js';
 import { renderLorebookView } from './lorebookView.js';
 import { renderActivateView } from './activateView.js';
 import { renderAssetsView } from './assetsView.js';
+import { renderEngineView } from './engineView.js';
 
 const tabs = [
   { id: 'overview', label: '개요' },
@@ -12,6 +13,7 @@ const tabs = [
   { id: 'lorebook', label: '로어북' },
   { id: 'activate', label: '활성화 시뮬' },
   { id: 'assets', label: '에셋' },
+  { id: 'engine', label: '엔진(실험)' },
 ];
 
 const state = {
@@ -111,7 +113,7 @@ function renderTabs() {
     button.className = 'tab';
     button.textContent = tab.label;
     button.setAttribute('aria-selected', String(state.activeTab === tab.id));
-    button.disabled = !state.parsed && tab.id !== 'overview';
+    button.disabled = !state.parsed && tab.id !== 'overview' && tab.id !== 'engine';
     button.addEventListener('click', () => {
       if (state.activeTab === tab.id) return;
       clearTabResources();
@@ -164,12 +166,17 @@ function render() {
   const panel = document.getElementById('panel');
   panel.replaceChildren();
 
+  const ctx = createContext();
+  if (state.activeTab === 'engine') {
+    state.cleanup = renderEngineView(panel, ctx);
+    return;
+  }
+
   if (!state.parsed) {
     panel.append(renderEmptyOverview());
     return;
   }
 
-  const ctx = createContext();
   if (state.activeTab === 'overview') panel.append(renderOverview(ctx));
   if (state.activeTab === 'npc') state.cleanup = renderNpcGallery(panel, ctx);
   if (state.activeTab === 'lorebook') state.cleanup = renderLorebookView(panel, ctx);

@@ -575,6 +575,216 @@ details.source-preview pre,
   overflow-wrap: anywhere;
 }
 
+.engine-view {
+  display: grid;
+  gap: 14px;
+}
+
+.engine-header {
+  align-items: center;
+}
+
+.engine-header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.engine-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.engine-inline-field input {
+  width: 92px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+.engine-day-btn {
+  margin-top: 0;
+}
+
+.engine-status {
+  background: #1d2a28;
+}
+
+.engine-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  gap: 14px;
+}
+
+.engine-state-panel,
+.engine-console,
+.engine-section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.engine-state-panel,
+.engine-console {
+  align-self: start;
+  display: grid;
+  gap: 14px;
+}
+
+.engine-summary {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #f3f6f5;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.engine-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.engine-stat {
+  min-height: 92px;
+  box-shadow: none;
+}
+
+.engine-stat .stat-value {
+  font-size: 18px;
+}
+
+.engine-section h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.engine-room-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.engine-room {
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 10px;
+}
+
+.engine-room.locked {
+  opacity: 0.62;
+}
+
+.engine-list {
+  display: grid;
+  gap: 6px;
+}
+
+.engine-list-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+}
+
+.engine-warning {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border: 1px solid #e1b357;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.engine-form,
+.engine-param-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.engine-form select,
+.engine-form input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 10px 12px;
+}
+
+.engine-preview {
+  margin: 0;
+}
+
+.engine-log-list {
+  display: grid;
+  gap: 8px;
+}
+
+.engine-log-entry {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.engine-log-entry summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.engine-ok {
+  border-color: #9bc9c3;
+  color: var(--accent-strong);
+}
+
+.engine-fail {
+  border-color: #e1b357;
+  color: var(--warn);
+}
+
+.engine-tier-chip {
+  display: inline-flex;
+  margin: 8px 0 0;
+}
+
+.engine-report {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.engine-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.engine-table th,
+.engine-table td {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.engine-table th {
+  background: #f3f6f5;
+  color: var(--muted);
+}
+
 @media (max-width: 900px) {
   .topbar,
   .view-header,
@@ -588,8 +798,13 @@ details.source-preview pre,
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .activate-layout {
+  .activate-layout,
+  .engine-layout {
     grid-template-columns: 1fr;
+  }
+
+  .engine-header-controls {
+    justify-content: flex-start;
   }
 
   .search-input {
@@ -604,6 +819,7 @@ details.source-preview pre,
 
   .overview-grid,
   .result-summary,
+  .engine-stat-grid,
   .kv-list {
     grid-template-columns: 1fr;
   }
@@ -3664,9 +3880,9 @@ details.source-preview pre,
         128,
         64
       ]);
-      function rpackDecode(input) {
-        const out = new Uint8Array(input.length);
-        for (let i = 0; i < input.length; i++) out[i] = DECODE_MAP[input[i]];
+      function rpackDecode(input2) {
+        const out = new Uint8Array(input2.length);
+        for (let i = 0; i < input2.length; i++) out[i] = DECODE_MAP[input2[i]];
         return out;
       }
       function parseRisum(bytesIn) {
@@ -4128,12 +4344,12 @@ details.source-preview pre,
     "core/lorebook/activate.js"(exports, module) {
       "use strict";
       var { estimateEntryTokens, applyTokenBudget } = require_tokens();
-      function textFromMessages(input, scanDepth) {
-        if (Array.isArray(input)) {
-          const recent = input.slice(-Math.max(1, Number(scanDepth || 10)));
+      function textFromMessages(input2, scanDepth) {
+        if (Array.isArray(input2)) {
+          const recent = input2.slice(-Math.max(1, Number(scanDepth || 10)));
           return recent.map((m) => typeof m === "string" ? m : m && (m.content || m.text || m.message) || "").join("\n");
         }
-        return String(input == null ? "" : input);
+        return String(input2 == null ? "" : input2);
       }
       function wordBoundaryMatch(haystack, needle, caseSensitive) {
         const source = String(haystack || "");
@@ -4202,10 +4418,10 @@ details.source-preview pre,
         }
         return { ...base, active: true, reason: "primary", key: primary, detail: `Matched: ${primary}` };
       }
-      function simulateActivation2(lore, input, opts = {}) {
+      function simulateActivation2(lore, input2, opts = {}) {
         const entries = lore && lore.entries || [];
         const scanDepth = Number(opts.scanDepth || lore.scanDepth || 10);
-        const searchText = textFromMessages(input, scanDepth);
+        const searchText = textFromMessages(input2, scanDepth);
         const checks = entries.map((e) => checkEntry(e, searchText, opts)).filter(Boolean);
         const active = checks.filter((r) => r.active).sort((a, b) => (a.order || 0) - (b.order || 0));
         const inactive = checks.filter((r) => !r.active);
@@ -4224,6 +4440,947 @@ details.source-preview pre,
         };
       }
       module.exports = { simulateActivation: simulateActivation2, checkEntry, includesKey, textFromMessages };
+    }
+  });
+
+  // ../schema/yongsa-inn.v0.json
+  var require_yongsa_inn_v0 = __commonJS({
+    "../schema/yongsa-inn.v0.json"(exports, module) {
+      module.exports = {
+        meta: {
+          id: "yongsa-inn",
+          title: "\uC6A9\uC0AC\uC5EC\uAD00",
+          schemaVersion: "0.1",
+          scope: "minimal-core",
+          note: "SCHEMA-v0.md \xA75 \uD655\uC815\uC548 \uAE30\uC900 \uC218\uC791\uC5C5 \uC778\uC2A4\uD134\uC2A4. \uB358\uC804\xB7\uD3EC\uB85C\xB7\uB300\uC7A5\uAC04\xB7\uC74C\uB780\uB3C4/\uBCF5\uC885\uB3C4\uB294 M3 \uC774\uC6D4. '\uAC00\uC815' \uD45C\uAE30 \uAC12\uC740 \uC6D0\uBCF8 Lua\uC5D0 \uC788\uC5B4 \uB85C\uC5B4\uBD81\uC73C\uB85C \uD655\uC778 \uBD88\uAC00\uD55C \uAC12\uC758 \uC9C0\uD718\uC790 \uC784\uC758 \uC124\uC815 \u2014 \uC0AC\uC6A9\uC790 \uD29C\uB2DD \uB300\uC0C1.",
+          assumptions: [
+            "initialState.gold=500000, food=20, drink=20 (\uC6D0\uBCF8 \uC2DC\uC791\uAC12 \uBBF8\uD655\uC778)",
+            "\uAC1D\uC2E4 \uC7A0\uAE08: 110\uD638=lv_room 2, 111\uD638=lv_room 3 \uD544\uC694 (\uC6D0\uBCF8 \uB9E4\uD551 \uBBF8\uD655\uC778)",
+            "player_level.thresholds\uB294 \uD3C9\uD310 \uBB38\uD131 \uC900\uC6A9 (\uC6D0\uBCF8 Lua \uB808\uBCA8 \uACE1\uC120 \uBBF8\uD655\uC778)",
+            "\uC815\uC0B0 \uB9E4\uCD9C \uBC94\uC704: Lv1 10~25\uB9CC / Lv2 25~60\uB9CC / Lv3 60~150\uB9CC / Lv4 150~400\uB9CC (\uC6D0\uBCF8 \uBA85\uC2DC\uAC12)"
+          ]
+        },
+        initialState: {
+          day: 1,
+          gold: 5e5,
+          resources: { food: 20, drink: 20 },
+          facilities: { tavern: 1, kitchen: 1, room: 1, quarters: 1 },
+          staff: [],
+          player: { level: 1, exp: 0 },
+          reputation: { village: 0, advent: 0, mage: 0, noble: 0, under: 0, merchant: 0 }
+        },
+        resources: [
+          { id: "gold", unit: "\uC6D0", min: 0 },
+          { id: "food", unit: "\uC778\uBD84", min: 0, basePrice: 3e3 },
+          { id: "drink", unit: "\uC794", min: 0, basePrice: 5e3 }
+        ],
+        scales: [
+          {
+            id: "affinity",
+            owner: "npc",
+            range: [0, 200],
+            default: 50,
+            steps: { S: 1, M: 2, L: 3, XL: 5, "S-": -2, "M-": -5, "L-": -10, "XL-": -50 },
+            charBonus: 1,
+            charBonusNote: "\uD5C8\uC6A9 \uCD5C\uB300 \uD06C\uAE30(\xB11). \uC2E4\uC81C \uC801\uC6A9\uAC12\uC740 \uC774\uBCA4\uD2B8 \uD30C\uB77C\uBBF8\uD130 charBonus(-1|0|1)\uB85C \uC804\uB2EC\uB418\uBA70 \uAE30\uBCF8 0 \u2014 \uC5D4\uC9C4\uC740 \uC774 \uD55C\uB3C4\uB85C \uD074\uB7A8\uD504\uD55C\uB2E4 (2026-07-08 \uAC80\uC218 \uD655\uC815)",
+            dailyCapPerTarget: 1,
+            tiers: [
+              { range: [0, 20], label: "\uC99D\uC624", brief: "\uD3ED\uB825\uC801\uC73C\uB85C \uD610\uC624. \uBB3C\uC790 \uC808\uB3C4\xB7\uC815\uBCF4 \uB204\uC124 \uAC00\uB2A5", forbidden: ["\uC6B0\uD638 \uD589\uB3D9", "\uD611\uC870", "\uC911\uB9BD\uC801 \uD0DC\uB3C4"] },
+              { range: [21, 50], label: "\uBD88\uC2E0", brief: "\uC758\uC2EC\uD558\uBA70 \uAC70\uB9AC \uC720\uC9C0. \uC120\uBD88 \uC694\uAD6C", forbidden: ["\uAC1C\uC778\uC801 \uD638\uC758", "\uC790\uBC1C\uC801 \uB3C4\uC6C0", "\uC0AC\uC801 \uB300\uD654", "\uAC10\uC815 \uAC1C\uBC29"] },
+              { range: [51, 80], label: "\uC911\uB9BD", brief: "\uCCA0\uC800\uD788 \uACC4\uC0B0\uC801. \uAE38\uB4DC \uADDC\uCE59\uB300\uB85C\uB9CC", forbidden: ["\uACE0\uBC31", "\uC2E0\uCCB4 \uC811\uCD09", "\uC9C8\uD22C", "\uAC10\uC815 \uD45C\uD604", "\uD2B9\uBCC4 \uB300\uC6B0", "\uC790\uBC1C\uC801 \uD76C\uC0DD", "\uBE44\uBC00 \uACF5\uC720"] },
+              { range: [81, 110], label: "\uD638\uC758", brief: "\uC790\uBC1C\uC801\uC73C\uB85C \uB3C4\uC6C0. \uC791\uC740 \uC120\uC758", forbidden: ["\uACE0\uBC31", "\uC5F0\uC560 \uAC10\uC815", "\uC9C8\uD22C", "\uB3C5\uC810\uC695", "\uB9F9\uBAA9\uC801 \uBCF5\uC885", "\uC704\uD5D8 \uAC10\uC218"] },
+              { range: [111, 150], label: "\uC2E0\uB8B0", brief: "\uAE4A\uC740 \uC720\uB300. \uBE44\uBC00 \uACF5\uC720, \uC704\uD5D8 \uC758\uB8B0 \uC218\uB77D", forbidden: ["\uC9C1\uC811 \uACE0\uBC31", "\uC2E0\uCCB4 \uC811\uCD09 \uC8FC\uB3C4", "\uB3C5\uC810\uC695", "\uB9F9\uBAA9\uC801 \uBCF5\uC885", "\uD0C0 NPC \uC801\uB300", "\uBC94\uC8C4 \uD589\uC704"] },
+              { range: [151, 180], label: "\uC560\uCC29", brief: "\uAC10\uC815\uC801 \uC758\uC874. \uAC1C\uC778 \uAC10\uC815\uC774 \uAE38\uB4DC \uCDA9\uC131 \uC704", forbidden: ["\uBB34\uC870\uAC74 \uBCF5\uC885", "\uD0C0 NPC \uAC00\uD574", "\uBC94\uC8C4 \uD589\uC704", "\uD310\uB2E8 \uC804\uBA74 \uC704\uC784", "\uC790\uD574"] },
+              { range: [181, 190], label: "\uD5CC\uC2E0", brief: "{{user}} \uCD5C\uC6B0\uC120. \uAC70\uC808\uB2F9\uD574\uB3C4 \uBB3C\uB7EC\uC12C", forbidden: ["\uBB34\uC870\uAC74 \uBCF5\uC885", "\uD0C0 NPC \uBB3C\uB9AC\uC801 \uAC00\uD574", "\uBC94\uC8C4 \uD589\uC704", "\uC790\uAE30 \uD310\uB2E8 \uC644\uC804 \uD3EC\uAE30", "\uC790\uD574", "\uC2A4\uD1A0\uD0B9"] },
+              { range: [191, 199], label: "\uB9F9\uC885/\uC9C8\uD22C", brief: "\uBB34\uC870\uAC74 \uBCF5\uC885. \uB178\uACE8\uC801 \uC9C8\uD22C\uC640 \uB3C5\uC810", forbidden: ["\uC0B4\uC778", "\uC554\uC0B4", "\uC790\uD574", "\uD0C0\uC778 \uCE58\uBA85\uC0C1", "\uC644\uC804\uD55C \uC815\uC2E0 \uBD95\uAD34"] },
+              { range: [200, 200], label: "\uC9D1\uCC29", brief: "\uC808\uB300\uC801 \uC18C\uC720\uC695. \uBD88\uBC95 \uC694\uCCAD \uC218\uC6A9", forbidden: [] }
+            ],
+            actionMinimums: {
+              "\uC218\uC90D\uC740 \uD638\uAC10 \uD45C\uD604": 110,
+              "\uC9C8\uD22C \uD45C\uD604": 150,
+              "\uC9C1\uC811 \uACE0\uBC31": 151,
+              "\uC2E0\uCCB4 \uC811\uCD09": 151,
+              "\uC801\uADF9\uC801 \uCE5C\uBC00(\uD0A4\uC2A4 \uB4F1)": 170,
+              "\uC131\uC801 \uC811\uADFC": 180,
+              "\uB3C5\uC810 \uD589\uB3D9": 191
+            }
+          }
+        ],
+        ladders: [
+          {
+            id: "player_level",
+            currency: "exp",
+            thresholds: [100, 300, 800, 2e3, 5e3],
+            thresholdsNote: "\uAC00\uC815 \u2014 \uD3C9\uD310 \uBB38\uD131 \uC900\uC6A9, \uC0AC\uC6A9\uC790 \uD29C\uB2DD \uB300\uC0C1",
+            sources: {
+              "\uC7A1\uC77C(\uC694\uB9AC\xB7\uCCAD\uC18C\xB7\uC11C\uBE59\xB7\uAD6C\uB9E4\xB7\uAC70\uB798)": { value: 1, note: "\uD134\uB9C8\uB2E4 \uAE08\uC9C0, \uC758\uBBF8 \uC788\uC744 \uB54C\uB9CC" },
+              "\uBA54\uB274/\uC7A5\uBE44 \uAC1C\uBC1C": [5, 10],
+              "\uC18C\uADDC\uBAA8 \uC774\uBCA4\uD2B8": [5, 15],
+              "C\uAE09 \uD074\uB9AC\uC5B4 \uBCF4\uB108\uC2A4": [30, 60],
+              "B\uAE09 \uD074\uB9AC\uC5B4 \uBCF4\uB108\uC2A4": [80, 150],
+              "A\uAE09+ \uD074\uB9AC\uC5B4 \uBCF4\uB108\uC2A4": [200, 400]
+            }
+          },
+          {
+            id: "reputation",
+            axes: ["village", "advent", "mage", "noble", "under", "merchant"],
+            axisLabels: { village: "\uB9C8\uC744", advent: "\uBAA8\uD5D8\uAC00 \uAE38\uB4DC", mage: "\uB9C8\uBC95\uC0AC \uAE38\uB4DC", noble: "\uADC0\uC871\xB7\uC655\uC2E4", under: "\uB4B7\uC138\uACC4", merchant: "\uC0C1\uC778 \uC870\uD569" },
+            ranks: [
+              { id: "E", next: 100 },
+              { id: "D", next: 300 },
+              { id: "C", next: 800 },
+              { id: "B", next: 2e3 },
+              { id: "A", next: 5e3 },
+              { id: "S", next: null }
+            ],
+            onPromote: "resetExp",
+            onNegative: "demoteBorrow",
+            floor: { rank: "E", exp: 0 },
+            categories: {
+              village: {
+                "\uC0AC\uC18C\uD55C \uB3C4\uC6C0": [3, 5],
+                "\uC5B4\uB824\uC6B8 \uB54C \uC9C0\uC6D0": [5, 15],
+                "\uD589\uC0AC \uCC38\uC5EC": [10, 20],
+                "\uC704\uD611 \uC81C\uAC70": [15, 40],
+                "\uB9C8\uC744 \uBC1C\uC804 \uAE30\uC5EC": [30, 60],
+                \uC18C\uB780: [-5, -3],
+                "\uB9C8\uC744 \uC77C \uC678\uBA74": [-10, -5],
+                "\uC7AC\uC0B0 \uD53C\uD574": [-30, -10],
+                "\uC704\uD5D8 \uC720\uC785": [-40, -15],
+                \uBC30\uC2E0: [-50, -30]
+              },
+              advent: {
+                "E~D\uAE09 \uC758\uB8B0": [5, 30],
+                "C\uAE09 \uC758\uB8B0": [30, 60],
+                "B\uAE09 \uC758\uB8B0": [60, 120],
+                "A~S\uAE09 \uC758\uB8B0": [150, 500],
+                "\uC815\uBCF4 \uC81C\uACF5": [5, 15],
+                "\uAE38\uB4DC\uC6D0 \uD6C4\uB300": [3, 10],
+                "\uC758\uB8B0 \uC2E4\uD328": [-30, -10],
+                "\uBA85\uC608 \uD6FC\uC190": [-20, -10],
+                "\uADDC\uC57D \uC704\uBC18": [-30, -15],
+                "\uAE38\uB4DC\uC6D0 \uD574\uC545": [-40, -20],
+                "\uC801\uB300 \uD611\uB825": [-50, -25]
+              },
+              mage: {
+                "\uAE30\uBCF8 \uC7AC\uB8CC \uB0A9\uD488": [3, 10],
+                "\uD76C\uADC0 \uC7AC\uB8CC \uB0A9\uD488": [10, 30],
+                "\uC5F0\uAD6C \uC9C0\uC6D0": [10, 25],
+                "\uB9C8\uBC95\uC0AC \uD6C4\uB300": [5, 15],
+                "\uC911\uB300 \uBC1C\uACAC": [30, 60],
+                "\uC7AC\uB8CC \uBD80\uC2E4 \uAD00\uB9AC": [-10, -5],
+                "\uAE30\uBC00 \uC720\uCD9C": [-30, -15],
+                "\uC554\uC2DC\uC7A5 \uC720\uD1B5": [-30, -15],
+                "\uB9C8\uBC95\uC0AC \uBAA8\uB3C5": [-20, -10],
+                "\uC791\uC5C5 \uBC29\uD574": [-40, -20]
+              },
+              noble: {
+                "\uD558\uAE09 \uADC0\uC871 \uC811\uB300": [3, 10],
+                "\uACE0\uC704 \uADC0\uC871 \uD6C4\uB300": [10, 25],
+                "\uADC0\uC871 \uC758\uB8B0 \uC644\uC218": [15, 40],
+                "\uC655\uC2E4 \uC758\uB8B0": [30, 80],
+                "\uCE58\uC548 \uAE30\uC5EC": [5, 20],
+                "\uC608\uC758 \uACB0\uC5EC": [-10, -5],
+                "\uC758\uB8B0 \uC2E4\uD328": [-25, -10],
+                "\uBD88\uBC95 \uBC1C\uAC01": [-50, -20],
+                "\uC655\uC2E4 \uBAA8\uB3C5": [-50, -25],
+                "\uC218\uBC30\uBC94 \uC740\uB2C9": [-40, -15]
+              },
+              under: {
+                "\uC18C\uADDC\uBAA8 \uC815\uBCF4 \uAC70\uB798": [3, 10],
+                "\uC554\uC2DC\uC7A5 \uAC70\uB798": [10, 30],
+                "\uB300\uD615 \uC911\uAC1C": [20, 50],
+                "\uC740\uC2E0\uCC98 \uC81C\uACF5": [10, 25],
+                "\uC2E0\uB8B0 \uC785\uC99D": [5, 15],
+                "\uBE44\uBC00 \uB204\uC124": [-20, -10],
+                "\uAD00\uD5CC \uBC00\uACE0": [-50, -20],
+                "\uCCB4\uD3EC \uD611\uC870": [-30, -15],
+                "\uB4B7\uAC70\uB798 \uC0AC\uAE30": [-30, -15],
+                "\uB3D9\uB9F9 \uBC30\uC2E0": [-50, -30]
+              },
+              merchant: {
+                "\uC815\uAE30 \uAD6C\uB9E4": [3, 5],
+                "\uAC70\uB798 \uC911\uAC1C": [5, 15],
+                "\uC0C1\uB2E8 \uD638\uC704": [10, 30],
+                "\uAD50\uC5ED \uC815\uBCF4": [5, 15],
+                "\uC0C1\uC778 \uD6C4\uB300": [3, 10],
+                "\uAD50\uC5ED\uB85C \uAE30\uC5EC": [20, 50],
+                "\uB300\uAE08 \uBBF8\uC9C0\uAE09": [-15, -5],
+                "\uBB3C\uC790 \uD30C\uC190\xB7\uACC4\uC57D \uBD88\uC774\uD589": [-25, -10],
+                \uD3ED\uB9AC: [-15, -5],
+                "\uAD50\uC5ED \uAE30\uBC00 \uB204\uC124": [-30, -15],
+                "\uC2B5\uACA9\xB7\uC57D\uD0C8": [-50, -20]
+              }
+            }
+          }
+        ],
+        entities: [
+          {
+            type: "npc",
+            fields: ["id", "nameKo", "nameEn", "class", "group"],
+            instances: [
+              { id: "silvia", nameKo: "\uC2E4\uBE44\uC544", nameEn: "silvia", class: "\uB808\uC778\uC800", group: "inn" },
+              { id: "mierian", nameKo: "\uBBF8\uC5D0\uB9AC\uC548 \uC0E4\uC778", nameEn: "mierian shine", class: "\uC815\uB839\uC220\uC0AC", group: "inn" },
+              { id: "serephin", nameKo: "\uC138\uB808\uD540 \uB9AC\uC548", nameEn: "serephin rian", class: "\uB3C4\uC801", group: "inn" },
+              { id: "jackal", nameKo: "\uC790\uCE7C \uCF00\uB3C4\uC6B0", nameEn: "jackal kedow", class: "\uC804\uC0AC", group: "inn" },
+              { id: "erian", nameKo: "\uC5D0\uB9AC\uC548 \uB9AC\uC288\uCE74", nameEn: "erian lishka", class: "\uD574\uC11D\uAD00", group: "inn" },
+              { id: "estelle", nameKo: "\uC5D0\uC2A4\uD154 \uBE14\uB791\uC26C", nameEn: "estelle blanche", class: "\uB3C4\uC801", group: "inn" },
+              { id: "kaira", nameKo: "\uCE74\uC774\uB77C", nameEn: "kaira", class: "\uD574\uC801", group: "inn" },
+              { id: "lien", nameKo: "\uB9AC\uC5D4", nameEn: "lien", class: "\uC131\uAE30\uC0AC", group: "inn" },
+              { id: "elena", nameKo: "\uC5D8\uB808\uB098", nameEn: "elena", class: "\uD790\uB7EC", group: "inn" },
+              { id: "celine", nameKo: "\uC140\uB9B0", nameEn: "celine", class: "\uB9C8\uBC95\uC0AC", group: "inn" },
+              { id: "iris", nameKo: "\uC544\uC774\uB9AC\uC2A4", nameEn: "iris", class: "\uB9C8\uB3C4\uC0AC", group: "inn" },
+              { id: "lucy", nameKo: "\uB8E8\uC2DC", nameEn: "lucy", class: "\uACA9\uD22C\uAC00", group: "inn" },
+              { id: "lunia", nameKo: "\uB8E8\uB2C8\uC544", nameEn: "lunia", class: "\uC810\uC131\uC220\uC0AC", group: "inn" },
+              { id: "haven", nameKo: "\uD5E4\uC774\uBE10", nameEn: "haven", class: "\uC57D\uCD08\uD559\uC790", group: "inn" },
+              { id: "garnet", nameKo: "\uAC00\uB137", nameEn: "garnet", class: "\uB300\uC7A5\uC7A5\uC774", group: "inn" },
+              { id: "leonhardt", nameKo: "\uB808\uC628\uD558\uB974\uD2B8 \uC54C\uBE44\uC628", nameEn: "leonhardt albion", class: "\uAD6D\uC655", group: "royal" },
+              { id: "adelaine", nameKo: "\uC544\uB378\uB77C\uC778 \uB85C\uB80C\uC2DC\uC544", nameEn: "adelaine lorencia", class: "\uC655\uBE44", group: "royal" },
+              { id: "edwin", nameKo: "\uC5D0\uB4DC\uC708 \uC54C\uBE44\uC628", nameEn: "edwin albion", class: "\uC655\uD0DC\uC790", group: "royal" },
+              { id: "clementia", nameKo: "\uD074\uB808\uBA58\uD2F0\uC544 \uC54C\uBE44\uC628", nameEn: "clementia albion", class: "\uACF5\uC8FC", group: "royal" },
+              { id: "silvester", nameKo: "\uC2E4\uBCA0\uC2A4\uD130 \uB9AC\uD788\uD130", nameEn: "silvester richter", class: null, group: "royal" },
+              { id: "wolfram", nameKo: "\uBCFC\uD504\uB78C \uD06C\uB85C\uB128", nameEn: "wolfram kronen", class: null, group: "royal" },
+              { id: "bruno", nameKo: "\uBE0C\uB8E8\uB178 \uC5D0\uB378\uB780", nameEn: "bruno edelan", class: null, group: "royal" },
+              { id: "kalena", nameKo: "\uCE7C\uB808\uB098 \uBE0C\uB940\uD790\uD2B8", nameEn: "kalena brunhild", class: null, group: "royal" },
+              { id: "lukius", nameKo: "\uB8E8\uD0A4\uC6B0\uC2A4 \uB370\uC774\uBA3C", nameEn: "lukius damon", class: null, group: "royal" },
+              { id: "louis", nameKo: "\uB8E8\uC774\uC2A4 \uD06C\uB85C\uC6F0", nameEn: "louis crowell", class: null, group: "royal" },
+              { id: "henrik", nameKo: "\uD5E8\uB9AD \uD06C\uB85C\uC6F0", nameEn: "henrik crowell", class: null, group: "royal" }
+            ]
+          },
+          {
+            type: "room",
+            fields: ["no", "kind", "pricePerNight", "capacity", "requiresRoomLevel"],
+            instances: [
+              { no: 101, kind: "\uB2E4\uC778\uC2E4", pricePerNight: 3e4, capacity: null, requiresRoomLevel: 1 },
+              { no: 102, kind: "\uB2E4\uC778\uC2E4", pricePerNight: 3e4, capacity: null, requiresRoomLevel: 1 },
+              { no: 103, kind: "\uB2E4\uC778\uC2E4", pricePerNight: 3e4, capacity: null, requiresRoomLevel: 1 },
+              { no: 104, kind: "2\uC778\uC2E4", pricePerNight: 5e4, capacity: 2, requiresRoomLevel: 1 },
+              { no: 105, kind: "2\uC778\uC2E4", pricePerNight: 5e4, capacity: 2, requiresRoomLevel: 1 },
+              { no: 106, kind: "1\uC778\uC2E4", pricePerNight: 8e4, capacity: 1, requiresRoomLevel: 1 },
+              { no: 107, kind: "1\uC778\uC2E4", pricePerNight: 8e4, capacity: 1, requiresRoomLevel: 1 },
+              { no: 108, kind: "1\uC778\uC2E4", pricePerNight: 8e4, capacity: 1, requiresRoomLevel: 1 },
+              { no: 109, kind: "1\uC778\uC2E4", pricePerNight: 8e4, capacity: 1, requiresRoomLevel: 1 },
+              { no: 110, kind: "\uC2A4\uC704\uD2B8", pricePerNight: 2e5, capacity: null, requiresRoomLevel: 2 },
+              { no: 111, kind: "\uADC0\uBE48\uC2E4", pricePerNight: 5e5, capacity: null, requiresRoomLevel: 3 }
+            ]
+          },
+          {
+            type: "menuItem",
+            fields: ["name", "category", "grade", "price", "requiresKitchenLevel", "consumes"],
+            instances: [
+              { name: "\uAC70\uCE5C \uBE75", category: "\uC694\uB9AC", grade: "E", price: 5e3, requiresKitchenLevel: 1, consumes: { food: 1 } },
+              { name: "\uAC10\uC790 \uC218\uD504", category: "\uC694\uB9AC", grade: "E", price: 5e3, requiresKitchenLevel: 1, consumes: { food: 1 } },
+              { name: "\uC0B6\uC740 \uB2EC\uAC40", category: "\uC694\uB9AC", grade: "E", price: 5e3, requiresKitchenLevel: 1, consumes: { food: 1 } },
+              { name: "\uC18C\uAE08\uAD6C\uC774", category: "\uC694\uB9AC", grade: "E", price: 5e3, requiresKitchenLevel: 1, consumes: { food: 1 } },
+              { name: "\uACE0\uAE30 \uC2A4\uD29C", category: "\uC694\uB9AC", grade: "D", price: 1e4, requiresKitchenLevel: 1, consumes: { food: 1 } },
+              { name: "\uC0DD\uC120 \uAD6C\uC774", category: "\uC694\uB9AC", grade: "D", price: 1e4, requiresKitchenLevel: 1, consumes: { food: 1 } },
+              { name: "\uC57C\uCC44 \uBCF6\uC74C", category: "\uC694\uB9AC", grade: "D", price: 1e4, requiresKitchenLevel: 1, consumes: { food: 1 } },
+              { name: "\uCE58\uC988 \uD50C\uB798\uD130", category: "\uC694\uB9AC", grade: "D", price: 1e4, requiresKitchenLevel: 1, consumes: { food: 1 } },
+              { name: "\uD5C8\uBE0C \uB85C\uC2A4\uD2B8", category: "\uC694\uB9AC", grade: "C", price: 3e4, requiresKitchenLevel: 2, consumes: { food: 1 } },
+              { name: "\uD6C8\uC81C \uACE0\uAE30", category: "\uC694\uB9AC", grade: "C", price: 3e4, requiresKitchenLevel: 2, consumes: { food: 1 } },
+              { name: "\uB9C8\uC774\uB978 \uD5C8\uBE0C \uC0D0\uB7EC\uB4DC", category: "\uC694\uB9AC", grade: "C", price: 3e4, requiresKitchenLevel: 2, consumes: { food: 1 } },
+              { name: "\uBC84\uC12F \uB9AC\uC18C\uD1A0", category: "\uC694\uB9AC", grade: "C", price: 3e4, requiresKitchenLevel: 2, consumes: { food: 1 } },
+              { name: "\uBAAC\uC2A4\uD130 \uACE0\uAE30 \uC2A4\uD14C\uC774\uD06C", category: "\uC694\uB9AC", grade: "B", price: 5e4, requiresKitchenLevel: 3, consumes: { food: 1 } },
+              { name: "\uB358\uC804 \uBC84\uC12F \uD30C\uC2A4\uD0C0", category: "\uC694\uB9AC", grade: "B", price: 5e4, requiresKitchenLevel: 3, consumes: { food: 1 } },
+              { name: "\uD5A5\uC2E0\uB8CC \uBE0C\uB808\uC774\uC988", category: "\uC694\uB9AC", grade: "B", price: 5e4, requiresKitchenLevel: 3, consumes: { food: 1 } },
+              { name: "\uAC08\uB780\uD2B8\uC2DD \uBC14\uBE44\uD050", category: "\uC694\uB9AC", grade: "B", price: 5e4, requiresKitchenLevel: 3, consumes: { food: 1 } },
+              { name: "\uC6A9\uC758 \uD6C4\uCD94 \uB85C\uC2A4\uD2B8", category: "\uC694\uB9AC", grade: "A", price: 1e5, requiresKitchenLevel: 4, consumes: { food: 1 } },
+              { name: "\uB9C8\uB098 \uD5C8\uBE0C \uCF54\uC2A4 \uC694\uB9AC", category: "\uC694\uB9AC", grade: "A", price: 1e5, requiresKitchenLevel: 4, consumes: { food: 1 } },
+              { name: "\uB808\uC774\uB098\uC2DD \uD574\uC0B0\uBB3C \uD480\uCF54\uC2A4", category: "\uC694\uB9AC", grade: "A", price: 1e5, requiresKitchenLevel: 4, consumes: { food: 1 } },
+              { name: "\uC138\uACC4\uC218 \uC5F4\uB9E4 \uB514\uC800\uD2B8", category: "\uC694\uB9AC", grade: "S", price: 3e5, requiresKitchenLevel: 4, consumes: { food: 1 } },
+              { name: "\uACE0\uB300 \uB808\uC2DC\uD53C \uC7AC\uD604", category: "\uC694\uB9AC", grade: "S", price: 3e5, requiresKitchenLevel: 4, consumes: { food: 1 } },
+              { name: "\uC804\uC124\uC758 \uB9CC\uCC2C", category: "\uC694\uB9AC", grade: "S", price: 5e5, requiresKitchenLevel: 4, consumes: { food: 1 } },
+              { name: "\uD0C1\uC8FC", category: "\uC8FC\uB958", grade: "E", price: 5e3, requiresKitchenLevel: 1, consumes: { drink: 1 } },
+              { name: "\uBB3C\uD0C4 \uC5D0\uC77C", category: "\uC8FC\uB958", grade: "E", price: 5e3, requiresKitchenLevel: 1, consumes: { drink: 1 } },
+              { name: "\uACFC\uC77C\uC8FC", category: "\uC8FC\uB958", grade: "E", price: 5e3, requiresKitchenLevel: 1, consumes: { drink: 1 } },
+              { name: "\uC5D0\uC77C", category: "\uC8FC\uB958", grade: "D", price: 5e3, requiresKitchenLevel: 1, consumes: { drink: 1 } },
+              { name: "\uD751\uB9E5\uC8FC", category: "\uC8FC\uB958", grade: "D", price: 1e4, requiresKitchenLevel: 1, consumes: { drink: 1 } },
+              { name: "\uB77C\uAC70", category: "\uC8FC\uB958", grade: "D", price: 1e4, requiresKitchenLevel: 1, consumes: { drink: 1 } },
+              { name: "\uC0AC\uACFC \uC2DC\uB4DC\uB974", category: "\uC8FC\uB958", grade: "D", price: 1e4, requiresKitchenLevel: 1, consumes: { drink: 1 } },
+              { name: "\uC9C0\uC5ED \uC591\uC870 \uC640\uC778", category: "\uC8FC\uB958", grade: "C", price: 2e4, requiresKitchenLevel: 2, consumes: { drink: 1 } },
+              { name: "\uBC8C\uAFC0\uC8FC", category: "\uC8FC\uB958", grade: "C", price: 2e4, requiresKitchenLevel: 2, consumes: { drink: 1 } },
+              { name: "\uB9C8\uC774\uB978 \uD5C8\uBE0C\uC8FC", category: "\uC8FC\uB958", grade: "C", price: 2e4, requiresKitchenLevel: 2, consumes: { drink: 1 } },
+              { name: "\uC219\uC131 \uC640\uC778", category: "\uC8FC\uB958", grade: "B", price: 5e4, requiresKitchenLevel: 3, consumes: { drink: 1 } },
+              { name: "\uAC08\uB780\uD2B8\uC2DD \uC99D\uB958\uC8FC", category: "\uC8FC\uB958", grade: "B", price: 5e4, requiresKitchenLevel: 3, consumes: { drink: 1 } },
+              { name: "\uB358\uC804 \uBC84\uC12F \uBC1C\uD6A8\uC8FC", category: "\uC8FC\uB958", grade: "B", price: 5e4, requiresKitchenLevel: 3, consumes: { drink: 1 } },
+              { name: "\uB808\uC774\uB098\uC0B0 \uD504\uB9AC\uBBF8\uC5C4 \uC640\uC778", category: "\uC8FC\uB958", grade: "A", price: 1e5, requiresKitchenLevel: 4, consumes: { drink: 1 } },
+              { name: "\uB9C8\uB098 \uC99D\uB958\uC8FC", category: "\uC8FC\uB958", grade: "A", price: 1e5, requiresKitchenLevel: 4, consumes: { drink: 1 } },
+              { name: "\uC5D8\uB9AD\uC11C \uCE75\uD14C\uC77C", category: "\uC8FC\uB958", grade: "A", price: 2e5, requiresKitchenLevel: 4, consumes: { drink: 1 } },
+              { name: "\uC138\uACC4\uC218 \uC218\uC561\uC8FC", category: "\uC8FC\uB958", grade: "S", price: 5e5, requiresKitchenLevel: 4, consumes: { drink: 1 } }
+            ]
+          },
+          {
+            type: "facility",
+            fields: ["id", "label", "maxLevel"],
+            instances: [
+              { id: "tavern", label: "\uC8FC\uC810\uD640", maxLevel: 4 },
+              { id: "kitchen", label: "\uC8FC\uBC29", maxLevel: 4 },
+              { id: "room", label: "\uAC1D\uC2E4\uB3D9", maxLevel: 4 },
+              { id: "quarters", label: "\uC6A9\uBCD1 \uC219\uC18C", maxLevel: 4 }
+            ]
+          }
+        ],
+        gates: {
+          staffMaxByQuartersLevel: { "1": 1, "2": 2, "3": 3, "4": 4 },
+          menuByKitchenLevel: "menuItem.requiresKitchenLevel \uCC38\uC870",
+          roomByRoomLevel: "room.requiresRoomLevel \uCC38\uC870"
+        },
+        actions: [
+          {
+            id: "checkin",
+            params: ["roomNo", "guestName", "stayDays"],
+            preconditions: ["room.requiresRoomLevel <= facilities.room", "\uAC1D\uC2E4 \uC815\uC6D0 \uBBF8\uB2EC"],
+            effects: ["\uBC29 \uC810\uC720 \uCD94\uAC00(\uC794\uC5EC\uBC15\uC218=stayDays)", "gold += room.pricePerNight * stayDays (\uC120\uBD88)"]
+          },
+          {
+            id: "checkout",
+            params: ["roomNo", "guestName"],
+            preconditions: ["\uD574\uB2F9 \uBC29\uC5D0 \uD574\uB2F9 \uD22C\uC219\uAC1D \uC874\uC7AC"],
+            effects: ["\uBC29 \uC810\uC720 \uC81C\uAC70", "\uD658\uBD88 \uC5C6\uC74C(\uC120\uBD88)"]
+          },
+          {
+            id: "sale",
+            params: ["menuName", "qty"],
+            preconditions: ["\uBA54\uB274\uAC00 kitchen \uB808\uBCA8 \uB0B4", "resources[consumes] >= qty"],
+            effects: ["gold += price*qty", "resources[consumes] -= qty"]
+          },
+          {
+            id: "purchase",
+            params: ["resourceId", "qty"],
+            preconditions: ["gold >= basePrice*qty"],
+            effects: ["gold -= basePrice*qty", "resource += qty"]
+          },
+          {
+            id: "hire",
+            params: ["npcId", "dailyWage"],
+            preconditions: ["\uC784\uAE08 \uD569\uC758 \uC644\uB8CC(LLM \uD310\uC815)", "staff.length < staffMax(quarters)"],
+            effects: ["staff \uCD94\uAC00 {npcId, dailyWage}"]
+          },
+          {
+            id: "fire",
+            params: ["npcId"],
+            preconditions: ["\uC7AC\uC9C1 \uC911"],
+            effects: ["staff \uC81C\uAC70 (\uC2A4\uD0EF \uBCF4\uC874)"]
+          }
+        ],
+        formulas: [
+          {
+            id: "daily_revenue",
+            note: "\uC815\uC0B0: \uC720\uC800\uAC00 \uC9C1\uC811 \uAD00\uB9AC\uD558\uC9C0 \uC54A\uC740 \uC2DC\uAC04\uB300\uC758 \uB9E4\uCD9C \uACAC\uC801. \uC2DC\uB4DC RNG\uB85C \uACE0\uAC1D \uC218 \uACB0\uC815 \uD6C4 \uD310\uB9E4 \uAC00\uB2A5 \uBA54\uB274\uC5D0\uC11C \uC18C\uBE44 \uAD6C\uC131.",
+            baseline: {
+              "1": { cap: 15, customers: [8, 15], revenue: [1e5, 25e4] },
+              "2": { cap: 30, customers: [15, 30], revenue: [25e4, 6e5] },
+              "3": { cap: 50, customers: [25, 50], revenue: [6e5, 15e5] },
+              "4": { cap: 80, customers: [40, 80], revenue: [15e5, 4e6] }
+            },
+            modifiers: "v0: \uC8FC\uC810 \uBC30\uCE58 \uC9C1\uC6D0 \uC218\xB7village/advent \uD3C9\uD310 \uB7AD\uD06C\uB85C \uACE0\uAC1D \uC218 \uBC94\uC704 \uB0B4 \uAC00\uC911. (\uC6D0\uBCF8\uC758 \uC774\uBCA4\uD2B8\xB7\uB0A0\uC528 \uBCF4\uC815\uC740 v1)"
+          }
+        ],
+        processes: [
+          {
+            trigger: "dayEnd",
+            steps: [
+              { id: "settle_revenue", note: "daily_revenue\uB85C \uACE0\uAC1D \uC218\xB7\uD310\uB9E4 \uAD6C\uC131 \uC0B0\uCD9C \u2192 gold/food/drink \uBC18\uC601. \uC7AC\uACE0 \uBD80\uC871 \uC2DC \uD310\uB9E4 \uBD88\uAC00\uBD84 \uB9E4\uCD9C \uC81C\uC678" },
+              { id: "deduct_wages", note: "gold -= sum(staff.dailyWage). \uC794\uACE0 \uBD80\uC871 \uC2DC \uBBF8\uC9C0\uAE09 \uAE30\uB85D(affinity \uD558\uB77D \uC774\uBCA4\uD2B8 \uD6C4\uBCF4)" },
+              { id: "checkout_due", note: "\uC794\uC5EC\uBC15\uC218 1 \uAC10\uC18C, 0\uC774 \uB41C \uD22C\uC219\uAC1D\uC740 \uCCB4\uD06C\uC544\uC6C3 \uB300\uC0C1 \uBAA9\uB85D\uC73C\uB85C \uBC18\uD658(\uB2E4\uC74C \uC7A5\uBA74 \uC11C\uC0AC\uC6A9)" },
+              { id: "advance_day", note: "day += 1, affinity dailyCap \uB9AC\uC14B" }
+            ]
+          }
+        ],
+        events: [
+          { id: "gold_delta", params: { amount: "\xB1\uC815\uC218", reason: "string" }, note: "\uC758\uB8B0 \uBCF4\uC218 \uB4F1 \uC561\uC158 \uC678 \uACE8\uB4DC \uBCC0\uB3D9" },
+          { id: "resource_delta", params: { resource: "food|drink", amount: "\xB1\uC815\uC218", reason: "string" }, note: "\uC0AC\uB0E5\xB7\uCC44\uC9D1 \uB4F1 \uC790\uAE09" },
+          { id: "scale_delta", params: { scale: "affinity", target: "npcId", size: "S|M|L|XL", direction: "+|-", charBonus: "-1|0|1", reason: "string" }, note: "LLM\uC740 \uD06C\uAE30\uB9CC \uBD84\uB958. \uC5D4\uC9C4\uC774 steps\uB85C \uC218\uCE58\uD654, dailyCap \uC801\uC6A9" },
+          { id: "rep_event", params: { axis: "village|advent|mage|noble|under|merchant", category: "categories \uD0A4", reason: "string" }, note: "\uC5D4\uC9C4\uC774 \uC2DC\uB4DC RNG\uB85C \uBC94\uC704 \uB0B4 \uAC12 \uACB0\uC815, \uC2B9\uAE09/\uAC15\uB4F1 \uCC98\uB9AC" },
+          { id: "exp_gain", params: { category: "sources \uD0A4", reason: "string" }, note: "\uC5D4\uC9C4\uC774 \uAC12/\uBC94\uC704 RNG \uC801\uC6A9, \uB808\uBCA8\uC5C5 \uD310\uC815" },
+          { id: "checkin", params: { roomNo: "int", guestName: "string", stayDays: "int" } },
+          { id: "checkout", params: { roomNo: "int", guestName: "string" } },
+          { id: "sale", params: { menuName: "string", qty: "int" } },
+          { id: "purchase", params: { resource: "food|drink", qty: "int" } },
+          { id: "hire", params: { npcId: "string", dailyWage: "int" } },
+          { id: "fire", params: { npcId: "string" } },
+          { id: "day_end", params: {}, note: "processes.dayEnd \uC2E4\uD589" }
+        ]
+      };
+    }
+  });
+
+  // ../engine/core/utils.js
+  var require_utils = __commonJS({
+    "../engine/core/utils.js"(exports, module) {
+      "use strict";
+      function clone(value) {
+        if (value == null || typeof value !== "object") return value;
+        return JSON.parse(JSON.stringify(value));
+      }
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+      function entityList(schema2, type) {
+        const block = (schema2.entities || []).find((entry) => entry.type === type);
+        return block && Array.isArray(block.instances) ? block.instances : [];
+      }
+      function findEntity(schema2, type, predicate) {
+        return entityList(schema2, type).find(predicate) || null;
+      }
+      function findById(schema2, type, id) {
+        return findEntity(schema2, type, (entry) => String(entry.id) === String(id));
+      }
+      function findRoom(schema2, roomNo) {
+        return findEntity(schema2, "room", (entry) => String(entry.no) === String(roomNo));
+      }
+      function findMenu(schema2, menuName) {
+        return findEntity(schema2, "menuItem", (entry) => entry.name === menuName);
+      }
+      function scaleById(schema2, id) {
+        return (schema2.scales || []).find((scale) => scale.id === id) || null;
+      }
+      function ladderById(schema2, id) {
+        return (schema2.ladders || []).find((ladder) => ladder.id === id) || null;
+      }
+      function formulaById(schema2, id) {
+        return (schema2.formulas || []).find((formula) => formula.id === id) || null;
+      }
+      function rankIndex(ladder, rank) {
+        return (ladder.ranks || []).findIndex((item) => item.id === rank);
+      }
+      function normalizeInt(value, fallback = 0) {
+        const n = Number(value);
+        return Number.isFinite(n) ? Math.trunc(n) : fallback;
+      }
+      module.exports = {
+        clone,
+        clamp,
+        entityList,
+        findEntity,
+        findById,
+        findRoom,
+        findMenu,
+        scaleById,
+        ladderById,
+        formulaById,
+        rankIndex,
+        normalizeInt
+      };
+    }
+  });
+
+  // ../engine/core/createState.js
+  var require_createState = __commonJS({
+    "../engine/core/createState.js"(exports, module) {
+      "use strict";
+      var { clone, entityList, ladderById, scaleById } = require_utils();
+      function createState2(schema2, seed) {
+        const initial = clone(schema2.initialState || {});
+        const state2 = {
+          day: Number(initial.day || 1),
+          gold: Number(initial.gold || 0),
+          resources: clone(initial.resources || {}),
+          facilities: clone(initial.facilities || {}),
+          staff: Array.isArray(initial.staff) ? clone(initial.staff) : [],
+          rooms: clone(initial.rooms || {}),
+          player: clone(initial.player || { level: 1, exp: 0 }),
+          reputation: normalizeReputation(schema2, initial.reputation || {}),
+          npcs: normalizeNpcs(schema2, initial.npcs || {}),
+          pendingCheckouts: [],
+          unpaidWages: Number(initial.unpaidWages || 0)
+        };
+        if (seed != null) state2.seed = seed;
+        return state2;
+      }
+      function normalizeReputation(schema2, initial) {
+        const ladder = ladderById(schema2, "reputation");
+        const out = {};
+        for (const axis of ladder && ladder.axes || []) {
+          const value = initial[axis];
+          if (value && typeof value === "object") {
+            out[axis] = { rank: value.rank || "E", exp: Number(value.exp || 0) };
+          } else {
+            out[axis] = { rank: "E", exp: Number(value || 0) };
+          }
+        }
+        return out;
+      }
+      function normalizeNpcs(schema2, initial) {
+        const affinity = scaleById(schema2, "affinity");
+        const defaultAffinity = affinity ? Number(affinity.default || 0) : 0;
+        const out = {};
+        for (const npc of entityList(schema2, "npc")) {
+          const current = initial[npc.id] || {};
+          out[npc.id] = {
+            affinity: Number(current.affinity == null ? defaultAffinity : current.affinity),
+            affinityDeltaToday: Number(current.affinityDeltaToday || 0)
+          };
+        }
+        return out;
+      }
+      module.exports = { createState: createState2 };
+    }
+  });
+
+  // ../engine/core/selectors.js
+  var require_selectors = __commonJS({
+    "../engine/core/selectors.js"(exports, module) {
+      "use strict";
+      var { entityList, findRoom, scaleById, ladderById, rankIndex } = require_utils();
+      function staffMax2(schema2, state2) {
+        const level = String(state2.facilities && state2.facilities.quarters || 1);
+        const table = schema2.gates && schema2.gates.staffMaxByQuartersLevel;
+        return Number(table && table[level] || 0);
+      }
+      function availableMenu2(schema2, state2, category) {
+        const kitchen = Number(state2.facilities && state2.facilities.kitchen || 1);
+        return entityList(schema2, "menuItem").filter((item) => {
+          if (category && item.category !== category) return false;
+          return Number(item.requiresKitchenLevel || 1) <= kitchen;
+        });
+      }
+      function roomStatus2(schema2, state2) {
+        return entityList(schema2, "room").map((room) => {
+          const occupants = state2.rooms && state2.rooms[String(room.no)] || [];
+          const capacity = room.capacity == null ? null : Number(room.capacity);
+          return {
+            no: String(room.no),
+            kind: room.kind,
+            pricePerNight: room.pricePerNight,
+            capacity,
+            requiresRoomLevel: room.requiresRoomLevel,
+            locked: Number(room.requiresRoomLevel || 1) > Number(state2.facilities && state2.facilities.room || 1),
+            occupants,
+            vacancies: capacity == null ? null : Math.max(0, capacity - occupants.length)
+          };
+        });
+      }
+      function tierOf(schema2, scaleId, value) {
+        const scale = scaleById(schema2, scaleId);
+        if (!scale) return null;
+        const n = Number(value);
+        return (scale.tiers || []).find((tier) => n >= tier.range[0] && n <= tier.range[1]) || null;
+      }
+      function summarize2(schema2, state2) {
+        const labels = reputationLabels(schema2);
+        const facilities = state2.facilities || {};
+        const resources = state2.resources || {};
+        const lines = [];
+        lines.push(`[\uC5EC\uAD00] ${state2.day}\uC77C\uCC28 \xB7 \uACE8\uB4DC ${formatNumber(state2.gold)}\uC6D0 \xB7 \uC2DD\uC790\uC7AC ${resources.food || 0}\uC778\uBD84 \xB7 \uC8FC\uB958 ${resources.drink || 0}\uC794 \xB7 \uC2DC\uC124 \uC8FC\uC810${facilities.tavern || 0}/\uC8FC\uBC29${facilities.kitchen || 0}/\uAC1D\uC2E4${facilities.room || 0}/\uC219\uC18C${facilities.quarters || 0}`);
+        const staff = (state2.staff || []).map((item) => {
+          const npc = entityList(schema2, "npc").find((entry) => entry.id === item.npcId);
+          return `${npc && npc.nameKo || item.npcId}(\uC77C\uAE09 ${formatNumber(item.dailyWage)})`;
+        });
+        lines.push(`[\uC9C1\uC6D0] ${staff.length ? staff.join(", ") : "\uC5C6\uC74C"}`);
+        const occupied = [];
+        for (const status of roomStatus2(schema2, state2)) {
+          for (const guest of status.occupants) occupied.push(`${status.no}\uD638 ${guest.guestName}(${guest.nightsLeft}\uBC15 \uB0A8\uC74C)`);
+        }
+        lines.push(`[\uAC1D\uC2E4] ${occupied.length ? occupied.join(" \xB7 ") + " \xB7 \uB098\uBA38\uC9C0 \uACF5\uC2E4" : "\uC804 \uAC1D\uC2E4 \uACF5\uC2E4"}`);
+        const repParts = Object.entries(state2.reputation || {}).map(([axis, rep]) => `${labels[axis] || axis} ${rep.rank}(${rep.exp})`);
+        lines.push(`[\uD3C9\uD310] ${repParts.join(" \xB7 ")}`);
+        return lines.slice(0, 4).join("\n");
+      }
+      function npcSummary2(schema2, state2, npcId) {
+        const npc = entityList(schema2, "npc").find((entry) => entry.id === npcId);
+        const data = state2.npcs && state2.npcs[npcId];
+        if (!npc || !data) return "";
+        const tier = tierOf(schema2, "affinity", data.affinity);
+        const range = tier ? `${tier.range[0]}~${tier.range[1]}` : "?";
+        const forbidden = tier && tier.forbidden && tier.forbidden.length ? `, \uAE08\uC9C0: ${tier.forbidden.join("/")}` : "";
+        return `${npc.nameKo || npc.id}: \uD638\uAC10 ${data.affinity} \u2014 ${tier && tier.label || "\uBBF8\uBD84\uB958"}(${range})${forbidden}`;
+      }
+      function reputationLabels(schema2) {
+        const ladder = ladderById(schema2, "reputation");
+        return ladder && ladder.axisLabels || {};
+      }
+      function rankWeight(schema2, state2, axis) {
+        const ladder = ladderById(schema2, "reputation");
+        if (!ladder || !state2.reputation || !state2.reputation[axis]) return 0;
+        const idx = rankIndex(ladder, state2.reputation[axis].rank);
+        const max = Math.max(1, (ladder.ranks || []).length - 1);
+        return idx < 0 ? 0 : idx / max;
+      }
+      function formatNumber(n) {
+        return Number(n || 0).toLocaleString("ko-KR");
+      }
+      module.exports = { staffMax: staffMax2, availableMenu: availableMenu2, roomStatus: roomStatus2, tierOf, summarize: summarize2, npcSummary: npcSummary2, rankWeight };
+    }
+  });
+
+  // ../engine/core/dayEnd.js
+  var require_dayEnd = __commonJS({
+    "../engine/core/dayEnd.js"(exports, module) {
+      "use strict";
+      var { clone, formulaById, findMenu, entityList } = require_utils();
+      var { availableMenu: availableMenu2, rankWeight } = require_selectors();
+      function runDayEnd(schema2, state2, rng2) {
+        const next = clone(state2);
+        const report = {
+          day: state2.day,
+          customers: 0,
+          sales: [],
+          grossGold: 0,
+          foodUsed: 0,
+          drinkUsed: 0,
+          turnedAway: 0,
+          wagesDue: 0,
+          wagesPaid: 0,
+          unpaidWagesAdded: 0,
+          checkouts: []
+        };
+        settleRevenue(schema2, next, rng2, report);
+        deductWages(next, report);
+        checkoutDue(next, report);
+        advanceDay(next);
+        return { state: next, report };
+      }
+      function settleRevenue(schema2, state2, rng2, report) {
+        const daily = formulaById(schema2, "daily_revenue");
+        const level = String(state2.facilities && state2.facilities.tavern || 1);
+        const baseline = daily && daily.baseline && daily.baseline[level];
+        if (!baseline) return;
+        const range = baseline.customers || [0, 0];
+        const baseCustomers = rng2.int(range[0], range[1]);
+        const staffBonus = Math.min(0.25, (state2.staff || []).length * 0.05);
+        const repBonus = (rankWeight(schema2, state2, "village") + rankWeight(schema2, state2, "advent")) * 0.2;
+        const customers = Math.min(Number(baseline.cap || baseCustomers), Math.max(0, Math.round(baseCustomers * (1 + staffBonus + repBonus))));
+        report.customers = customers;
+        const foodMenus = availableMenu2(schema2, state2, "\uC694\uB9AC");
+        const drinkMenus = availableMenu2(schema2, state2, "\uC8FC\uB958");
+        for (let i = 0; i < customers; i++) {
+          const foodSold = sellRandomMenu(state2, rng2, foodMenus, "food", report);
+          const drinkSold = sellRandomMenu(state2, rng2, drinkMenus, "drink", report);
+          if (!foodSold || !drinkSold) report.turnedAway += 1;
+        }
+      }
+      function sellRandomMenu(state2, rng2, menus, resource, report) {
+        if (!menus.length || Number(state2.resources && state2.resources[resource] || 0) <= 0) return false;
+        const menu = menus[rng2.int(0, menus.length - 1)];
+        const consumes = Number(menu.consumes && menu.consumes[resource] || 0);
+        if (consumes <= 0) return false;
+        if (Number(state2.resources[resource] || 0) < consumes) return false;
+        state2.resources[resource] -= consumes;
+        state2.gold += Number(menu.price || 0);
+        report.grossGold += Number(menu.price || 0);
+        if (resource === "food") report.foodUsed += consumes;
+        if (resource === "drink") report.drinkUsed += consumes;
+        addSale(report.sales, menu.name, 1, Number(menu.price || 0));
+        return true;
+      }
+      function addSale(sales, menuName, qty, price) {
+        const existing = sales.find((row) => row.menuName === menuName);
+        if (existing) {
+          existing.qty += qty;
+          existing.price += price;
+        } else {
+          sales.push({ menuName, qty, price });
+        }
+      }
+      function deductWages(state2, report) {
+        const due = (state2.staff || []).reduce((sum, staff) => sum + Number(staff.dailyWage || 0), 0);
+        const paid = Math.min(Number(state2.gold || 0), due);
+        state2.gold -= paid;
+        state2.unpaidWages = Number(state2.unpaidWages || 0) + (due - paid);
+        report.wagesDue = due;
+        report.wagesPaid = paid;
+        report.unpaidWagesAdded = due - paid;
+      }
+      function checkoutDue(state2, report) {
+        const out = {};
+        const checkouts = [];
+        for (const [roomNo, occupants] of Object.entries(state2.rooms || {})) {
+          const remaining = [];
+          for (const guest of occupants || []) {
+            const updated = { guestName: guest.guestName, nightsLeft: Number(guest.nightsLeft || 0) - 1 };
+            if (updated.nightsLeft <= 0) checkouts.push({ roomNo, guestName: updated.guestName });
+            else remaining.push(updated);
+          }
+          if (remaining.length) out[roomNo] = remaining;
+        }
+        state2.rooms = out;
+        state2.pendingCheckouts = checkouts;
+        report.checkouts = checkouts;
+      }
+      function advanceDay(state2) {
+        state2.day = Number(state2.day || 1) + 1;
+        for (const npc of Object.values(state2.npcs || {})) npc.affinityDeltaToday = 0;
+      }
+      module.exports = { runDayEnd };
+    }
+  });
+
+  // ../engine/core/applyEvent.js
+  var require_applyEvent = __commonJS({
+    "../engine/core/applyEvent.js"(exports, module) {
+      "use strict";
+      var { runDayEnd } = require_dayEnd();
+      var { staffMax: staffMax2, tierOf } = require_selectors();
+      var {
+        clone,
+        clamp,
+        findById,
+        findRoom,
+        findMenu,
+        scaleById,
+        ladderById,
+        rankIndex,
+        normalizeInt
+      } = require_utils();
+      function applyEvent2(schema2, state2, event, rng2) {
+        const type = event && event.id;
+        const params = event && event.params || event || {};
+        if (type === "day_end") {
+          const result = runDayEnd(schema2, state2, rng2);
+          return { state: result.state, log: [{ ok: true, event: type, report: result.report }] };
+        }
+        const next = clone(state2);
+        const log = [];
+        const fail = (reason, detail) => ({ state: state2, log: [{ ok: false, event: type, reason, detail }] });
+        const ok = (entry) => {
+          log.push(Object.assign({ ok: true, event: type }, entry || {}));
+          return { state: next, log };
+        };
+        switch (type) {
+          case "gold_delta":
+            return goldDelta(next, params, ok);
+          case "resource_delta":
+            return resourceDelta(next, params, ok, fail);
+          case "scale_delta":
+            return scaleDelta(schema2, next, params, ok, fail);
+          case "rep_event":
+            return repEvent(schema2, next, params, rng2, ok, fail);
+          case "exp_gain":
+            return expGain(schema2, next, params, rng2, ok, fail);
+          case "checkin":
+            return checkin(schema2, next, params, ok, fail);
+          case "checkout":
+            return checkout(next, params, ok, fail);
+          case "sale":
+            return sale(schema2, next, params, ok, fail);
+          case "purchase":
+            return purchase(schema2, next, params, ok, fail);
+          case "hire":
+            return hire(schema2, next, params, ok, fail);
+          case "fire":
+            return fire(next, params, ok, fail);
+          default:
+            return fail("unknown_event", `Unknown event id: ${type}`);
+        }
+      }
+      function goldDelta(state2, params, ok) {
+        const amount = normalizeInt(params.amount);
+        const before = state2.gold;
+        state2.gold = Math.max(0, Number(state2.gold || 0) + amount);
+        return ok({ amount, before, after: state2.gold, reason: params.reason || "" });
+      }
+      function resourceDelta(state2, params, ok, fail) {
+        const resource = params.resource || params.resourceId;
+        const amount = normalizeInt(params.amount);
+        if (!resource || !(state2.resources && resource in state2.resources)) return fail("unknown_resource", resource);
+        const before = Number(state2.resources[resource] || 0);
+        state2.resources[resource] = Math.max(0, before + amount);
+        return ok({ resource, amount, before, after: state2.resources[resource], reason: params.reason || "" });
+      }
+      function scaleDelta(schema2, state2, params, ok, fail) {
+        const scaleId = params.scale || "affinity";
+        const target = params.target || params.npcId;
+        const scale = scaleById(schema2, scaleId);
+        if (!scale) return fail("unknown_scale", scaleId);
+        if (!target || !state2.npcs || !state2.npcs[target]) return fail("unknown_target", target);
+        const counterKey = `${scaleId}DeltaToday`;
+        const cap = Number(scale.dailyCapPerTarget || scale.dailyCap || 0);
+        const used = Number(state2.npcs[target][counterKey] || 0);
+        const before = Number(state2.npcs[target][scaleId] || scale.default || 0);
+        if (cap && used >= cap) {
+          return ok({ scale: scaleId, target, before, after: before, delta: 0, capped: true, reason: params.reason || "" });
+        }
+        const size = params.size || "S";
+        const direction = params.direction === "-" ? "-" : "+";
+        const key = direction === "-" ? `${size}-` : size;
+        const base = Number(scale.steps && scale.steps[key]);
+        if (!Number.isFinite(base)) return fail("unknown_scale_step", key);
+        const bonusLimit = Math.abs(Number(scale.charBonus || 0));
+        const charBonus = clamp(normalizeInt(params.charBonus, 0), -bonusLimit, bonusLimit);
+        const rawDelta = base + charBonus;
+        const range = scale.range || [0, 200];
+        const after = clamp(before + rawDelta, Number(range[0]), Number(range[1]));
+        const fromTier = tierOf(schema2, scaleId, before);
+        const toTier = tierOf(schema2, scaleId, after);
+        state2.npcs[target][scaleId] = after;
+        state2.npcs[target][counterKey] = used + 1;
+        const entry = { scale: scaleId, target, before, after, delta: after - before, size, direction, charBonus, reason: params.reason || "" };
+        if ((fromTier && fromTier.label) !== (toTier && toTier.label)) {
+          entry.tierChanged = { from: fromTier || null, to: toTier || null };
+        }
+        return ok(entry);
+      }
+      function repEvent(schema2, state2, params, rng2, ok, fail) {
+        const ladder = ladderById(schema2, "reputation");
+        const axis = params.axis;
+        const category = params.category;
+        if (!ladder || !ladder.axes.includes(axis)) return fail("unknown_reputation_axis", axis);
+        const table = ladder.categories && ladder.categories[axis];
+        const range = table && table[category];
+        if (!range) return fail("unknown_reputation_category", `${axis}:${category}`);
+        const delta = Array.isArray(range) ? rng2.int(range[0], range[1]) : Number(range);
+        const current = state2.reputation[axis] || { rank: "E", exp: 0 };
+        const before = { rank: current.rank, exp: current.exp };
+        let rank = current.rank;
+        let exp = Number(current.exp || 0) + delta;
+        let changed = null;
+        if (delta >= 0) {
+          const idx = rankIndex(ladder, rank);
+          const next = (ladder.ranks || [])[idx];
+          if (next && next.next != null && exp >= Number(next.next)) {
+            const promoted = (ladder.ranks || [])[idx + 1];
+            if (promoted) {
+              changed = { from: rank, to: promoted.id, type: "promote" };
+              rank = promoted.id;
+              exp = 0;
+            }
+          }
+        } else {
+          while (exp < 0) {
+            const idx = rankIndex(ladder, rank);
+            if (idx <= 0) {
+              rank = ladder.floor && ladder.floor.rank || "E";
+              exp = Number(ladder.floor && ladder.floor.exp || 0);
+              break;
+            }
+            const previous = (ladder.ranks || [])[idx - 1];
+            const previousThreshold = Number(previous.next || 0);
+            changed = { from: rank, to: previous.id, type: "demote" };
+            rank = previous.id;
+            exp = previousThreshold + exp;
+          }
+        }
+        state2.reputation[axis] = { rank, exp };
+        return ok({ axis, category, delta, before, after: state2.reputation[axis], rankChanged: changed, reason: params.reason || "" });
+      }
+      function expGain(schema2, state2, params, rng2, ok, fail) {
+        const ladder = ladderById(schema2, "player_level");
+        if (!ladder) return fail("missing_player_level_ladder");
+        const source = ladder.sources && ladder.sources[params.category];
+        if (!source) return fail("unknown_exp_category", params.category);
+        const amount = Array.isArray(source) ? rng2.int(source[0], source[1]) : Number(source.value == null ? source : source.value);
+        const before = { level: state2.player.level, exp: state2.player.exp };
+        state2.player.exp = Number(state2.player.exp || 0) + amount;
+        const levelUps = [];
+        while (state2.player.level <= (ladder.thresholds || []).length) {
+          const threshold = Number(ladder.thresholds[state2.player.level - 1]);
+          if (!threshold || state2.player.exp < threshold) break;
+          state2.player.exp -= threshold;
+          state2.player.level += 1;
+          levelUps.push(state2.player.level);
+        }
+        return ok({ category: params.category, amount, before, after: clone(state2.player), levelUps, reason: params.reason || "" });
+      }
+      function checkin(schema2, state2, params, ok, fail) {
+        const roomNo = String(params.roomNo);
+        const room = findRoom(schema2, roomNo);
+        const stayDays = normalizeInt(params.stayDays, 1);
+        const guestName = params.guestName;
+        if (!room) return fail("unknown_room", roomNo);
+        if (!guestName) return fail("missing_guestName");
+        if (stayDays <= 0) return fail("invalid_stayDays", stayDays);
+        if (Number(room.requiresRoomLevel || 1) > Number(state2.facilities && state2.facilities.room || 1)) return fail("room_locked", roomNo);
+        const current = state2.rooms[roomNo] || [];
+        if (room.capacity != null && current.length >= Number(room.capacity)) return fail("room_full", roomNo);
+        const price = Number(room.pricePerNight || 0) * stayDays;
+        state2.rooms[roomNo] = current.concat([{ guestName, nightsLeft: stayDays }]);
+        state2.gold += price;
+        return ok({ roomNo, guestName, stayDays, goldDelta: price });
+      }
+      function checkout(state2, params, ok, fail) {
+        const roomNo = String(params.roomNo);
+        const guestName = params.guestName;
+        const current = state2.rooms[roomNo] || [];
+        const idx = current.findIndex((guest) => guest.guestName === guestName);
+        if (idx < 0) return fail("guest_not_found", `${roomNo}:${guestName}`);
+        const remaining = current.slice(0, idx).concat(current.slice(idx + 1));
+        if (remaining.length) state2.rooms[roomNo] = remaining;
+        else delete state2.rooms[roomNo];
+        return ok({ roomNo, guestName });
+      }
+      function sale(schema2, state2, params, ok, fail) {
+        const menu = findMenu(schema2, params.menuName);
+        const qty = normalizeInt(params.qty, 1);
+        if (!menu) return fail("unknown_menu", params.menuName);
+        if (qty <= 0) return fail("invalid_qty", qty);
+        if (Number(menu.requiresKitchenLevel || 1) > Number(state2.facilities && state2.facilities.kitchen || 1)) return fail("menu_locked", params.menuName);
+        for (const [resource, amount] of Object.entries(menu.consumes || {})) {
+          if (Number(state2.resources && state2.resources[resource] || 0) < Number(amount) * qty) {
+            return fail("insufficient_stock", resource);
+          }
+        }
+        for (const [resource, amount] of Object.entries(menu.consumes || {})) {
+          state2.resources[resource] -= Number(amount) * qty;
+        }
+        const goldDelta2 = Number(menu.price || 0) * qty;
+        state2.gold += goldDelta2;
+        return ok({ menuName: menu.name, qty, goldDelta: goldDelta2 });
+      }
+      function purchase(schema2, state2, params, ok, fail) {
+        const resource = params.resource || params.resourceId;
+        const qty = normalizeInt(params.qty, 1);
+        const def = (schema2.resources || []).find((entry) => entry.id === resource);
+        if (!def || resource === "gold") return fail("unknown_resource", resource);
+        if (qty <= 0) return fail("invalid_qty", qty);
+        const cost = Number(def.basePrice || 0) * qty;
+        if (state2.gold < cost) return fail("insufficient_gold", resource);
+        state2.gold -= cost;
+        state2.resources[resource] = Number(state2.resources[resource] || 0) + qty;
+        return ok({ resource, qty, goldDelta: -cost });
+      }
+      function hire(schema2, state2, params, ok, fail) {
+        const npcId = params.npcId;
+        const wage = normalizeInt(params.dailyWage);
+        if (!findById(schema2, "npc", npcId)) return fail("unknown_npc", npcId);
+        if ((state2.staff || []).some((staff) => staff.npcId === npcId)) return fail("already_hired", npcId);
+        if ((state2.staff || []).length >= staffMax2(schema2, state2)) return fail("staff_full", npcId);
+        state2.staff = (state2.staff || []).concat([{ npcId, dailyWage: wage }]);
+        return ok({ npcId, dailyWage: wage });
+      }
+      function fire(state2, params, ok, fail) {
+        const npcId = params.npcId;
+        const before = state2.staff || [];
+        if (!before.some((staff) => staff.npcId === npcId)) return fail("not_hired", npcId);
+        state2.staff = before.filter((staff) => staff.npcId !== npcId);
+        return ok({ npcId });
+      }
+      module.exports = { applyEvent: applyEvent2 };
+    }
+  });
+
+  // ../engine/core/rng.js
+  var require_rng = __commonJS({
+    "../engine/core/rng.js"(exports, module) {
+      "use strict";
+      function hashSeed(seed) {
+        const s = String(seed == null ? 0 : seed);
+        let h = 1779033703 ^ s.length;
+        for (let i = 0; i < s.length; i++) {
+          h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
+          h = h << 13 | h >>> 19;
+        }
+        return h >>> 0;
+      }
+      function createRng2(seed) {
+        let t = hashSeed(seed);
+        return {
+          next() {
+            t += 1831565813;
+            let x = t;
+            x = Math.imul(x ^ x >>> 15, x | 1);
+            x ^= x + Math.imul(x ^ x >>> 7, x | 61);
+            return ((x ^ x >>> 14) >>> 0) / 4294967296;
+          },
+          int(min, max) {
+            const lo = Math.ceil(Number(min));
+            const hi = Math.floor(Number(max));
+            if (hi < lo) return lo;
+            return Math.floor(this.next() * (hi - lo + 1)) + lo;
+          }
+        };
+      }
+      module.exports = { createRng: createRng2 };
     }
   });
 
@@ -4305,18 +5462,18 @@ details.source-preview pre,
     const chips = document.createElement("div");
     chips.className = "chip-row";
     for (const emotion of orderedEmotions(group)) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "chip";
-      button.textContent = emotion;
-      button.addEventListener("click", () => {
+      const button2 = document.createElement("button");
+      button2.type = "button";
+      button2.className = "chip";
+      button2.textContent = emotion;
+      button2.addEventListener("click", () => {
         const pick = selectAsset(group, emotion);
         if (!pick) return;
         img.removeAttribute("src");
         img._asset = pick.asset;
         loadImage(img, ctx);
       });
-      chips.append(button);
+      chips.append(button2);
     }
     body.append(h3, linked, chips);
     if (group.profile) {
@@ -4605,16 +5762,16 @@ details.source-preview pre,
       });
       renderResult(output, lore, result);
     };
-    for (const el of [textarea, scanDepth, tokenBudget, caseSensitive.input, wholeWord.input]) {
-      el.addEventListener("input", run);
-      el.addEventListener("change", run);
+    for (const el2 of [textarea, scanDepth, tokenBudget, caseSensitive.input, wholeWord.input]) {
+      el2.addEventListener("input", run);
+      el2.addEventListener("change", run);
     }
     run();
     return () => {
     };
   }
-  function expandKoreanSearchText(input) {
-    const text = String(input || "");
+  function expandKoreanSearchText(input2) {
+    const text = String(input2 || "");
     const particles = ["\uC73C\uB85C\uBD80\uD130", "\uC5D0\uAC8C\uC11C", "\uAED8\uC11C\uB294", "\uC5D0\uC11C\uB294", "\uC73C\uB85C", "\uC5D0\uC11C", "\uC5D0\uAC8C", "\uAE4C\uC9C0", "\uBD80\uD130", "\uAED8\uC11C", "\uC740", "\uB294", "\uC774", "\uAC00", "\uC744", "\uB97C", "\uC5D0", "\uC758", "\uC640", "\uACFC", "\uB3C4", "\uB9CC", "\uB85C", "\uB791"];
     const extras = /* @__PURE__ */ new Set();
     for (const raw of text.split(/[\s,.;:!?()[\]{}"'`~]+/)) {
@@ -4691,22 +5848,22 @@ ${Array.from(extras).join(" ")}` : text;
     return item;
   }
   function numberInput(name, value, min, max) {
-    const input = document.createElement("input");
-    input.type = "number";
-    input.name = name;
-    input.min = String(min);
-    input.max = String(max);
-    input.value = String(value);
-    return input;
+    const input2 = document.createElement("input");
+    input2.type = "number";
+    input2.name = name;
+    input2.min = String(min);
+    input2.max = String(max);
+    input2.value = String(value);
+    return input2;
   }
   function checkboxInput(label, checked) {
     const wrap = document.createElement("label");
     wrap.className = "check-row";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.checked = checked;
-    wrap.append(input, document.createTextNode(label));
-    return { wrap, input };
+    const input2 = document.createElement("input");
+    input2.type = "checkbox";
+    input2.checked = checked;
+    wrap.append(input2, document.createTextNode(label));
+    return { wrap, input: input2 };
   }
   function labelWrap(label, child) {
     const wrap = document.createElement("label");
@@ -4801,13 +5958,514 @@ ${Array.from(extras).join(" ")}` : text;
     return mime.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "avif", "bmp", "svg"].includes(ext);
   }
 
+  // src/engineView.js
+  var schema = require_yongsa_inn_v0();
+  var { createState } = require_createState();
+  var { applyEvent } = require_applyEvent();
+  var { createRng } = require_rng();
+  var { summarize, npcSummary, roomStatus, availableMenu, staffMax } = require_selectors();
+  var seedValue = 42;
+  var engineState = createState(schema, seedValue);
+  var rng = createRng(seedValue);
+  var logs = [];
+  var eventCount = 0;
+  var selectedEvent = "checkin";
+  var eventTypes = [
+    "checkin",
+    "checkout",
+    "sale",
+    "purchase",
+    "hire",
+    "fire",
+    "scale_delta",
+    "rep_event",
+    "exp_gain",
+    "gold_delta",
+    "resource_delta",
+    "day_end"
+  ];
+  function renderEngineView(container, ctx) {
+    const root = el("div", "engine-view");
+    container.append(root);
+    const render2 = () => {
+      root.replaceChildren();
+      root.append(renderHeader(render2), renderBody(render2, ctx));
+    };
+    render2();
+    return () => {
+    };
+  }
+  function resetSession(seed) {
+    seedValue = Number.isFinite(Number(seed)) ? Number(seed) : 42;
+    engineState = createState(schema, seedValue);
+    rng = createRng(seedValue);
+    logs = [];
+    eventCount = 0;
+  }
+  function renderHeader(render2) {
+    const header = el("div", "view-header engine-header");
+    const title = el("div");
+    const h2 = el("h2");
+    h2.textContent = "\uC5D4\uC9C4(\uC2E4\uD5D8)";
+    const p = el("p");
+    p.textContent = "\uAC8C\uC784 \uC0C1\uD0DC\uB97C \uC5D4\uC9C4(\uCF54\uB4DC)\uC774 \uACC4\uC0B0\uD569\uB2C8\uB2E4 - LLM \uC5C6\uC74C";
+    title.append(h2, p);
+    const controls = el("div", "engine-header-controls");
+    const seed = input("number", String(seedValue));
+    seed.setAttribute("aria-label", "\uC2DC\uB4DC");
+    seed.addEventListener("change", () => {
+      resetSession(seed.value);
+      render2();
+    });
+    const reset = button("\uB9AC\uC14B", "secondary-btn");
+    reset.addEventListener("click", () => {
+      resetSession(seed.value);
+      render2();
+    });
+    const endDay = button("\uD558\uB8E8 \uB9C8\uAC10", "primary-btn engine-day-btn");
+    endDay.addEventListener("click", () => {
+      runEvent({ id: "day_end", params: {} });
+      render2();
+    });
+    const meta = el("div", "status-pill engine-status");
+    meta.textContent = `${engineState.day}\uC77C\uCC28 \xB7 \uC774\uBCA4\uD2B8 ${eventCount}`;
+    controls.append(labelInline("Seed", seed), reset, endDay, meta);
+    header.append(title, controls);
+    return header;
+  }
+  function renderBody(render2, ctx) {
+    const layout = el("div", "engine-layout");
+    layout.append(renderStatePanel(ctx), renderConsole(render2));
+    return layout;
+  }
+  function renderStatePanel(ctx) {
+    const panel = el("section", "engine-state-panel");
+    const summary = el("pre", "engine-summary");
+    summary.textContent = summarize(schema, engineState);
+    const statGrid = el("div", "engine-stat-grid");
+    statGrid.append(
+      stat("Gold", formatMoney(engineState.gold)),
+      stat("Food", `${engineState.resources.food || 0} \uC778\uBD84`),
+      stat("Drink", `${engineState.resources.drink || 0} \uC794`),
+      stat("Facilities", facilityText(engineState.facilities))
+    );
+    panel.append(summary, statGrid, renderRooms(), renderStaff(), renderReputation(), renderChangedNpcs());
+    return panel;
+  }
+  function renderRooms() {
+    const section = titledSection("\uAC1D\uC2E4");
+    const grid = el("div", "engine-room-grid");
+    for (const room of roomStatus(schema, engineState)) {
+      const card = el("article", `engine-room${room.locked ? " locked" : ""}`);
+      const title = el("strong");
+      title.textContent = `${room.no}\uD638 \xB7 ${room.kind}`;
+      const meta = el("div", "muted-line");
+      meta.textContent = room.locked ? `\uC7A0\uAE08 \xB7 \uAC1D\uC2E4\uB3D9 Lv.${room.requiresRoomLevel} \uD544\uC694` : room.occupants.length ? room.occupants.map((guest) => `${guest.guestName}(${guest.nightsLeft}\uBC15)`).join(", ") : "\uACF5\uC2E4";
+      card.append(title, meta);
+      grid.append(card);
+    }
+    section.append(grid);
+    return section;
+  }
+  function renderStaff() {
+    const section = titledSection("\uC9C1\uC6D0");
+    const max = staffMax(schema, engineState);
+    const wage = engineState.staff.reduce((sum, staff) => sum + Number(staff.dailyWage || 0), 0);
+    const line = el("p", "muted-line");
+    line.textContent = `\uACE0\uC6A9 ${engineState.staff.length}/${max} \xB7 \uC77C\uAE09 \uD569\uACC4 ${formatMoney(wage)}`;
+    section.append(line);
+    if (engineState.unpaidWages > 0) {
+      const warning = el("p", "engine-warning");
+      warning.textContent = `\uBBF8\uC9C0\uAE09 \uC784\uAE08 ${formatMoney(engineState.unpaidWages)}`;
+      section.append(warning);
+    }
+    const list = el("div", "engine-list");
+    if (!engineState.staff.length) {
+      const empty = el("div", "muted-line");
+      empty.textContent = "\uC5C6\uC74C";
+      list.append(empty);
+    } else {
+      for (const staff of engineState.staff) {
+        const row = el("div", "engine-list-row");
+        row.textContent = `${npcName(staff.npcId)} \xB7 ${formatMoney(staff.dailyWage)}`;
+        list.append(row);
+      }
+    }
+    section.append(list);
+    return section;
+  }
+  function renderReputation() {
+    const section = titledSection("\uD3C9\uD310");
+    const labels = reputationLadder().axisLabels || {};
+    const list = el("div", "engine-list");
+    for (const [axis, value] of Object.entries(engineState.reputation)) {
+      const row = el("div", "engine-list-row");
+      row.textContent = `${labels[axis] || axis}: ${value.rank}(${value.exp})`;
+      list.append(row);
+    }
+    section.append(list);
+    return section;
+  }
+  function renderChangedNpcs() {
+    const section = titledSection("NPC \uD638\uAC10\uB3C4");
+    const changed = Object.entries(engineState.npcs).filter(([, data]) => data.affinity !== 50);
+    if (!changed.length) {
+      const empty = el("p", "muted-line");
+      empty.textContent = "\uBCC0\uB3D9 \uC5C6\uC74C";
+      section.append(empty);
+      return section;
+    }
+    const list = el("div", "engine-list");
+    for (const [npcId] of changed) {
+      const row = el("div", "engine-list-row");
+      row.textContent = npcSummary(schema, engineState, npcId);
+      list.append(row);
+    }
+    section.append(list);
+    return section;
+  }
+  function renderConsole(render2) {
+    const panel = el("section", "engine-console");
+    const form = el("div", "engine-form");
+    const select = el("select");
+    for (const type of eventTypes) appendOption(select, type, type, false);
+    select.value = selectedEvent;
+    select.addEventListener("change", () => {
+      selectedEvent = select.value;
+      render2();
+    });
+    form.append(field("\uC774\uBCA4\uD2B8", select), renderParamForm(selectedEvent));
+    const run = button("\uC2E4\uD589", "primary-btn");
+    run.addEventListener("click", () => {
+      runEvent(collectEvent(selectedEvent, form));
+      render2();
+    });
+    form.append(run);
+    const logList = el("div", "engine-log-list");
+    for (const entry of logs) logList.append(renderLog(entry));
+    if (!logs.length) {
+      const empty = el("p", "muted-line");
+      empty.textContent = "\uC544\uC9C1 \uC2E4\uD589\uD55C \uC774\uBCA4\uD2B8\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.";
+      logList.append(empty);
+    }
+    panel.append(form, logList);
+    return panel;
+  }
+  function renderParamForm(type) {
+    const wrap = el("div", "engine-param-grid");
+    if (type === "checkin") {
+      wrap.append(field("\uAC1D\uC2E4", roomSelect()), field("\uD22C\uC219\uAC1D", namedInput("guestName", "silvia")), field("\uBC15\uC218", namedInput("stayDays", "2", "number")));
+    } else if (type === "checkout") {
+      wrap.append(field("\uD22C\uC219\uAC1D", occupantSelect()));
+    } else if (type === "sale") {
+      wrap.append(field("\uBA54\uB274", menuSelect()), field("\uC218\uB7C9", namedInput("qty", "1", "number")));
+    } else if (type === "purchase") {
+      wrap.append(field("\uC790\uC6D0", resourceSelect("resource")), field("\uC218\uB7C9", namedInput("qty", "1", "number")), pricePreview());
+    } else if (type === "hire") {
+      wrap.append(field("NPC", npcSelect(false)), field("\uC77C\uAE09", namedInput("dailyWage", "100000", "number")));
+    } else if (type === "fire") {
+      wrap.append(field("\uC9C1\uC6D0", staffSelect()));
+    } else if (type === "scale_delta") {
+      wrap.append(field("NPC", npcSelect(true)), field("\uBC29\uD5A5", directionSelect()), field("\uD06C\uAE30", sizeSelect()), field("charBonus", bonusSelect()), field("\uC0AC\uC720", namedInput("reason", "")));
+    } else if (type === "rep_event") {
+      const axis = repAxisSelect();
+      const category = repCategorySelect(axis.value);
+      axis.addEventListener("change", () => {
+        fillRepCategories(category, axis.value);
+      });
+      wrap.append(field("\uCD95", axis), field("\uCE74\uD14C\uACE0\uB9AC", category), field("\uC0AC\uC720", namedInput("reason", "")));
+    } else if (type === "exp_gain") {
+      wrap.append(field("\uCE74\uD14C\uACE0\uB9AC", expCategorySelect()), field("\uC0AC\uC720", namedInput("reason", "")));
+    } else if (type === "gold_delta") {
+      wrap.append(field("\uAE08\uC561", namedInput("amount", "10000", "number")), field("\uC0AC\uC720", namedInput("reason", "")));
+    } else if (type === "resource_delta") {
+      wrap.append(field("\uC790\uC6D0", resourceSelect("resource")), field("\uC218\uB7C9 \uBCC0\uD654", namedInput("amount", "1", "number")), field("\uC0AC\uC720", namedInput("reason", "")));
+    } else if (type === "day_end") {
+      const p = el("p", "muted-line");
+      p.textContent = "\uD30C\uB77C\uBBF8\uD130 \uC5C6\uC74C";
+      wrap.append(p);
+    }
+    return wrap;
+  }
+  function collectEvent(type, form) {
+    const get = (name) => form.querySelector(`[name="${name}"]`);
+    const value = (name) => {
+      const node = get(name);
+      return node ? node.value : "";
+    };
+    const number = (name) => Number(value(name));
+    const params = {};
+    if (type === "checkin") Object.assign(params, { roomNo: Number(value("roomNo")), guestName: value("guestName"), stayDays: number("stayDays") });
+    if (type === "checkout") Object.assign(params, parseOccupant(value("occupant")));
+    if (type === "sale") Object.assign(params, { menuName: value("menuName"), qty: number("qty") });
+    if (type === "purchase") Object.assign(params, { resource: value("resource"), qty: number("qty") });
+    if (type === "hire") Object.assign(params, { npcId: value("npcId"), dailyWage: number("dailyWage") });
+    if (type === "fire") Object.assign(params, { npcId: value("npcId") });
+    if (type === "scale_delta") Object.assign(params, { scale: "affinity", target: value("npcId"), direction: value("direction"), size: value("size"), charBonus: number("charBonus"), reason: value("reason") });
+    if (type === "rep_event") Object.assign(params, { axis: value("axis"), category: value("category"), reason: value("reason") });
+    if (type === "exp_gain") Object.assign(params, { category: value("category"), reason: value("reason") });
+    if (type === "gold_delta") Object.assign(params, { amount: number("amount"), reason: value("reason") });
+    if (type === "resource_delta") Object.assign(params, { resource: value("resource"), amount: number("amount"), reason: value("reason") });
+    return { id: type, params };
+  }
+  function runEvent(event) {
+    const result = applyEvent(schema, engineState, event, rng);
+    if (result.log.some((entry) => entry.ok)) {
+      engineState = result.state;
+    }
+    eventCount += 1;
+    logs.unshift({ event, entries: result.log, index: logs.length + 1 });
+  }
+  function renderLog(item) {
+    const details = el("details", "engine-log-entry");
+    details.open = true;
+    const summary = el("summary");
+    const first = item.entries[0] || {};
+    const badge = el("span", first.ok ? "badge engine-ok" : "badge engine-fail");
+    badge.textContent = first.ok ? "ok" : "fail";
+    const text = el("span");
+    text.textContent = summarizeLog(item.event.id, first);
+    summary.append(badge, text);
+    details.append(summary);
+    if (first.tierChanged) {
+      const chip = el("span", "decorator-chip engine-tier-chip");
+      chip.textContent = `${first.tierChanged.from.label} -> ${first.tierChanged.to.label}`;
+      details.append(chip);
+    }
+    if (first.report) details.append(renderReport(first.report));
+    if (!first.ok) {
+      const reason = el("p", "engine-warning");
+      reason.textContent = `${first.reason}${first.detail ? `: ${first.detail}` : ""}`;
+      details.append(reason);
+    }
+    return details;
+  }
+  function renderReport(report) {
+    const wrap = el("div", "engine-report");
+    const p = el("p", "muted-line");
+    p.textContent = `\uACE0\uAC1D ${report.customers} \xB7 \uB9E4\uCD9C ${formatMoney(report.grossGold)} \xB7 \uC784\uAE08 ${formatMoney(report.wagesPaid)}/${formatMoney(report.wagesDue)} \xB7 \uBABB \uD310 \uACE0\uAC1D ${report.turnedAway}`;
+    wrap.append(p);
+    const table = el("table", "engine-table");
+    const head = el("tr");
+    for (const label of ["\uBA54\uB274", "\uC218\uB7C9", "\uAE08\uC561"]) {
+      const th = el("th");
+      th.textContent = label;
+      head.append(th);
+    }
+    table.append(head);
+    for (const sale of report.sales) {
+      const row = el("tr");
+      for (const value of [sale.menuName, sale.qty, formatMoney(sale.price)]) {
+        const td = el("td");
+        td.textContent = String(value);
+        row.append(td);
+      }
+      table.append(row);
+    }
+    wrap.append(table);
+    if (report.checkouts.length) {
+      const checkout = el("p", "muted-line");
+      checkout.textContent = `\uCCB4\uD06C\uC544\uC6C3: ${report.checkouts.map((item) => `${item.roomNo}\uD638 ${item.guestName}`).join(", ")}`;
+      wrap.append(checkout);
+    }
+    return wrap;
+  }
+  function summarizeLog(type, entry) {
+    if (!entry.ok) return `${type} \uC2E4\uD328`;
+    if (type === "scale_delta") return entry.capped ? `${entry.target} capped \xB7 ${entry.before} -> ${entry.after}` : `${entry.target} ${entry.before} -> ${entry.after}`;
+    if (type === "rep_event") return `${entry.axis}/${entry.category} ${entry.before.rank}(${entry.before.exp}) -> ${entry.after.rank}(${entry.after.exp}), delta ${entry.delta}`;
+    if (type === "day_end") return `\uD558\uB8E8 \uB9C8\uAC10 \xB7 ${entry.report.day}\uC77C\uCC28 \uC815\uC0B0`;
+    if (entry.goldDelta != null) return `${type} \xB7 gold ${entry.goldDelta >= 0 ? "+" : ""}${formatMoney(entry.goldDelta)}`;
+    return `${type} \uC2E4\uD589`;
+  }
+  function roomSelect() {
+    const select = namedSelect("roomNo");
+    for (const room of roomStatus(schema, engineState)) {
+      const disabled = room.locked;
+      const label = disabled ? `${room.no}\uD638 - \uAC1D\uC2E4\uB3D9 Lv.${room.requiresRoomLevel} \uD544\uC694` : `${room.no}\uD638 \xB7 ${room.kind}`;
+      appendOption(select, room.no, label, disabled);
+    }
+    select.value = "106";
+    return select;
+  }
+  function occupantSelect() {
+    const select = namedSelect("occupant");
+    const occupants = [];
+    for (const [roomNo, guests] of Object.entries(engineState.rooms)) {
+      for (const guest of guests) occupants.push({ roomNo, guestName: guest.guestName });
+    }
+    if (!occupants.length) appendOption(select, "", "\uD604\uC7AC \uD22C\uC219\uAC1D \uC5C6\uC74C", true);
+    for (const guest of occupants) appendOption(select, `${guest.roomNo}|${guest.guestName}`, `${guest.roomNo}\uD638 \xB7 ${guest.guestName}`, false);
+    return select;
+  }
+  function menuSelect() {
+    const select = namedSelect("menuName");
+    for (const menu of availableMenu(schema, engineState)) {
+      appendOption(select, menu.name, `${menu.category} \xB7 ${menu.name} \xB7 ${formatMoney(menu.price)}`, false);
+    }
+    select.value = select.querySelector('option[value="\uACE0\uAE30 \uC2A4\uD29C"]') ? "\uACE0\uAE30 \uC2A4\uD29C" : select.value;
+    return select;
+  }
+  function resourceSelect(name) {
+    const select = namedSelect(name);
+    appendOption(select, "food", "\uC2DD\uC790\uC7AC", false);
+    appendOption(select, "drink", "\uC8FC\uB958", false);
+    return select;
+  }
+  function npcSelect(includeHired) {
+    const select = namedSelect("npcId");
+    const hired = new Set(engineState.staff.map((staff) => staff.npcId));
+    for (const npc of npcs()) {
+      if (!includeHired && hired.has(npc.id)) continue;
+      appendOption(select, npc.id, `${npc.nameKo} \xB7 ${npc.class || npc.group || ""}`, false);
+    }
+    select.value = select.querySelector('option[value="silvia"]') ? "silvia" : select.value;
+    return select;
+  }
+  function staffSelect() {
+    const select = namedSelect("npcId");
+    if (!engineState.staff.length) appendOption(select, "", "\uC7AC\uC9C1 \uC9C1\uC6D0 \uC5C6\uC74C", true);
+    for (const staff of engineState.staff) appendOption(select, staff.npcId, npcName(staff.npcId), false);
+    return select;
+  }
+  function directionSelect() {
+    const select = namedSelect("direction");
+    appendOption(select, "+", "+", false);
+    appendOption(select, "-", "-", false);
+    return select;
+  }
+  function sizeSelect() {
+    const select = namedSelect("size");
+    for (const size of ["S", "M", "L", "XL"]) appendOption(select, size, size, false);
+    select.value = "M";
+    return select;
+  }
+  function bonusSelect() {
+    const select = namedSelect("charBonus");
+    for (const value of ["-1", "0", "1"]) appendOption(select, value, value, false);
+    select.value = "0";
+    return select;
+  }
+  function repAxisSelect() {
+    const select = namedSelect("axis");
+    const ladder = reputationLadder();
+    for (const axis of ladder.axes) appendOption(select, axis, ladder.axisLabels[axis] || axis, false);
+    return select;
+  }
+  function repCategorySelect(axis) {
+    const select = namedSelect("category");
+    fillRepCategories(select, axis);
+    return select;
+  }
+  function fillRepCategories(select, axis) {
+    select.replaceChildren();
+    const ladder = reputationLadder();
+    for (const category of Object.keys(ladder.categories[axis])) appendOption(select, category, category, false);
+  }
+  function expCategorySelect() {
+    const select = namedSelect("category");
+    const ladder = schema.ladders.find((entry) => entry.id === "player_level");
+    for (const category of Object.keys(ladder.sources)) appendOption(select, category, category, false);
+    return select;
+  }
+  function pricePreview() {
+    const p = el("p", "muted-line engine-preview");
+    p.textContent = "\uB2E8\uAC00: \uC2DD\uC790\uC7AC 3,000 / \uC8FC\uB958 5,000";
+    return p;
+  }
+  function parseOccupant(value) {
+    const [roomNo, guestName] = String(value || "").split("|");
+    return { roomNo: Number(roomNo), guestName };
+  }
+  function reputationLadder() {
+    return schema.ladders.find((entry) => entry.id === "reputation");
+  }
+  function npcs() {
+    return schema.entities.find((entry) => entry.type === "npc").instances;
+  }
+  function npcName(npcId) {
+    const npc = npcs().find((entry) => entry.id === npcId);
+    return npc && npc.nameKo || npcId;
+  }
+  function facilityText(facilities) {
+    return `\uC8FC\uC810${facilities.tavern} / \uC8FC\uBC29${facilities.kitchen} / \uAC1D\uC2E4${facilities.room} / \uC219\uC18C${facilities.quarters}`;
+  }
+  function stat(label, value) {
+    const card = el("section", "stat-card engine-stat");
+    const k = el("div", "stat-label");
+    k.textContent = label;
+    const v = el("div", "stat-value");
+    v.textContent = value;
+    card.append(k, v);
+    return card;
+  }
+  function titledSection(title) {
+    const section = el("section", "engine-section");
+    const h3 = el("h3");
+    h3.textContent = title;
+    section.append(h3);
+    return section;
+  }
+  function field(label, child) {
+    const wrap = el("label", "field");
+    const span = el("span");
+    span.textContent = label;
+    wrap.append(span, child);
+    return wrap;
+  }
+  function labelInline(label, child) {
+    const wrap = el("label", "engine-inline-field");
+    const span = el("span");
+    span.textContent = label;
+    wrap.append(span, child);
+    return wrap;
+  }
+  function namedInput(name, value, type = "text") {
+    const node = input(type, value);
+    node.name = name;
+    return node;
+  }
+  function namedSelect(name) {
+    const node = el("select");
+    node.name = name;
+    return node;
+  }
+  function appendOption(select, value, label, disabled) {
+    const option = el("option");
+    option.value = String(value);
+    option.textContent = label;
+    option.disabled = !!disabled;
+    select.append(option);
+  }
+  function button(text, className) {
+    const node = el("button", className);
+    node.type = "button";
+    node.textContent = text;
+    return node;
+  }
+  function input(type, value) {
+    const node = el("input");
+    node.type = type;
+    node.value = value;
+    return node;
+  }
+  function el(tag, className = "") {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    return node;
+  }
+  function formatMoney(value) {
+    return `${Number(value || 0).toLocaleString("ko-KR")}\uC6D0`;
+  }
+
   // src/main.js
   var tabs = [
     { id: "overview", label: "\uAC1C\uC694" },
     { id: "npc", label: "NPC \uAC24\uB7EC\uB9AC" },
     { id: "lorebook", label: "\uB85C\uC5B4\uBD81" },
     { id: "activate", label: "\uD65C\uC131\uD654 \uC2DC\uBBAC" },
-    { id: "assets", label: "\uC5D0\uC14B" }
+    { id: "assets", label: "\uC5D0\uC14B" },
+    { id: "engine", label: "\uC5D4\uC9C4(\uC2E4\uD5D8)" }
   ];
   var state = {
     parsed: null,
@@ -4863,12 +6521,12 @@ ${Array.from(extras).join(" ")}` : text;
     </main>
   `;
     const dropzone = document.getElementById("dropzone");
-    const input = document.getElementById("fileInput");
-    document.getElementById("pickButton").addEventListener("click", () => input.click());
-    input.addEventListener("change", () => {
-      const file = input.files && input.files[0];
+    const input2 = document.getElementById("fileInput");
+    document.getElementById("pickButton").addEventListener("click", () => input2.click());
+    input2.addEventListener("change", () => {
+      const file = input2.files && input2.files[0];
       if (file) loadFile(file);
-      input.value = "";
+      input2.value = "";
     });
     for (const event of ["dragenter", "dragover"]) {
       dropzone.addEventListener(event, (e) => {
@@ -4893,20 +6551,20 @@ ${Array.from(extras).join(" ")}` : text;
     const nav = document.getElementById("tabs");
     nav.replaceChildren();
     for (const tab of tabs) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "tab";
-      button.textContent = tab.label;
-      button.setAttribute("aria-selected", String(state.activeTab === tab.id));
-      button.disabled = !state.parsed && tab.id !== "overview";
-      button.addEventListener("click", () => {
+      const button2 = document.createElement("button");
+      button2.type = "button";
+      button2.className = "tab";
+      button2.textContent = tab.label;
+      button2.setAttribute("aria-selected", String(state.activeTab === tab.id));
+      button2.disabled = !state.parsed && tab.id !== "overview" && tab.id !== "engine";
+      button2.addEventListener("click", () => {
         if (state.activeTab === tab.id) return;
         clearTabResources();
         state.activeTab = tab.id;
         renderTabs();
         render();
       });
-      nav.append(button);
+      nav.append(button2);
     }
   }
   async function loadFile(file) {
@@ -4947,11 +6605,15 @@ ${Array.from(extras).join(" ")}` : text;
     status.textContent = state.parsed ? `${state.parsed.format} \xB7 ${state.parsed.assets.length} assets` : "\uCE74\uB4DC \uC5C6\uC74C";
     const panel = document.getElementById("panel");
     panel.replaceChildren();
+    const ctx = createContext();
+    if (state.activeTab === "engine") {
+      state.cleanup = renderEngineView(panel, ctx);
+      return;
+    }
     if (!state.parsed) {
       panel.append(renderEmptyOverview());
       return;
     }
-    const ctx = createContext();
     if (state.activeTab === "overview") panel.append(renderOverview(ctx));
     if (state.activeTab === "npc") state.cleanup = renderNpcGallery(panel, ctx);
     if (state.activeTab === "lorebook") state.cleanup = renderLorebookView(panel, ctx);
@@ -5023,16 +6685,16 @@ ${Array.from(extras).join(" ")}` : text;
     return wrap;
   }
   function statCard(label, value) {
-    const el = document.createElement("section");
-    el.className = "stat-card";
+    const el2 = document.createElement("section");
+    el2.className = "stat-card";
     const k = document.createElement("div");
     k.className = "stat-label";
     k.textContent = label;
     const v = document.createElement("div");
     v.className = "stat-value";
     v.textContent = value;
-    el.append(k, v);
-    return el;
+    el2.append(k, v);
+    return el2;
   }
   function sectionTitle(text) {
     const h = document.createElement("h2");
@@ -5070,8 +6732,8 @@ ${Array.from(extras).join(" ")}` : text;
     state.viewUrls.clear();
   }
   function setMessage(text) {
-    const el = document.getElementById("message");
-    if (el) el.textContent = text;
+    const el2 = document.getElementById("message");
+    if (el2) el2.textContent = text;
   }
   function formatBytes(value) {
     const n = Number(value || 0);
