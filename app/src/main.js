@@ -7,6 +7,7 @@ import { renderActivateView } from './activateView.js';
 import { renderAssetsView } from './assetsView.js';
 import { renderEngineView } from './engineView.js';
 import { renderPlayView } from './playView.js';
+import { renderImportView } from './importView.js';
 
 const tabs = [
   { id: 'overview', label: '개요' },
@@ -16,6 +17,7 @@ const tabs = [
   { id: 'assets', label: '에셋' },
   { id: 'engine', label: '엔진(실험)' },
   { id: 'play', label: '플레이(실험)' },
+  { id: 'import', label: '임포트(실험)' },
 ];
 
 const KNOWN_ORIGINS = [
@@ -132,7 +134,7 @@ function renderTabs() {
     button.className = 'tab';
     button.textContent = tab.label;
     button.setAttribute('aria-selected', String(state.activeTab === tab.id));
-    button.disabled = !state.parsed && tab.id !== 'overview' && tab.id !== 'engine' && tab.id !== 'play';
+    button.disabled = !state.parsed && tab.id !== 'overview' && tab.id !== 'engine' && tab.id !== 'play' && tab.id !== 'import';
     button.addEventListener('click', () => {
       if (state.activeTab === tab.id) return;
       clearTabResources();
@@ -192,6 +194,10 @@ function render() {
   }
   if (state.activeTab === 'play') {
     state.cleanup = renderPlayView(panel, ctx);
+    return;
+  }
+  if (state.activeTab === 'import') {
+    state.cleanup = renderImportView(panel, ctx);
     return;
   }
 

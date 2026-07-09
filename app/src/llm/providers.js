@@ -48,8 +48,8 @@ function buildRequest(def, cfg, prompt) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 1200,
-        temperature: 0.7,
+        max_tokens: prompt.maxTokens || 1200,
+        temperature: prompt.temperature == null ? 0.7 : prompt.temperature,
         system: prompt.system,
         messages: prompt.messages,
       }),
@@ -58,10 +58,10 @@ function buildRequest(def, cfg, prompt) {
   const body = {
     model,
     messages: [{ role: 'system', content: prompt.system }].concat(prompt.messages),
-    temperature: 0.7,
+    temperature: prompt.temperature == null ? 0.7 : prompt.temperature,
   };
-  if (cfg.provider === 'openai') body.max_completion_tokens = 1200;
-  else body.max_tokens = 1200;
+  if (cfg.provider === 'openai') body.max_completion_tokens = prompt.maxTokens || 1200;
+  else body.max_tokens = prompt.maxTokens || 1200;
   return {
     url: base + '/chat/completions',
     method: 'POST',

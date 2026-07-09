@@ -1,9 +1,8 @@
-const schema = require('../../schema/yongsa-inn.v0.json');
 const { summarize, npcSummary } = require('../../engine/core/selectors.js');
 const { estimateTokens, estimateLorebookTokens } = require('../core/lorebook/tokens.js');
 const { buildPrompt, parseAssistantResponse } = require('./llm/prompt.js');
 const { PROVIDERS, callProvider, providerDef } = require('./llm/providers.js');
-import { getEngineState, runEvent, summarizeEvent } from './engineSession.js';
+import { getEngineState, getSchema, runEvent, summarizeEvent } from './engineSession.js';
 
 let messages = [];
 let busy = false;
@@ -177,6 +176,7 @@ function renderSettings(render) {
 function renderStateBox() {
   const section = titled('LLM이 보는 상태');
   const state = getEngineState();
+  const schema = getSchema();
   const pre = el('pre', 'play-context-pre');
   pre.textContent = summarize(schema, state);
   section.append(pre);
@@ -196,6 +196,7 @@ const BASELINE_REF = 12029; // 용사여관 상시 로어북 실측치(앱 토�
 
 function renderTokenBox(ctx) {
   const section = titled('토큰 미터');
+  const schema = getSchema();
   const current = lastPrompt ? lastPrompt.injectedTokens : estimateTokens(summarize(schema, getEngineState()));
   const baseline = ctx.lore ? (estimateLorebookTokens(ctx.lore.entries).constant || BASELINE_REF) : BASELINE_REF;
   section.append(tokenGauge(current, baseline));
@@ -244,6 +245,7 @@ async function submitTurn(text, ctx, render) {
   messages.push({ role: 'user', content: text });
   render();
   try {
+    const schema = getSchema();
     const prompt = buildPrompt({ schema, state: getEngineState(), lore: ctx.lore, recentMessages: messages.slice(-9, -1), userInput: text });
     lastPrompt = prompt;
     const raw = await callProvider(providerConfig(), prompt);

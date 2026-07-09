@@ -102,7 +102,8 @@ button { cursor: pointer; }
 .status-pill,
 .count-badge,
 .badge,
-.decorator-chip {
+.decorator-chip,
+.import-editor summary {
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
 }
@@ -734,19 +735,27 @@ select:focus { border-color: var(--amber-line); }
 .engine-table th { background: var(--inset); color: var(--ink-dim); }
 
 /* ── 플레이(실험) 탭 ────────────────────────────────────── */
-.play-view { display: grid; gap: 14px; }
+.play-view,
+.import-view { display: grid; gap: 14px; }
 .play-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; }
+.import-layout { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 14px; }
 
 .play-chat-panel,
 .play-side-panel,
 .play-side-section,
-.play-settings {
+.play-settings,
+.import-run-panel,
+.import-review-panel,
+.import-approval,
+.import-full-json,
+.import-editor {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
   padding: 16px;
 }
 .play-chat-panel, .play-side-panel { align-self: start; display: grid; gap: 14px; }
+.import-run-panel, .import-review-panel { align-self: start; display: grid; gap: 14px; }
 .play-chat-header { margin-bottom: 0; }
 
 .play-message-list {
@@ -789,7 +798,8 @@ select:focus { border-color: var(--amber-line); }
   padding: 10px 12px;
 }
 
-.play-side-panel { position: sticky; top: 12px; }
+.play-side-panel,
+.import-run-panel { position: sticky; top: 12px; }
 .play-settings { display: grid; gap: 10px; }
 .play-settings summary { cursor: pointer; font-family: var(--font-mono); font-size: 13px; color: var(--ink-mid); }
 .play-hidden { display: none; }
@@ -852,11 +862,74 @@ select:focus { border-color: var(--amber-line); }
 }
 
 /* ── 반응형 ─────────────────────────────────────────────── */
+/* Import compiler */
+.import-empty { padding: 36px 20px; }
+.import-section { display: grid; gap: 10px; }
+.import-status-badge { display: inline-flex; width: fit-content; }
+.import-metric-row,
+.import-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.import-section-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.import-metric strong { font-size: 18px; }
+.import-issue-list,
+.import-editor-list { display: grid; gap: 8px; }
+.import-issue { font-family: var(--font-mono); }
+.import-warn {
+  border-color: var(--warn);
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+.import-assumption-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--amber);
+}
+.import-editor {
+  padding: 0;
+  overflow: hidden;
+}
+.import-editor summary,
+.import-full-json summary {
+  cursor: pointer;
+  color: var(--ink-mid);
+}
+.import-editor summary { padding: 12px 14px; }
+.import-json-input {
+  display: block;
+  width: calc(100% - 28px);
+  min-height: 220px;
+  margin: 0 14px 12px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--inset);
+  color: var(--readout-ink);
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.import-editor .secondary-btn { margin: 0 14px 14px; }
+.import-json-pre {
+  max-height: 520px;
+  overflow: auto;
+  margin-top: 12px;
+}
+.import-approval {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.import-approval .primary-btn { margin-top: 0; }
+
 @media (max-width: 900px) {
   .topbar, .view-header, .with-controls { align-items: stretch; flex-direction: column; }
   .overview-grid, .result-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .activate-layout, .engine-layout, .play-layout { grid-template-columns: 1fr; }
-  .play-side-panel { position: static; }
+  .activate-layout, .engine-layout, .play-layout, .import-layout { grid-template-columns: 1fr; }
+  .play-side-panel, .import-run-panel { position: static; }
   .engine-header-controls { justify-content: flex-start; }
   .search-input { max-width: none; }
 }
@@ -4858,30 +4931,30 @@ select:focus { border-color: var(--amber-line); }
       function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
       }
-      function entityList(schema4, type) {
-        const block = (schema4.entities || []).find((entry) => entry.type === type);
+      function entityList(schema2, type) {
+        const block = (schema2.entities || []).find((entry) => entry.type === type);
         return block && Array.isArray(block.instances) ? block.instances : [];
       }
-      function findEntity(schema4, type, predicate) {
-        return entityList(schema4, type).find(predicate) || null;
+      function findEntity(schema2, type, predicate) {
+        return entityList(schema2, type).find(predicate) || null;
       }
-      function findById(schema4, type, id) {
-        return findEntity(schema4, type, (entry) => String(entry.id) === String(id));
+      function findById(schema2, type, id) {
+        return findEntity(schema2, type, (entry) => String(entry.id) === String(id));
       }
-      function findRoom(schema4, roomNo) {
-        return findEntity(schema4, "room", (entry) => String(entry.no) === String(roomNo));
+      function findRoom(schema2, roomNo) {
+        return findEntity(schema2, "room", (entry) => String(entry.no) === String(roomNo));
       }
-      function findMenu(schema4, menuName) {
-        return findEntity(schema4, "menuItem", (entry) => entry.name === menuName);
+      function findMenu(schema2, menuName) {
+        return findEntity(schema2, "menuItem", (entry) => entry.name === menuName);
       }
-      function scaleById(schema4, id) {
-        return (schema4.scales || []).find((scale) => scale.id === id) || null;
+      function scaleById(schema2, id) {
+        return (schema2.scales || []).find((scale) => scale.id === id) || null;
       }
-      function ladderById(schema4, id) {
-        return (schema4.ladders || []).find((ladder) => ladder.id === id) || null;
+      function ladderById(schema2, id) {
+        return (schema2.ladders || []).find((ladder) => ladder.id === id) || null;
       }
-      function formulaById(schema4, id) {
-        return (schema4.formulas || []).find((formula) => formula.id === id) || null;
+      function formulaById(schema2, id) {
+        return (schema2.formulas || []).find((formula) => formula.id === id) || null;
       }
       function rankIndex(ladder, rank) {
         return (ladder.ranks || []).findIndex((item) => item.id === rank);
@@ -4912,8 +4985,8 @@ select:focus { border-color: var(--amber-line); }
     "../engine/core/createState.js"(exports, module) {
       "use strict";
       var { clone, entityList, ladderById, scaleById } = require_utils();
-      function createState2(schema4, seed) {
-        const initial = clone(schema4.initialState || {});
+      function createState2(schema2, seed) {
+        const initial = clone(schema2.initialState || {});
         const state2 = {
           day: Number(initial.day || 1),
           gold: Number(initial.gold || 0),
@@ -4922,16 +4995,16 @@ select:focus { border-color: var(--amber-line); }
           staff: Array.isArray(initial.staff) ? clone(initial.staff) : [],
           rooms: clone(initial.rooms || {}),
           player: clone(initial.player || { level: 1, exp: 0 }),
-          reputation: normalizeReputation(schema4, initial.reputation || {}),
-          npcs: normalizeNpcs(schema4, initial.npcs || {}),
+          reputation: normalizeReputation(schema2, initial.reputation || {}),
+          npcs: normalizeNpcs(schema2, initial.npcs || {}),
           pendingCheckouts: [],
           unpaidWages: Number(initial.unpaidWages || 0)
         };
         if (seed != null) state2.seed = seed;
         return state2;
       }
-      function normalizeReputation(schema4, initial) {
-        const ladder = ladderById(schema4, "reputation");
+      function normalizeReputation(schema2, initial) {
+        const ladder = ladderById(schema2, "reputation");
         const out = {};
         for (const axis of ladder && ladder.axes || []) {
           const value = initial[axis];
@@ -4943,11 +5016,11 @@ select:focus { border-color: var(--amber-line); }
         }
         return out;
       }
-      function normalizeNpcs(schema4, initial) {
-        const affinity = scaleById(schema4, "affinity");
+      function normalizeNpcs(schema2, initial) {
+        const affinity = scaleById(schema2, "affinity");
         const defaultAffinity = affinity ? Number(affinity.default || 0) : 0;
         const out = {};
-        for (const npc of entityList(schema4, "npc")) {
+        for (const npc of entityList(schema2, "npc")) {
           const current = initial[npc.id] || {};
           out[npc.id] = {
             affinity: Number(current.affinity == null ? defaultAffinity : current.affinity),
@@ -4965,20 +5038,20 @@ select:focus { border-color: var(--amber-line); }
     "../engine/core/selectors.js"(exports, module) {
       "use strict";
       var { entityList, findRoom, scaleById, ladderById, rankIndex } = require_utils();
-      function staffMax2(schema4, state2) {
+      function staffMax2(schema2, state2) {
         const level = String(state2.facilities && state2.facilities.quarters || 1);
-        const table = schema4.gates && schema4.gates.staffMaxByQuartersLevel;
+        const table = schema2.gates && schema2.gates.staffMaxByQuartersLevel;
         return Number(table && table[level] || 0);
       }
-      function availableMenu2(schema4, state2, category) {
+      function availableMenu2(schema2, state2, category) {
         const kitchen = Number(state2.facilities && state2.facilities.kitchen || 1);
-        return entityList(schema4, "menuItem").filter((item) => {
+        return entityList(schema2, "menuItem").filter((item) => {
           if (category && item.category !== category) return false;
           return Number(item.requiresKitchenLevel || 1) <= kitchen;
         });
       }
-      function roomStatus2(schema4, state2) {
-        return entityList(schema4, "room").map((room) => {
+      function roomStatus2(schema2, state2) {
+        return entityList(schema2, "room").map((room) => {
           const occupants = state2.rooms && state2.rooms[String(room.no)] || [];
           const capacity = room.capacity == null ? null : Number(room.capacity);
           return {
@@ -4993,25 +5066,25 @@ select:focus { border-color: var(--amber-line); }
           };
         });
       }
-      function tierOf(schema4, scaleId, value) {
-        const scale = scaleById(schema4, scaleId);
+      function tierOf(schema2, scaleId, value) {
+        const scale = scaleById(schema2, scaleId);
         if (!scale) return null;
         const n = Number(value);
         return (scale.tiers || []).find((tier) => n >= tier.range[0] && n <= tier.range[1]) || null;
       }
-      function summarize3(schema4, state2) {
-        const labels = reputationLabels(schema4);
+      function summarize3(schema2, state2) {
+        const labels = reputationLabels(schema2);
         const facilities = state2.facilities || {};
         const resources = state2.resources || {};
         const lines = [];
         lines.push(`[\uC5EC\uAD00] ${state2.day}\uC77C\uCC28 \xB7 \uACE8\uB4DC ${formatNumber(state2.gold)}\uC6D0 \xB7 \uC2DD\uC790\uC7AC ${resources.food || 0}\uC778\uBD84 \xB7 \uC8FC\uB958 ${resources.drink || 0}\uC794 \xB7 \uC2DC\uC124 \uC8FC\uC810${facilities.tavern || 0}/\uC8FC\uBC29${facilities.kitchen || 0}/\uAC1D\uC2E4${facilities.room || 0}/\uC219\uC18C${facilities.quarters || 0}`);
         const staff = (state2.staff || []).map((item) => {
-          const npc = entityList(schema4, "npc").find((entry) => entry.id === item.npcId);
+          const npc = entityList(schema2, "npc").find((entry) => entry.id === item.npcId);
           return `${npc && npc.nameKo || item.npcId}(\uC77C\uAE09 ${formatNumber(item.dailyWage)})`;
         });
         lines.push(`[\uC9C1\uC6D0] ${staff.length ? staff.join(", ") : "\uC5C6\uC74C"}`);
         const occupied = [];
-        for (const status of roomStatus2(schema4, state2)) {
+        for (const status of roomStatus2(schema2, state2)) {
           for (const guest of status.occupants) occupied.push(`${status.no}\uD638 ${guest.guestName}(${guest.nightsLeft}\uBC15 \uB0A8\uC74C)`);
         }
         lines.push(`[\uAC1D\uC2E4] ${occupied.length ? occupied.join(" \xB7 ") + " \xB7 \uB098\uBA38\uC9C0 \uACF5\uC2E4" : "\uC804 \uAC1D\uC2E4 \uACF5\uC2E4"}`);
@@ -5019,21 +5092,21 @@ select:focus { border-color: var(--amber-line); }
         lines.push(`[\uD3C9\uD310] ${repParts.join(" \xB7 ")}`);
         return lines.slice(0, 4).join("\n");
       }
-      function npcSummary3(schema4, state2, npcId) {
-        const npc = entityList(schema4, "npc").find((entry) => entry.id === npcId);
+      function npcSummary3(schema2, state2, npcId) {
+        const npc = entityList(schema2, "npc").find((entry) => entry.id === npcId);
         const data = state2.npcs && state2.npcs[npcId];
         if (!npc || !data) return "";
-        const tier = tierOf(schema4, "affinity", data.affinity);
+        const tier = tierOf(schema2, "affinity", data.affinity);
         const range = tier ? `${tier.range[0]}~${tier.range[1]}` : "?";
         const forbidden = tier && tier.forbidden && tier.forbidden.length ? `, \uAE08\uC9C0: ${tier.forbidden.join("/")}` : "";
         return `${npc.nameKo || npc.id}: \uD638\uAC10 ${data.affinity} \u2014 ${tier && tier.label || "\uBBF8\uBD84\uB958"}(${range})${forbidden}`;
       }
-      function reputationLabels(schema4) {
-        const ladder = ladderById(schema4, "reputation");
+      function reputationLabels(schema2) {
+        const ladder = ladderById(schema2, "reputation");
         return ladder && ladder.axisLabels || {};
       }
-      function rankWeight(schema4, state2, axis) {
-        const ladder = ladderById(schema4, "reputation");
+      function rankWeight(schema2, state2, axis) {
+        const ladder = ladderById(schema2, "reputation");
         if (!ladder || !state2.reputation || !state2.reputation[axis]) return 0;
         const idx = rankIndex(ladder, state2.reputation[axis].rank);
         const max = Math.max(1, (ladder.ranks || []).length - 1);
@@ -5052,7 +5125,7 @@ select:focus { border-color: var(--amber-line); }
       "use strict";
       var { clone, formulaById, findMenu, entityList } = require_utils();
       var { availableMenu: availableMenu2, rankWeight } = require_selectors();
-      function runDayEnd(schema4, state2, rng2) {
+      function runDayEnd(schema2, state2, rng2) {
         const next = clone(state2);
         const report = {
           day: state2.day,
@@ -5067,25 +5140,25 @@ select:focus { border-color: var(--amber-line); }
           unpaidWagesAdded: 0,
           checkouts: []
         };
-        settleRevenue(schema4, next, rng2, report);
+        settleRevenue(schema2, next, rng2, report);
         deductWages(next, report);
         checkoutDue(next, report);
         advanceDay(next);
         return { state: next, report };
       }
-      function settleRevenue(schema4, state2, rng2, report) {
-        const daily = formulaById(schema4, "daily_revenue");
+      function settleRevenue(schema2, state2, rng2, report) {
+        const daily = formulaById(schema2, "daily_revenue");
         const level = String(state2.facilities && state2.facilities.tavern || 1);
         const baseline = daily && daily.baseline && daily.baseline[level];
         if (!baseline) return;
         const range = baseline.customers || [0, 0];
         const baseCustomers = rng2.int(range[0], range[1]);
         const staffBonus = Math.min(0.25, (state2.staff || []).length * 0.05);
-        const repBonus = (rankWeight(schema4, state2, "village") + rankWeight(schema4, state2, "advent")) * 0.2;
+        const repBonus = (rankWeight(schema2, state2, "village") + rankWeight(schema2, state2, "advent")) * 0.2;
         const customers = Math.min(Number(baseline.cap || baseCustomers), Math.max(0, Math.round(baseCustomers * (1 + staffBonus + repBonus))));
         report.customers = customers;
-        const foodMenus = availableMenu2(schema4, state2, "\uC694\uB9AC");
-        const drinkMenus = availableMenu2(schema4, state2, "\uC8FC\uB958");
+        const foodMenus = availableMenu2(schema2, state2, "\uC694\uB9AC");
+        const drinkMenus = availableMenu2(schema2, state2, "\uC8FC\uB958");
         for (let i = 0; i < customers; i++) {
           const foodSold = sellRandomMenu(state2, rng2, foodMenus, "food", report);
           const drinkSold = sellRandomMenu(state2, rng2, drinkMenus, "drink", report);
@@ -5107,7 +5180,7 @@ select:focus { border-color: var(--amber-line); }
         return true;
       }
       function addSale(sales, menuName, qty, price) {
-        const existing = sales.find((row2) => row2.menuName === menuName);
+        const existing = sales.find((row3) => row3.menuName === menuName);
         if (existing) {
           existing.qty += qty;
           existing.price += price;
@@ -5165,11 +5238,11 @@ select:focus { border-color: var(--amber-line); }
         rankIndex,
         normalizeInt
       } = require_utils();
-      function applyEvent2(schema4, state2, event, rng2) {
+      function applyEvent2(schema2, state2, event, rng2) {
         const type = event && event.id;
         const params = event && event.params || event || {};
         if (type === "day_end") {
-          const result = runDayEnd(schema4, state2, rng2);
+          const result = runDayEnd(schema2, state2, rng2);
           return { state: result.state, log: [{ ok: true, event: type, report: result.report }] };
         }
         const next = clone(state2);
@@ -5185,21 +5258,21 @@ select:focus { border-color: var(--amber-line); }
           case "resource_delta":
             return resourceDelta(next, params, ok, fail);
           case "scale_delta":
-            return scaleDelta(schema4, next, params, ok, fail);
+            return scaleDelta(schema2, next, params, ok, fail);
           case "rep_event":
-            return repEvent(schema4, next, params, rng2, ok, fail);
+            return repEvent(schema2, next, params, rng2, ok, fail);
           case "exp_gain":
-            return expGain(schema4, next, params, rng2, ok, fail);
+            return expGain(schema2, next, params, rng2, ok, fail);
           case "checkin":
-            return checkin(schema4, next, params, ok, fail);
+            return checkin(schema2, next, params, ok, fail);
           case "checkout":
             return checkout(next, params, ok, fail);
           case "sale":
-            return sale(schema4, next, params, ok, fail);
+            return sale(schema2, next, params, ok, fail);
           case "purchase":
-            return purchase(schema4, next, params, ok, fail);
+            return purchase(schema2, next, params, ok, fail);
           case "hire":
-            return hire(schema4, next, params, ok, fail);
+            return hire(schema2, next, params, ok, fail);
           case "fire":
             return fire(next, params, ok, fail);
           default:
@@ -5220,10 +5293,10 @@ select:focus { border-color: var(--amber-line); }
         state2.resources[resource] = Math.max(0, before + amount);
         return ok({ resource, amount, before, after: state2.resources[resource], reason: params.reason || "" });
       }
-      function scaleDelta(schema4, state2, params, ok, fail) {
+      function scaleDelta(schema2, state2, params, ok, fail) {
         const scaleId = params.scale || "affinity";
         const target = params.target || params.npcId;
-        const scale = scaleById(schema4, scaleId);
+        const scale = scaleById(schema2, scaleId);
         if (!scale) return fail("unknown_scale", scaleId);
         if (!target || !state2.npcs || !state2.npcs[target]) return fail("unknown_target", target);
         const counterKey = `${scaleId}DeltaToday`;
@@ -5243,8 +5316,8 @@ select:focus { border-color: var(--amber-line); }
         const rawDelta = base + charBonus;
         const range = scale.range || [0, 200];
         const after = clamp(before + rawDelta, Number(range[0]), Number(range[1]));
-        const fromTier = tierOf(schema4, scaleId, before);
-        const toTier = tierOf(schema4, scaleId, after);
+        const fromTier = tierOf(schema2, scaleId, before);
+        const toTier = tierOf(schema2, scaleId, after);
         state2.npcs[target][scaleId] = after;
         state2.npcs[target][counterKey] = used + 1;
         const entry = { scale: scaleId, target, before, after, delta: after - before, size, direction, charBonus, reason: params.reason || "" };
@@ -5253,8 +5326,8 @@ select:focus { border-color: var(--amber-line); }
         }
         return ok(entry);
       }
-      function repEvent(schema4, state2, params, rng2, ok, fail) {
-        const ladder = ladderById(schema4, "reputation");
+      function repEvent(schema2, state2, params, rng2, ok, fail) {
+        const ladder = ladderById(schema2, "reputation");
         const axis = params.axis;
         const category = params.category;
         if (!ladder || !ladder.axes.includes(axis)) return fail("unknown_reputation_axis", axis);
@@ -5296,8 +5369,8 @@ select:focus { border-color: var(--amber-line); }
         state2.reputation[axis] = { rank, exp };
         return ok({ axis, category, delta, before, after: state2.reputation[axis], rankChanged: changed, reason: params.reason || "" });
       }
-      function expGain(schema4, state2, params, rng2, ok, fail) {
-        const ladder = ladderById(schema4, "player_level");
+      function expGain(schema2, state2, params, rng2, ok, fail) {
+        const ladder = ladderById(schema2, "player_level");
         if (!ladder) return fail("missing_player_level_ladder");
         const source = ladder.sources && ladder.sources[params.category];
         if (!source) return fail("unknown_exp_category", params.category);
@@ -5314,9 +5387,9 @@ select:focus { border-color: var(--amber-line); }
         }
         return ok({ category: params.category, amount, before, after: clone(state2.player), levelUps, reason: params.reason || "" });
       }
-      function checkin(schema4, state2, params, ok, fail) {
+      function checkin(schema2, state2, params, ok, fail) {
         const roomNo = String(params.roomNo);
-        const room = findRoom(schema4, roomNo);
+        const room = findRoom(schema2, roomNo);
         const stayDays = normalizeInt(params.stayDays, 1);
         const guestName = params.guestName;
         if (!room) return fail("unknown_room", roomNo);
@@ -5341,8 +5414,8 @@ select:focus { border-color: var(--amber-line); }
         else delete state2.rooms[roomNo];
         return ok({ roomNo, guestName });
       }
-      function sale(schema4, state2, params, ok, fail) {
-        const menu = findMenu(schema4, params.menuName);
+      function sale(schema2, state2, params, ok, fail) {
+        const menu = findMenu(schema2, params.menuName);
         const qty = normalizeInt(params.qty, 1);
         if (!menu) return fail("unknown_menu", params.menuName);
         if (qty <= 0) return fail("invalid_qty", qty);
@@ -5359,10 +5432,10 @@ select:focus { border-color: var(--amber-line); }
         state2.gold += goldDelta2;
         return ok({ menuName: menu.name, qty, goldDelta: goldDelta2 });
       }
-      function purchase(schema4, state2, params, ok, fail) {
+      function purchase(schema2, state2, params, ok, fail) {
         const resource = params.resource || params.resourceId;
         const qty = normalizeInt(params.qty, 1);
-        const def = (schema4.resources || []).find((entry) => entry.id === resource);
+        const def = (schema2.resources || []).find((entry) => entry.id === resource);
         if (!def || resource === "gold") return fail("unknown_resource", resource);
         if (qty <= 0) return fail("invalid_qty", qty);
         const cost = Number(def.basePrice || 0) * qty;
@@ -5371,12 +5444,12 @@ select:focus { border-color: var(--amber-line); }
         state2.resources[resource] = Number(state2.resources[resource] || 0) + qty;
         return ok({ resource, qty, goldDelta: -cost });
       }
-      function hire(schema4, state2, params, ok, fail) {
+      function hire(schema2, state2, params, ok, fail) {
         const npcId = params.npcId;
         const wage = normalizeInt(params.dailyWage);
-        if (!findById(schema4, "npc", npcId)) return fail("unknown_npc", npcId);
+        if (!findById(schema2, "npc", npcId)) return fail("unknown_npc", npcId);
         if ((state2.staff || []).some((staff) => staff.npcId === npcId)) return fail("already_hired", npcId);
-        if ((state2.staff || []).length >= staffMax2(schema4, state2)) return fail("staff_full", npcId);
+        if ((state2.staff || []).length >= staffMax2(schema2, state2)) return fail("staff_full", npcId);
         state2.staff = (state2.staff || []).concat([{ npcId, dailyWage: wage }]);
         return ok({ npcId, dailyWage: wage });
       }
@@ -5459,12 +5532,12 @@ select:focus { border-color: var(--amber-line); }
 - \uC2E4\uC81C\uB85C \uC644\uACB0\uB41C \uC77C\uB9CC. \uC9C4\uD589 \uC911\xB7\uACC4\uD68D\uC740 \uC0AC\uAC74\uC774 \uC544\uB2C8\uB2E4.
 - npcId\uB294 [NPC \uBAA9\uB85D]\uC758 \uC601\uBB38 id\uB9CC \uC0AC\uC6A9.
 - \uD655\uC2E0\uC774 \uC5C6\uC73C\uBA74 \uC0AC\uAC74\uC744 \uB0B4\uC9C0 \uB9C8\uB77C. \uBE48 \uBC30\uC5F4\uC774 \uC548\uC804\uD558\uB2E4.`;
-      function buildPrompt2({ schema: schema4, state: state2, lore, recentMessages, userInput }) {
-        const stateText = summarize3(schema4, state2);
-        const npcIds = relatedNpcIds(schema4, state2, recentMessages, userInput);
-        const npcText = npcIds.map((id) => npcSummary3(schema4, state2, id)).filter(Boolean).join("\n");
-        const repCats = reputationCategories(schema4);
-        const npcList = npcListText(schema4);
+      function buildPrompt2({ schema: schema2, state: state2, lore, recentMessages, userInput }) {
+        const stateText = summarize3(schema2, state2);
+        const npcIds = relatedNpcIds(schema2, state2, recentMessages, userInput);
+        const npcText = npcIds.map((id) => npcSummary3(schema2, state2, id)).filter(Boolean).join("\n");
+        const repCats = reputationCategories(schema2);
+        const npcList = npcListText(schema2);
         const loreText = loreContext(lore, recentMessages, userInput);
         const context = [
           "[\uC0C1\uD0DC]",
@@ -5522,21 +5595,21 @@ select:focus { border-color: var(--amber-line); }
         const narrative = jsonBlock ? source.replace(blocks[blocks.length - 1][0], "").trim() : source.trim();
         return { narrative, events };
       }
-      function relatedNpcIds(schema4, state2, recentMessages, userInput) {
+      function relatedNpcIds(schema2, state2, recentMessages, userInput) {
         const haystack = [...(recentMessages || []).map((m) => m.content || ""), userInput || ""].join("\n").toLowerCase();
         const staff = new Set((state2.staff || []).map((item) => item.npcId));
-        return npcEntities(schema4).filter((npc) => {
+        return npcEntities(schema2).filter((npc) => {
           if (staff.has(npc.id)) return true;
           const names = [npc.id, npc.nameKo, npc.nameEn].filter(Boolean).map((x) => String(x).toLowerCase());
           return names.some((name) => name && haystack.includes(name));
         }).map((npc) => npc.id);
       }
-      function reputationCategories(schema4) {
-        const ladder = schema4.ladders.find((entry) => entry.id === "reputation");
+      function reputationCategories(schema2) {
+        const ladder = schema2.ladders.find((entry) => entry.id === "reputation");
         return ladder.axes.map((axis) => `${axis}(${ladder.axisLabels[axis] || axis}): ${Object.keys(ladder.categories[axis]).join(", ")}`).join("\n");
       }
-      function npcListText(schema4) {
-        return npcEntities(schema4).map((npc) => `${npc.id}: ${npc.nameKo}${npc.class ? ` (${npc.class})` : ""}`).join("\n");
+      function npcListText(schema2) {
+        return npcEntities(schema2).map((npc) => `${npc.id}: ${npc.nameKo}${npc.class ? ` (${npc.class})` : ""}`).join("\n");
       }
       function loreContext(lore, recentMessages, userInput) {
         if (!lore) return "";
@@ -5544,13 +5617,13 @@ select:focus { border-color: var(--amber-line); }
         const result = simulateActivation2(lore, text, { scanDepth: 8, tokenBudget: 0 });
         let used = 0;
         const query = text.toLowerCase();
-        return result.active.filter((row2) => !row2.entry.constant).sort((a, b) => relevance(a.entry, query) - relevance(b.entry, query) || (a.order || 0) - (b.order || 0)).filter((row2) => {
-          const tokens = Number(row2.tokens || 0);
+        return result.active.filter((row3) => !row3.entry.constant).sort((a, b) => relevance(a.entry, query) - relevance(b.entry, query) || (a.order || 0) - (b.order || 0)).filter((row3) => {
+          const tokens = Number(row3.tokens || 0);
           if (used + tokens > 2500) return false;
           used += tokens;
           return true;
-        }).map((row2) => `${row2.entry.name || row2.name || "(\uC774\uB984 \uC5C6\uC74C)"}:
-${row2.entry.content}`).join("\n\n");
+        }).map((row3) => `${row3.entry.name || row3.name || "(\uC774\uB984 \uC5C6\uC74C)"}:
+${row3.entry.content}`).join("\n\n");
       }
       function relevance(entry, query) {
         const name = String(entry.name || "").toLowerCase();
@@ -5559,8 +5632,8 @@ ${row2.entry.content}`).join("\n\n");
         if (keys.some((key) => key && query.includes(key))) return 1;
         return 2;
       }
-      function npcEntities(schema4) {
-        const block = schema4.entities.find((entry) => entry.type === "npc");
+      function npcEntities(schema2) {
+        const block = schema2.entities.find((entry) => entry.type === "npc");
         return block && Array.isArray(block.instances) ? block.instances : [];
       }
       module.exports = { SYSTEM_PROMPT, buildPrompt: buildPrompt2, parseAssistantResponse: parseAssistantResponse2 };
@@ -5571,16 +5644,16 @@ ${row2.entry.content}`).join("\n\n");
   var require_providers = __commonJS({
     "src/llm/providers.js"(exports, module) {
       "use strict";
-      var PROVIDERS2 = {
+      var PROVIDERS3 = {
         mock: { kind: "mock", base: "", keyRequired: false, defModel: "" },
         gemini: { kind: "openai", base: "https://generativelanguage.googleapis.com/v1beta/openai", keyRequired: true, defModel: "gemini-2.5-flash" },
         openai: { kind: "openai", base: "https://api.openai.com/v1", keyRequired: true, defModel: "gpt-4o-mini" },
         anthropic: { kind: "anthropic", base: "https://api.anthropic.com", keyRequired: true, defModel: "claude-sonnet-5" },
         custom: { kind: "openai", base: "", keyRequired: true, defModel: "" }
       };
-      var providerDef2 = (provider) => PROVIDERS2[provider] || PROVIDERS2.mock;
-      async function callProvider2(cfg, prompt) {
-        const def = providerDef2(cfg.provider);
+      var providerDef3 = (provider) => PROVIDERS3[provider] || PROVIDERS3.mock;
+      async function callProvider3(cfg, prompt) {
+        const def = providerDef3(cfg.provider);
         if (def.kind === "mock") return mockResponse(prompt);
         if (def.keyRequired && !cfg.apiKey) throw new Error("API \uD0A4\uAC00 \uC124\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4");
         const req = buildRequest(def, cfg, prompt);
@@ -5616,8 +5689,8 @@ ${row2.entry.content}`).join("\n\n");
             },
             body: JSON.stringify({
               model,
-              max_tokens: 1200,
-              temperature: 0.7,
+              max_tokens: prompt.maxTokens || 1200,
+              temperature: prompt.temperature == null ? 0.7 : prompt.temperature,
               system: prompt.system,
               messages: prompt.messages
             })
@@ -5626,10 +5699,10 @@ ${row2.entry.content}`).join("\n\n");
         const body = {
           model,
           messages: [{ role: "system", content: prompt.system }].concat(prompt.messages),
-          temperature: 0.7
+          temperature: prompt.temperature == null ? 0.7 : prompt.temperature
         };
-        if (cfg.provider === "openai") body.max_completion_tokens = 1200;
-        else body.max_tokens = 1200;
+        if (cfg.provider === "openai") body.max_completion_tokens = prompt.maxTokens || 1200;
+        else body.max_tokens = prompt.maxTokens || 1200;
         return {
           url: base + "/chat/completions",
           method: "POST",
@@ -5711,7 +5784,361 @@ ${row2.entry.content}`).join("\n\n");
         }
         return '\uC2E4\uBE44\uC544\uAC00 \uACE0\uAE30 \uC2A4\uD29C \uD55C \uADF8\uB987\uC744 \uC190\uB2D8 \uC55E\uC5D0 \uB0B4\uB824\uB193\uC2B5\uB2C8\uB2E4. \uC190\uB2D8\uC740 \uB728\uAC70\uC6B4 \uAE40\uC774 \uC624\uB974\uB294 \uADF8\uB987\uC744 \uBC1B\uC544 \uB4E4\uACE0 \uB9CC\uC871\uC2A4\uB7FD\uAC8C \uACE0\uAC1C\uB97C \uB044\uB355\uC785\uB2C8\uB2E4.\n\n```json\n{"events":[{"id":"sale","params":{"menuName":"\uACE0\uAE30 \uC2A4\uD29C","qty":1}}]}\n```';
       }
-      module.exports = { PROVIDERS: PROVIDERS2, providerDef: providerDef2, callProvider: callProvider2, buildRequest, parseResponse, requestWithRetry, errorText };
+      module.exports = { PROVIDERS: PROVIDERS3, providerDef: providerDef3, callProvider: callProvider3, buildRequest, parseResponse, requestWithRetry, errorText };
+    }
+  });
+
+  // src/llm/compilerPrompt.js
+  var require_compilerPrompt = __commonJS({
+    "src/llm/compilerPrompt.js"(exports, module) {
+      "use strict";
+      var canonicalSchema = require_yongsa_inn_v0();
+      var SYSTEM_PROMPT = '\uB2F9\uC2E0\uC740 RisuAI \uC2DC\uBBAC\uBD07 \uCE74\uB4DC\uC758 "\uB8F0\uBD81 \uC0B0\uBB38"\uC744 \uACB0\uC815\uB860 \uAC8C\uC784 \uC5D4\uC9C4\uC6A9 \uD45C\uC900 \uC2A4\uD0A4\uB9C8 JSON\uC73C\uB85C \uBCC0\uD658\uD558\uB294 \uCEF4\uD30C\uC77C\uB7EC\uB2E4.\n\n[\uC124\uACC4 \uCCA0\uD559] \uB7F0\uD0C0\uC784\uC5D0 \uC11C\uC0AC\uB294 LLM\uC774, \uC218\uCE58 \uACC4\uC0B0\xB7\uC0C1\uD0DC\uB294 \uC5D4\uC9C4\uC774 \uC18C\uC720\uD55C\uB2E4. \uB108\uC758 \uC784\uBB34\uB294 \uB8F0\uBD81\uC5D0\uC11C "\uC5D4\uC9C4\uC774 \uACC4\uC0B0\uD560 \uC218 \uC788\uB294 \uADDC\uCE59"(\uC218\uCE58\xB7\uBB38\uD131\xB7\uBC94\uC704\xB7\uD2F0\uC5B4\xB7\uACF5\uC2DD\xB7\uD45C)\uB9CC \uBF51\uC544 \uAD6C\uC870\uD654\uD558\uB294 \uAC83\uC774\uB2E4. \uBD84\uC704\uAE30\xB7\uC11C\uC0AC \uC9C0\uCE68\xB7\uC774\uBBF8\uC9C0 \uADDC\uCE59\uC740 \uB123\uC9C0 \uB9C8\uB77C.\n\n[\uCD9C\uB825 \uD615\uC2DD \u2014 \uC774 JSON \uD558\uB098\uB9CC. \uC55E\uB4A4 \uC124\uBA85\xB7\uB9C8\uD06C\uB2E4\uC6B4\xB7\uCF54\uB4DC\uD39C\uC2A4 \uAE08\uC9C0. \u2605\uD544\uB4DC\uBA85\uC740 \uC544\uB798 \uADF8\uB300\uB85C \uC4F0\uACE0 \uB300\uCCB4 \uC774\uB984\uC744 \uC9C0\uC5B4\uB0B4\uC9C0 \uB9C8\uB77C.]\n{\n  "meta": { "id": "kebab-id", "title": "\uCE74\uB4DC\uBA85", "schemaVersion": "0.1" },\n  "resources": [ { "id": "gold|food|drink|material", "unit": "\uBB38\uC790\uC5F4", "min": 0, "basePrice": \uC815\uC218\uC635\uC158 } ],\n  "scales": [ { "id": "affinity \uB4F1", "owner": "npc|player|captive", "range": [\uCD5C\uC18C,\uCD5C\uB300], "default": \uC815\uC218,\n    "steps": { "S": +\uC815\uC218, "M": +\uC815\uC218, "L": +\uC815\uC218, "XL": +\uC815\uC218, "S-": -\uC815\uC218, "M-": -\uC815\uC218, "L-": -\uC815\uC218, "XL-": -\uC815\uC218 },\n    "tiers": [ { "range": [lo,hi], "label": "\uD2F0\uC5B4\uBA85", "brief": "\uC9E7\uC740 \uC11C\uC220", "forbidden": ["\uAE08\uC9C0\uD589\uB3D9"] } ],\n    "actionMinimums": { "\uB3D9\uC791\uBA85": \uCD5C\uC18C\uC218\uCE58 } } ],\n  "ladders": [\n    { "id": "player_level", "currency": "exp", "thresholds": [\uBB38\uD131\uB4E4 \uB610\uB294 null], "sources": { "\uCE74\uD14C\uACE0\uB9AC": \uAC12 \uB610\uB294 [\uCD5C\uC18C,\uCD5C\uB300] } },\n    { "id": "reputation", "axes": ["\uCD95id"], "axisLabels": { "\uCD95id": "\uD55C\uAE00\uBA85" },\n      "ranks": [ { "id": "E", "next": \uBB38\uD131 }, { "id": "S", "next": null } ],\n      "onPromote": "resetExp", "onNegative": "demoteBorrow",\n      "categories": { "\uCD95id": { "\uCE74\uD14C\uACE0\uB9AC": [\uCD5C\uC18C,\uCD5C\uB300] } } } ],\n  "entities": [\n    { "type": "room", "fields": ["no","kind","pricePerNight","capacity","requiresRoomLevel"], "instances": [ { "no": \uC815\uC218, "kind": "\uBB38\uC790\uC5F4", "pricePerNight": \uC815\uC218, "capacity": \uC815\uC218\uB610\uB294null, "requiresRoomLevel": \uC815\uC218 } ] },\n    { "type": "menuItem", "fields": ["name","category","grade","price","requiresKitchenLevel","consumes"], "instances": [ { "name": "", "category": "", "grade": "E~S", "price": \uC815\uC218, "requiresKitchenLevel": \uC815\uC218, "consumes": { "food|drink": 1 } } ] },\n    { "type": "npc", "fields": ["id","nameKo","nameEn","class","group"], "instances": [ { "id":"", "nameKo":"", "nameEn":"", "class":"", "group":"" } ] },\n    { "type": "facility", "fields": ["id","label","maxLevel"], "instances": [ { "id":"", "label":"", "maxLevel": \uC815\uC218 } ] } ],\n  "formulas": [ { "id": "daily_revenue \uB4F1", "baseline": { "\uC2DC\uC124\uB808\uBCA8": { "cap": \uC815\uC218, "customers": [\uCD5C\uC18C,\uCD5C\uB300], "revenue": [\uCD5C\uC18C,\uCD5C\uB300] } }, "note": "" } ],\n  "processes": [ { "trigger": "dayEnd \uB4F1", "steps": [ { "id": "\uB2E8\uACC4id", "note": "" } ] } ],\n  "events": [ { "id": "sale|purchase|checkin|checkout|hire|fire|scale_delta|rep_event|exp_gain|gold_delta|resource_delta|day_end \uB4F1", "params": { "\uD544\uB4DC": "\uD0C0\uC785" } } ],\n  "initialState": { "day": 1, "gold": \uC815\uC218, "resources": {}, "facilities": {}, "staff": [], "player": {}, "reputation": {} },\n  "_assumptions": [ "\uB8F0\uBD81\uC5D0\uC11C \uD655\uC815 \uBABB \uD55C \uAC12\uACFC \uC0AC\uC720\uB97C \uBB38\uC7A5\uC73C\uB85C" ]\n}\n\n[\uBCC0\uD658 \uADDC\uCE59]\n1. \uB8F0\uBD81\uC5D0 \uBA85\uC2DC\uB41C \uC218\uCE58\uB9CC. \uC5C6\uB294 \uAC12\uC740 \uC9C0\uC5B4\uB0B4\uC9C0 \uB9D0\uACE0 \uC0DD\uB7B5\uD558\uAC70\uB098 null, \uADF8\uB9AC\uACE0 \uBB34\uC5C7\uC744 \uBABB \uC815\uD588\uB294\uC9C0 "_assumptions"\uC5D0 \uBC18\uB4DC\uC2DC \uC801\uB294\uB2E4.\n2. 0~200 \uB4F1 \uC720\uACC4 \uC218\uCE58 + \uAD6C\uAC04\uBCC4 \uC11C\uC220/\uAE08\uC9C0 = scales.tiers. \uC6D0\uBCF8 \uD2F0\uC5B4\uB97C \uD558\uB098\uB3C4 \uBE60\uB728\uB9AC\uC9C0 \uB9D0\uACE0 range\xB7label\xB7forbidden\uC744 \uC62E\uAE34\uB2E4.\n3. EXP \uB204\uC801\u2192\uBB38\uD131 \uC2B9\uAE09 = ladders. \uD3C9\uD310 \uC5EC\uB7EC \uCD95\uC740 axes\uB85C \uBB36\uACE0 \uCD95\uBCC4 \uBCC0\uB3D9 \uBC94\uC704\uD45C\uB97C categories\uB85C.\n4. \uD0DC\uADF8(\uC608: [ysp_affinity::id::\xB1N])\uB294 events\uB85C. \uC2A4\uCF00\uC77C \uBCC0\uB3D9\uC740 LLM\uC774 \uD06C\uAE30(S/M/L/XL)\uB9CC \uBD84\uB958\uD558\uACE0 \uC5D4\uC9C4\uC774 steps\uB85C \uC218\uCE58\uD654\uD558\uB294 \uC124\uACC4\uC774\uBBC0\uB85C params\uC5D0 size\uB97C \uB450\uACE0, \uC6D0\uBCF8\uC774 \xB1N\uC744 \uC918\uB3C4 \uADF8 \uAC12\uB4E4\uC740 steps\uB85C \uBF51\uB294\uB2E4.\n5. \uAC1D\uC2E4\xB7\uBA54\uB274\xB7NPC \uD45C/\uBAA9\uB85D\uC740 entities.instances\uB85C \uBE60\uC9D0\uC5C6\uC774. \u2605\uD544\uB4DC\uBA85\uC740 \uC704 \uD615\uC2DD \uADF8\uB300\uB85C.\n6. \uC815\uAE30 \uC815\uC0B0\xB7\uC77C\uAE09 \uCC28\uAC10\xB7\uC2DC\uAC04 \uACBD\uACFC\uB294 formulas + processes\uB85C.\n7. \uCD9C\uB825\uC740 \uD30C\uC2F1 \uAC00\uB2A5\uD55C \uB2E8\uC77C JSON. \uADF8 \uC678 \uD14D\uC2A4\uD2B8 \uC808\uB300 \uAE08\uC9C0.\n\n\uC544\uB798 [\uB8F0\uBD81]\uC744 \uCEF4\uD30C\uC77C\uD558\uB77C.\n\n[\uB8F0\uBD81]\n{{RULEBOOK}}';
+      var MAX_RULEBOOK_CHARS = 6e4;
+      function buildCompilerInput2(lore) {
+        const entries = Array.isArray(lore && lore.entries) ? lore.entries : [];
+        const rows = entries.filter((entry) => String(entry && entry.content || "").trim()).map((entry, index) => ({
+          index,
+          constant: !!entry.constant,
+          name: String(entry.name || entry.comment || `entry-${index + 1}`),
+          content: String(entry.content || "")
+        }));
+        if (!rows.length) return SYSTEM_PROMPT.replace("{{RULEBOOK}}", mockRulebook());
+        const constantRows = rows.filter((row3) => row3.constant);
+        const restRows = rows.filter((row3) => !row3.constant).sort((a, b) => b.content.length - a.content.length || a.index - b.index);
+        const selected = [];
+        let used = 0;
+        for (const row3 of constantRows.concat(restRows)) {
+          const block = formatEntry(row3);
+          if (used + block.length > MAX_RULEBOOK_CHARS && selected.length) continue;
+          selected.push(block);
+          used += block.length;
+          if (used >= MAX_RULEBOOK_CHARS) break;
+        }
+        const omitted = rows.length - selected.length;
+        if (omitted > 0 && typeof console !== "undefined" && console.info) {
+          console.info("[simbot] compiler input trimmed", { included: selected.length, omitted });
+        }
+        return SYSTEM_PROMPT.replace("{{RULEBOOK}}", selected.join("\n\n").slice(0, MAX_RULEBOOK_CHARS));
+      }
+      function parseCompilerOutput2(text) {
+        const source = String(text || "");
+        const start = source.indexOf("{");
+        const end = source.lastIndexOf("}");
+        if (start < 0 || end <= start) return { ok: false, error: "No JSON object found in compiler output." };
+        try {
+          return { ok: true, json: JSON.parse(source.slice(start, end + 1)) };
+        } catch (err) {
+          return { ok: false, error: err && err.message ? err.message : String(err) };
+        }
+      }
+      function mockCompilerOutput2() {
+        const schema2 = clone(canonicalSchema);
+        schema2.meta = Object.assign({}, schema2.meta, {
+          id: "mock-compiler-yongsa-inn",
+          title: String(schema2.meta && schema2.meta.title || "Mock schema") + " mock"
+        });
+        schema2._assumptions = ["Mock compiler output: canonical schema with deliberate alternate field names for validator normalization."];
+        const rooms = entity(schema2, "room");
+        if (rooms) {
+          rooms.instances = rooms.instances.map((room) => {
+            const next = Object.assign({}, room);
+            next.roomNo = next.no;
+            next.price = next.pricePerNight;
+            delete next.no;
+            delete next.pricePerNight;
+            return next;
+          });
+        }
+        const npcs2 = entity(schema2, "npc");
+        if (npcs2 && npcs2.instances[0]) {
+          npcs2.instances = npcs2.instances.map((npc, index) => {
+            if (index !== 0) return npc;
+            const next = Object.assign({}, npc);
+            next.name = next.nameKo;
+            delete next.nameKo;
+            return next;
+          });
+        }
+        return JSON.stringify(schema2, null, 2);
+      }
+      function formatEntry(row3) {
+        return `### \uB8F0\uBD81 \uD56D\uBAA9: ${row3.name}
+${row3.content}`;
+      }
+      function mockRulebook() {
+        return "Mock lorebook entry: use the default inn schema shape and keep assumptions explicit.";
+      }
+      function entity(schema2, type) {
+        return (schema2.entities || []).find((entry) => entry.type === type);
+      }
+      function clone(value) {
+        return JSON.parse(JSON.stringify(value));
+      }
+      module.exports = { SYSTEM_PROMPT, buildCompilerInput: buildCompilerInput2, parseCompilerOutput: parseCompilerOutput2, mockCompilerOutput: mockCompilerOutput2 };
+    }
+  });
+
+  // src/schema/validate.js
+  var require_validate = __commonJS({
+    "src/schema/validate.js"(exports, module) {
+      "use strict";
+      var REQUIRED_TOP_LEVEL = ["meta", "resources", "scales", "ladders", "entities", "events"];
+      var ENTITY_FIELDS = {
+        room: ["no", "kind", "pricePerNight", "capacity", "requiresRoomLevel"],
+        menuItem: ["name", "category", "grade", "price", "requiresKitchenLevel", "consumes"],
+        npc: ["id", "nameKo", "nameEn", "class", "group"],
+        facility: ["id", "label", "maxLevel"]
+      };
+      var ROOM_ALIASES = { number: "no", roomNo: "no", price: "pricePerNight" };
+      var NPC_ALIASES = { name: "nameKo" };
+      function validateSchema2(obj) {
+        const issues = [];
+        const schema2 = clone(obj || {});
+        normalizeAliases(schema2, issues);
+        validateTop(schema2, issues);
+        validateResources(schema2, issues);
+        validateScales(schema2, issues);
+        validateLadders(schema2, issues);
+        validateEntities(schema2, issues);
+        validateFormulas(schema2, issues);
+        validateProcesses(schema2, issues);
+        validateEvents(schema2, issues);
+        return { schema: schema2, issues };
+      }
+      function normalizeAliases(schema2, issues) {
+        const room = findEntity(schema2, "room");
+        if (room) {
+          room.fields = normalizeFieldList(room.fields, ROOM_ALIASES, "entities.room.fields", issues);
+          for (const [index, instance] of asArray(room.instances).entries()) {
+            normalizeObjectFields(instance, ROOM_ALIASES, `entities.room.instances[${index}]`, issues);
+          }
+        }
+        const npc = findEntity(schema2, "npc");
+        if (npc) {
+          npc.fields = normalizeFieldList(npc.fields, NPC_ALIASES, "entities.npc.fields", issues);
+          for (const [index, instance] of asArray(npc.instances).entries()) {
+            normalizeObjectFields(instance, NPC_ALIASES, `entities.npc.instances[${index}]`, issues);
+          }
+        }
+      }
+      function validateTop(schema2, issues) {
+        if (!isObject(schema2)) {
+          error(issues, "$", "Schema must be a JSON object.");
+          return;
+        }
+        for (const key of REQUIRED_TOP_LEVEL) {
+          if (schema2[key] == null) error(issues, key, "Required top-level field is missing.");
+        }
+        if (!isObject(schema2.meta)) error(issues, "meta", "meta must be an object.");
+        else {
+          for (const key of ["id", "title", "schemaVersion"]) requireField(schema2.meta, key, `meta.${key}`, issues);
+        }
+      }
+      function validateResources(schema2, issues) {
+        if (!requireArray(schema2.resources, "resources", issues)) return;
+        const ids = /* @__PURE__ */ new Set();
+        schema2.resources.forEach((resource, index) => {
+          const path = `resources[${index}]`;
+          if (!isObject(resource)) return error(issues, path, "Resource must be an object.");
+          for (const key of ["id", "unit", "min"]) requireField(resource, key, `${path}.${key}`, issues);
+          duplicate(ids, resource.id, `${path}.id`, issues);
+        });
+      }
+      function validateScales(schema2, issues) {
+        if (!requireArray(schema2.scales, "scales", issues)) return;
+        const ids = /* @__PURE__ */ new Set();
+        schema2.scales.forEach((scale, index) => {
+          const path = `scales[${index}]`;
+          if (!isObject(scale)) return error(issues, path, "Scale must be an object.");
+          for (const key of ["id", "owner", "range", "default", "steps", "tiers", "actionMinimums"]) {
+            requireField(scale, key, `${path}.${key}`, issues);
+          }
+          duplicate(ids, scale.id, `${path}.id`, issues);
+          validateRange(scale.range, `${path}.range`, issues, "error");
+          if (isRange(scale.range) && Number(scale.range[0]) >= Number(scale.range[1])) {
+            warn(issues, `${path}.range`, "Scale range should ascend.");
+          }
+          if (!isObject(scale.steps)) error(issues, `${path}.steps`, "steps must be an object.");
+          else {
+            for (const key of ["S", "M", "L", "XL", "S-", "M-", "L-", "XL-"]) {
+              if (scale.steps[key] == null) error(issues, `${path}.steps.${key}`, "Missing step size.");
+            }
+          }
+          if (!requireArray(scale.tiers, `${path}.tiers`, issues)) return;
+          scale.tiers.forEach((tier, tierIndex) => {
+            const tierPath = `${path}.tiers[${tierIndex}]`;
+            if (!isObject(tier)) return error(issues, tierPath, "Tier must be an object.");
+            for (const key of ["range", "label", "brief", "forbidden"]) requireField(tier, key, `${tierPath}.${key}`, issues);
+            validateRange(tier.range, `${tierPath}.range`, issues, "error");
+            if (isRange(scale.range) && isRange(tier.range)) {
+              if (Number(tier.range[0]) < Number(scale.range[0]) || Number(tier.range[1]) > Number(scale.range[1])) {
+                warn(issues, `${tierPath}.range`, "Tier range falls outside scale range.");
+              }
+            }
+            if (!Array.isArray(tier.forbidden)) error(issues, `${tierPath}.forbidden`, "forbidden must be an array.");
+          });
+        });
+      }
+      function validateLadders(schema2, issues) {
+        if (!requireArray(schema2.ladders, "ladders", issues)) return;
+        const ids = /* @__PURE__ */ new Set();
+        schema2.ladders.forEach((ladder, index) => {
+          const path = `ladders[${index}]`;
+          if (!isObject(ladder)) return error(issues, path, "Ladder must be an object.");
+          requireField(ladder, "id", `${path}.id`, issues);
+          duplicate(ids, ladder.id, `${path}.id`, issues);
+          if (ladder.id === "player_level") {
+            for (const key of ["currency", "thresholds", "sources"]) requireField(ladder, key, `${path}.${key}`, issues);
+            requireArray(ladder.thresholds, `${path}.thresholds`, issues);
+            if (!isObject(ladder.sources)) error(issues, `${path}.sources`, "sources must be an object.");
+          }
+          if (ladder.id === "reputation") {
+            for (const key of ["axes", "axisLabels", "ranks", "onPromote", "onNegative", "categories"]) {
+              requireField(ladder, key, `${path}.${key}`, issues);
+            }
+            requireArray(ladder.axes, `${path}.axes`, issues);
+            if (!isObject(ladder.axisLabels)) error(issues, `${path}.axisLabels`, "axisLabels must be an object.");
+            if (!isObject(ladder.categories)) error(issues, `${path}.categories`, "categories must be an object.");
+            if (requireArray(ladder.ranks, `${path}.ranks`, issues)) validateRanks(ladder.ranks, `${path}.ranks`, issues);
+          }
+        });
+      }
+      function validateEntities(schema2, issues) {
+        if (!requireArray(schema2.entities, "entities", issues)) return;
+        const types = /* @__PURE__ */ new Set();
+        schema2.entities.forEach((entity, index) => {
+          const path = `entities[${index}]`;
+          if (!isObject(entity)) return error(issues, path, "Entity block must be an object.");
+          for (const key of ["type", "fields", "instances"]) requireField(entity, key, `${path}.${key}`, issues);
+          duplicate(types, entity.type, `${path}.type`, issues);
+          requireArray(entity.fields, `${path}.fields`, issues);
+          requireArray(entity.instances, `${path}.instances`, issues);
+          const required = ENTITY_FIELDS[entity.type];
+          if (!required) return;
+          const fieldSet = new Set(asArray(entity.fields));
+          for (const field4 of required) {
+            if (!fieldSet.has(field4)) error(issues, `${path}.fields`, `Missing canonical field ${field4}.`);
+          }
+          asArray(entity.instances).forEach((instance, instanceIndex) => {
+            const itemPath = `${path}.instances[${instanceIndex}]`;
+            if (!isObject(instance)) return error(issues, itemPath, "Entity instance must be an object.");
+            for (const field4 of required) {
+              if (!(field4 in instance)) error(issues, `${itemPath}.${field4}`, `Missing required field ${field4}.`);
+            }
+          });
+        });
+      }
+      function validateFormulas(schema2, issues) {
+        if (schema2.formulas == null) return;
+        if (!requireArray(schema2.formulas, "formulas", issues)) return;
+        schema2.formulas.forEach((formula, index) => {
+          if (!isObject(formula)) return error(issues, `formulas[${index}]`, "Formula must be an object.");
+          requireField(formula, "id", `formulas[${index}].id`, issues);
+        });
+      }
+      function validateProcesses(schema2, issues) {
+        if (schema2.processes == null) return;
+        if (!requireArray(schema2.processes, "processes", issues)) return;
+        schema2.processes.forEach((process, index) => {
+          const path = `processes[${index}]`;
+          if (!isObject(process)) return error(issues, path, "Process must be an object.");
+          for (const key of ["trigger", "steps"]) requireField(process, key, `${path}.${key}`, issues);
+          if (requireArray(process.steps, `${path}.steps`, issues)) {
+            process.steps.forEach((step, stepIndex) => {
+              if (!isObject(step)) return error(issues, `${path}.steps[${stepIndex}]`, "Process step must be an object.");
+              requireField(step, "id", `${path}.steps[${stepIndex}].id`, issues);
+            });
+          }
+        });
+      }
+      function validateEvents(schema2, issues) {
+        if (!requireArray(schema2.events, "events", issues)) return;
+        const ids = /* @__PURE__ */ new Set();
+        schema2.events.forEach((event, index) => {
+          const path = `events[${index}]`;
+          if (!isObject(event)) return error(issues, path, "Event must be an object.");
+          for (const key of ["id", "params"]) requireField(event, key, `${path}.${key}`, issues);
+          duplicate(ids, event.id, `${path}.id`, issues);
+          if (!isObject(event.params)) error(issues, `${path}.params`, "params must be an object.");
+        });
+      }
+      function validateRanks(ranks, path, issues) {
+        let last = -Infinity;
+        ranks.forEach((rank, index) => {
+          const rankPath = `${path}[${index}]`;
+          if (!isObject(rank)) return error(issues, rankPath, "Rank must be an object.");
+          for (const key of ["id", "next"]) requireField(rank, key, `${rankPath}.${key}`, issues);
+          if (rank.next != null) {
+            const next = Number(rank.next);
+            if (!Number.isFinite(next)) warn(issues, `${rankPath}.next`, "Rank next should be numeric or null.");
+            else if (next <= last) warn(issues, `${rankPath}.next`, "Rank next thresholds should ascend.");
+            else last = next;
+          }
+        });
+      }
+      function normalizeFieldList(fields, aliases, path, issues) {
+        if (!Array.isArray(fields)) return fields;
+        return fields.map((field4) => {
+          if (aliases[field4]) {
+            warn(issues, path, `Normalized field ${field4} -> ${aliases[field4]}.`);
+            return aliases[field4];
+          }
+          return field4;
+        });
+      }
+      function normalizeObjectFields(obj, aliases, path, issues) {
+        if (!isObject(obj)) return;
+        for (const [from, to] of Object.entries(aliases)) {
+          if (from in obj && !(to in obj)) {
+            obj[to] = obj[from];
+            delete obj[from];
+            warn(issues, `${path}.${from}`, `Normalized field ${from} -> ${to}.`);
+          }
+        }
+      }
+      function validateRange(value, path, issues, level) {
+        if (!isRange(value)) {
+          (level === "warn" ? warn : error)(issues, path, "Range must be an array of length 2.");
+        }
+      }
+      function requireArray(value, path, issues) {
+        if (!Array.isArray(value)) {
+          error(issues, path, "Must be an array.");
+          return false;
+        }
+        return true;
+      }
+      function requireField(obj, key, path, issues) {
+        if (!obj || !(key in obj)) error(issues, path, "Required field is missing.");
+      }
+      function duplicate(set, value, path, issues) {
+        if (value == null || value === "") return;
+        if (set.has(value)) warn(issues, path, `Duplicate id/type ${value}.`);
+        set.add(value);
+      }
+      function findEntity(schema2, type) {
+        return asArray(schema2 && schema2.entities).find((entry) => entry && entry.type === type);
+      }
+      function isRange(value) {
+        return Array.isArray(value) && value.length === 2;
+      }
+      function asArray(value) {
+        return Array.isArray(value) ? value : [];
+      }
+      function isObject(value) {
+        return !!value && typeof value === "object" && !Array.isArray(value);
+      }
+      function error(issues, path, msg) {
+        issues.push({ level: "error", path, msg });
+      }
+      function warn(issues, path, msg) {
+        issues.push({ level: "warn", path, msg });
+      }
+      function clone(value) {
+        return JSON.parse(JSON.stringify(value));
+      }
+      module.exports = { validateSchema: validateSchema2 };
     }
   });
 
@@ -5793,18 +6220,18 @@ ${row2.entry.content}`).join("\n\n");
     const chips = document.createElement("div");
     chips.className = "chip-row";
     for (const emotion of orderedEmotions(group)) {
-      const button3 = document.createElement("button");
-      button3.type = "button";
-      button3.className = "chip";
-      button3.textContent = emotion;
-      button3.addEventListener("click", () => {
+      const button4 = document.createElement("button");
+      button4.type = "button";
+      button4.className = "chip";
+      button4.textContent = emotion;
+      button4.addEventListener("click", () => {
         const pick = selectAsset(group, emotion);
         if (!pick) return;
         img.removeAttribute("src");
         img._asset = pick.asset;
         loadImage(img, ctx);
       });
-      chips.append(button3);
+      chips.append(button4);
     }
     body.append(h3, linked, chips);
     if (group.profile) {
@@ -5929,10 +6356,10 @@ ${row2.entry.content}`).join("\n\n");
       section.className = "lore-group";
       const h3 = document.createElement("h3");
       h3.textContent = group.folder ? group.folder.name : "\uB8E8\uD2B8";
-      const count = document.createElement("span");
-      count.className = "count-badge";
-      count.textContent = `${items.length}`;
-      h3.append(count);
+      const count2 = document.createElement("span");
+      count2.className = "count-badge";
+      count2.textContent = `${items.length}`;
+      h3.append(count2);
       section.append(h3);
       for (const entry of items) section.append(renderEntry(entry));
       container.append(section);
@@ -6093,9 +6520,9 @@ ${row2.entry.content}`).join("\n\n");
       });
       renderResult(output, lore, result);
     };
-    for (const el3 of [textarea, scanDepth, tokenBudget, caseSensitive.input, wholeWord.input]) {
-      el3.addEventListener("input", run);
-      el3.addEventListener("change", run);
+    for (const el4 of [textarea, scanDepth, tokenBudget, caseSensitive.input, wholeWord.input]) {
+      el4.addEventListener("input", run);
+      el4.addEventListener("change", run);
     }
     run();
     return () => {
@@ -6149,22 +6576,22 @@ ${Array.from(extras).join(" ")}` : text;
       section.append(empty);
       return section;
     }
-    for (const row2 of rows) section.append(resultRow(row2, active));
+    for (const row3 of rows) section.append(resultRow(row3, active));
     return section;
   }
-  function resultRow(row2, active) {
+  function resultRow(row3, active) {
     const details = document.createElement(active ? "article" : "details");
     details.className = active ? "activation-row active" : "activation-row";
     const head = active ? document.createElement("div") : document.createElement("summary");
     head.className = "activation-head";
     const name = document.createElement("strong");
-    name.textContent = row2.name || "(\uC774\uB984 \uC5C6\uC74C)";
+    name.textContent = row3.name || "(\uC774\uB984 \uC5C6\uC74C)";
     const meta = document.createElement("span");
-    meta.textContent = `${row2.tokens || 0} tokens \xB7 ${row2.reason}${row2.key ? ` \xB7 ${row2.key}` : ""}${row2.secondaryKey ? ` + ${row2.secondaryKey}` : ""}`;
+    meta.textContent = `${row3.tokens || 0} tokens \xB7 ${row3.reason}${row3.key ? ` \xB7 ${row3.key}` : ""}${row3.secondaryKey ? ` + ${row3.secondaryKey}` : ""}`;
     head.append(name, meta);
     const detail = document.createElement("p");
     detail.className = "muted-line";
-    detail.textContent = row2.detail || "";
+    detail.textContent = row3.detail || "";
     details.append(head, detail);
     return details;
   }
@@ -6290,12 +6717,13 @@ ${Array.from(extras).join(" ")}` : text;
   }
 
   // src/engineSession.js
-  var schema = require_yongsa_inn_v0();
+  var defaultSchema = require_yongsa_inn_v0();
   var { createState } = require_createState();
   var { applyEvent } = require_applyEvent();
   var { createRng } = require_rng();
+  var activeSchema = defaultSchema;
   var seedValue = 42;
-  var engineState = createState(schema, seedValue);
+  var engineState = createState(activeSchema, seedValue);
   var rng = createRng(seedValue);
   var logs = [];
   var eventCount = 0;
@@ -6314,7 +6742,11 @@ ${Array.from(extras).join(" ")}` : text;
     "day_end"
   ];
   function getSchema() {
-    return schema;
+    return activeSchema;
+  }
+  function setActiveSchema(schema2) {
+    activeSchema = schema2 || defaultSchema;
+    return resetSession(getSeed());
   }
   function getEngineState() {
     return engineState;
@@ -6330,14 +6762,14 @@ ${Array.from(extras).join(" ")}` : text;
   }
   function resetSession(seed) {
     seedValue = Number.isFinite(Number(seed)) ? Number(seed) : 42;
-    engineState = createState(schema, seedValue);
+    engineState = createState(activeSchema, seedValue);
     rng = createRng(seedValue);
     logs = [];
     eventCount = 0;
     return engineState;
   }
   function runEvent(event) {
-    const result = applyEvent(schema, engineState, event, rng);
+    const result = applyEvent(activeSchema, engineState, event, rng);
     if (result.log.some((entry) => entry.ok)) engineState = result.state;
     eventCount += 1;
     const item = { event, entries: result.log, index: logs.length + 1 };
@@ -6356,11 +6788,12 @@ ${Array.from(extras).join(" ")}` : text;
   // src/engineView.js
   var { summarize, npcSummary, roomStatus, availableMenu, staffMax } = require_selectors();
   var selectedEvent = "checkin";
-  var schema2 = getSchema();
+  var schema = getSchema();
   function renderEngineView(container, ctx) {
     const root = el("div", "engine-view");
     container.append(root);
     const render2 = () => {
+      schema = getSchema();
       root.replaceChildren();
       root.append(renderHeader(render2), renderBody(render2, ctx));
     };
@@ -6408,7 +6841,7 @@ ${Array.from(extras).join(" ")}` : text;
     const engineState2 = getEngineState();
     const panel = el("section", "engine-state-panel");
     const summary = el("pre", "engine-summary");
-    summary.textContent = summarize(schema2, engineState2);
+    summary.textContent = summarize(schema, engineState2);
     const statGrid = el("div", "engine-stat-grid");
     statGrid.append(
       stat("Gold", formatMoney(engineState2.gold)),
@@ -6423,7 +6856,7 @@ ${Array.from(extras).join(" ")}` : text;
     const engineState2 = getEngineState();
     const section = titledSection("\uAC1D\uC2E4");
     const grid = el("div", "engine-room-grid");
-    for (const room of roomStatus(schema2, engineState2)) {
+    for (const room of roomStatus(schema, engineState2)) {
       const card = el("article", `engine-room${room.locked ? " locked" : ""}`);
       const title = el("strong");
       title.textContent = `${room.no}\uD638 \xB7 ${room.kind}`;
@@ -6438,7 +6871,7 @@ ${Array.from(extras).join(" ")}` : text;
   function renderStaff() {
     const engineState2 = getEngineState();
     const section = titledSection("\uC9C1\uC6D0");
-    const max = staffMax(schema2, engineState2);
+    const max = staffMax(schema, engineState2);
     const wage = engineState2.staff.reduce((sum, staff) => sum + Number(staff.dailyWage || 0), 0);
     const line = el("p", "muted-line");
     line.textContent = `\uACE0\uC6A9 ${engineState2.staff.length}/${max} \xB7 \uC77C\uAE09 \uD569\uACC4 ${formatMoney(wage)}`;
@@ -6455,9 +6888,9 @@ ${Array.from(extras).join(" ")}` : text;
       list.append(empty);
     } else {
       for (const staff of engineState2.staff) {
-        const row2 = el("div", "engine-list-row");
-        row2.textContent = `${npcName(staff.npcId)} \xB7 ${formatMoney(staff.dailyWage)}`;
-        list.append(row2);
+        const row3 = el("div", "engine-list-row");
+        row3.textContent = `${npcName(staff.npcId)} \xB7 ${formatMoney(staff.dailyWage)}`;
+        list.append(row3);
       }
     }
     section.append(list);
@@ -6469,9 +6902,9 @@ ${Array.from(extras).join(" ")}` : text;
     const labels = reputationLadder().axisLabels || {};
     const list = el("div", "engine-list");
     for (const [axis, value] of Object.entries(engineState2.reputation)) {
-      const row2 = el("div", "engine-list-row");
-      row2.textContent = `${labels[axis] || axis}: ${value.rank}(${value.exp})`;
-      list.append(row2);
+      const row3 = el("div", "engine-list-row");
+      row3.textContent = `${labels[axis] || axis}: ${value.rank}(${value.exp})`;
+      list.append(row3);
     }
     section.append(list);
     return section;
@@ -6488,9 +6921,9 @@ ${Array.from(extras).join(" ")}` : text;
     }
     const list = el("div", "engine-list");
     for (const [npcId] of changed) {
-      const row2 = el("div", "engine-list-row");
-      row2.textContent = npcSummary(schema2, engineState2, npcId);
-      list.append(row2);
+      const row3 = el("div", "engine-list-row");
+      row3.textContent = npcSummary(schema, engineState2, npcId);
+      list.append(row3);
     }
     section.append(list);
     return section;
@@ -6618,13 +7051,13 @@ ${Array.from(extras).join(" ")}` : text;
     }
     table.append(head);
     for (const sale of report.sales) {
-      const row2 = el("tr");
+      const row3 = el("tr");
       for (const value of [sale.menuName, sale.qty, formatMoney(sale.price)]) {
         const td = el("td");
         td.textContent = String(value);
-        row2.append(td);
+        row3.append(td);
       }
-      table.append(row2);
+      table.append(row3);
     }
     wrap.append(table);
     if (report.checkouts.length) {
@@ -6637,7 +7070,7 @@ ${Array.from(extras).join(" ")}` : text;
   function roomSelect() {
     const engineState2 = getEngineState();
     const select = namedSelect("roomNo");
-    for (const room of roomStatus(schema2, engineState2)) {
+    for (const room of roomStatus(schema, engineState2)) {
       const disabled = room.locked;
       const label = disabled ? `${room.no}\uD638 - \uAC1D\uC2E4\uB3D9 Lv.${room.requiresRoomLevel} \uD544\uC694` : `${room.no}\uD638 \xB7 ${room.kind}`;
       appendOption(select, room.no, label, disabled);
@@ -6659,7 +7092,7 @@ ${Array.from(extras).join(" ")}` : text;
   function menuSelect() {
     const engineState2 = getEngineState();
     const select = namedSelect("menuName");
-    for (const menu of availableMenu(schema2, engineState2)) {
+    for (const menu of availableMenu(schema, engineState2)) {
       appendOption(select, menu.name, `${menu.category} \xB7 ${menu.name} \xB7 ${formatMoney(menu.price)}`, false);
     }
     select.value = select.querySelector('option[value="\uACE0\uAE30 \uC2A4\uD29C"]') ? "\uACE0\uAE30 \uC2A4\uD29C" : select.value;
@@ -6725,7 +7158,7 @@ ${Array.from(extras).join(" ")}` : text;
   }
   function expCategorySelect() {
     const select = namedSelect("category");
-    const ladder = schema2.ladders.find((entry) => entry.id === "player_level");
+    const ladder = schema.ladders.find((entry) => entry.id === "player_level");
     for (const category of Object.keys(ladder.sources)) appendOption(select, category, category, false);
     return select;
   }
@@ -6739,10 +7172,10 @@ ${Array.from(extras).join(" ")}` : text;
     return { roomNo: Number(roomNo), guestName };
   }
   function reputationLadder() {
-    return schema2.ladders.find((entry) => entry.id === "reputation");
+    return schema.ladders.find((entry) => entry.id === "reputation");
   }
   function npcs() {
-    return schema2.entities.find((entry) => entry.type === "npc").instances;
+    return schema.entities.find((entry) => entry.type === "npc").instances;
   }
   function npcName(npcId) {
     const npc = npcs().find((entry) => entry.id === npcId);
@@ -6820,7 +7253,6 @@ ${Array.from(extras).join(" ")}` : text;
   }
 
   // src/playView.js
-  var schema3 = require_yongsa_inn_v0();
   var { summarize: summarize2, npcSummary: npcSummary2 } = require_selectors();
   var { estimateTokens, estimateLorebookTokens: estimateLorebookTokens2 } = require_tokens();
   var { buildPrompt, parseAssistantResponse } = require_prompt();
@@ -6983,10 +7415,11 @@ ${Array.from(extras).join(" ")}` : text;
   function renderStateBox() {
     const section = titled("LLM\uC774 \uBCF4\uB294 \uC0C1\uD0DC");
     const state2 = getEngineState();
+    const schema2 = getSchema();
     const pre = el2("pre", "play-context-pre");
-    pre.textContent = summarize2(schema3, state2);
+    pre.textContent = summarize2(schema2, state2);
     section.append(pre);
-    const npcText = (lastPrompt && lastPrompt.relatedNpcIds ? lastPrompt.relatedNpcIds : []).map((id) => npcSummary2(schema3, state2, id)).filter(Boolean).join("\n");
+    const npcText = (lastPrompt && lastPrompt.relatedNpcIds ? lastPrompt.relatedNpcIds : []).map((id) => npcSummary2(schema2, state2, id)).filter(Boolean).join("\n");
     if (npcText) {
       const npc = el2("pre", "play-context-pre");
       npc.textContent = npcText;
@@ -6997,7 +7430,8 @@ ${Array.from(extras).join(" ")}` : text;
   var BASELINE_REF = 12029;
   function renderTokenBox(ctx) {
     const section = titled("\uD1A0\uD070 \uBBF8\uD130");
-    const current = lastPrompt ? lastPrompt.injectedTokens : estimateTokens(summarize2(schema3, getEngineState()));
+    const schema2 = getSchema();
+    const current = lastPrompt ? lastPrompt.injectedTokens : estimateTokens(summarize2(schema2, getEngineState()));
     const baseline = ctx.lore ? estimateLorebookTokens2(ctx.lore.entries).constant || BASELINE_REF : BASELINE_REF;
     section.append(tokenGauge(current, baseline));
     if (lastPrompt) {
@@ -7037,7 +7471,8 @@ ${Array.from(extras).join(" ")}` : text;
     messages.push({ role: "user", content: text });
     render2();
     try {
-      const prompt = buildPrompt({ schema: schema3, state: getEngineState(), lore: ctx.lore, recentMessages: messages.slice(-9, -1), userInput: text });
+      const schema2 = getSchema();
+      const prompt = buildPrompt({ schema: schema2, state: getEngineState(), lore: ctx.lore, recentMessages: messages.slice(-9, -1), userInput: text });
       lastPrompt = prompt;
       const raw = await callProvider(providerConfig(), prompt);
       const parsed = parseAssistantResponse(raw);
@@ -7164,6 +7599,492 @@ ${Array.from(extras).join(" ")}` : text;
     return `${Number(value || 0).toLocaleString("ko-KR")}\uC6D0`;
   }
 
+  // src/importView.js
+  var { buildCompilerInput, parseCompilerOutput, mockCompilerOutput } = require_compilerPrompt();
+  var { PROVIDERS: PROVIDERS2, callProvider: callProvider2, providerDef: providerDef2 } = require_providers();
+  var { validateSchema } = require_validate();
+  var SECTION_KEYS = ["meta", "resources", "scales", "ladders", "entities", "formulas", "processes", "events", "initialState", "_assumptions"];
+  var stateByCard = /* @__PURE__ */ new Map();
+  var busy2 = false;
+  var settings2 = loadSettings2();
+  function renderImportView(container, ctx) {
+    registerCustomOrigin2();
+    const root = el3("div", "import-view");
+    container.append(root);
+    const render2 = () => {
+      root.replaceChildren();
+      root.append(renderHeader2(ctx, render2), renderLayout2(ctx, render2));
+    };
+    render2();
+    return () => {
+    };
+  }
+  async function compileSchemaForImport(ctx, config) {
+    const cfg = config || providerConfig2();
+    const compilerInput = buildCompilerInput(ctx && ctx.lore);
+    const raw = cfg.provider === "mock" ? mockCompilerOutput() : await callProvider2(cfg, {
+      system: compilerInput,
+      messages: [{ role: "user", content: "Return only the compiled JSON object." }],
+      maxTokens: 12e3,
+      temperature: 0.2
+    });
+    const parsed = parseCompilerOutput(raw);
+    if (!parsed.ok) {
+      return {
+        raw,
+        schema: null,
+        issues: [{ level: "error", path: "$", msg: parsed.error }],
+        compiledAt: (/* @__PURE__ */ new Date()).toISOString(),
+        approved: false
+      };
+    }
+    const checked = validateSchema(parsed.json);
+    return {
+      raw,
+      schema: checked.schema,
+      issues: checked.issues,
+      compiledAt: (/* @__PURE__ */ new Date()).toISOString(),
+      approved: false
+    };
+  }
+  function renderHeader2(ctx, render2) {
+    const header = el3("div", "view-header import-header");
+    const title = el3("div");
+    const h2 = el3("h2");
+    h2.textContent = "Import compiler";
+    const p = el3("p");
+    p.textContent = "Compile card lorebook rules into a game schema. LLM output is only a proposal until validation passes and you approve it.";
+    title.append(h2, p);
+    const buttonRow = el3("div", "engine-header-controls");
+    const compile = button3(busy2 ? "Compiling..." : "Compile", "primary-btn");
+    compile.disabled = busy2 || !ctx.lore && settings2.provider !== "mock";
+    compile.addEventListener("click", async () => {
+      await runCompile(ctx, render2);
+    });
+    buttonRow.append(compile);
+    header.append(title, buttonRow);
+    return header;
+  }
+  function renderLayout2(ctx, render2) {
+    const layout = el3("div", "import-layout");
+    layout.append(renderRunPanel(ctx, render2), renderReviewPanel(ctx, render2));
+    return layout;
+  }
+  function renderRunPanel(ctx, render2) {
+    const panel = el3("section", "import-run-panel");
+    panel.append(renderSettings2(render2));
+    const status = titled2("Status");
+    const cardLine = el3("p", "muted-line");
+    cardLine.textContent = ctx.lore ? `Card lorebook entries: ${ctx.lore.entries.length}` : settings2.provider === "mock" ? "No card loaded. Mock can still produce a deterministic schema." : "Load a card before compiling with a real provider.";
+    status.append(cardLine);
+    const result = currentResult(ctx);
+    if (result) {
+      const counts = issueCounts(result.issues);
+      const stamp = el3("p", "muted-line");
+      stamp.textContent = `Last compile: ${result.compiledAt} / errors ${counts.error} / warnings ${counts.warn}`;
+      status.append(stamp);
+      if (result.approved) {
+        const approved = el3("p", "badge engine-ok import-status-badge");
+        approved.textContent = "Approved and applied to engine session";
+        status.append(approved);
+      }
+    }
+    const log = titled2("Compiler log");
+    const lines = currentLog(ctx);
+    if (!lines.length) {
+      const empty = el3("p", "muted-line");
+      empty.textContent = "No compiler run yet.";
+      log.append(empty);
+    } else {
+      const list = el3("div", "engine-list");
+      for (const line of lines) {
+        const row3 = el3("div", "engine-list-row");
+        row3.textContent = line;
+        list.append(row3);
+      }
+      log.append(list);
+    }
+    panel.append(status, log);
+    return panel;
+  }
+  function renderSettings2(render2) {
+    const details = el3("details", "play-settings import-settings");
+    const hasKey = settings2.provider === "mock" || !!readKey2(settings2.provider);
+    details.open = !hasKey;
+    const summary = el3("summary");
+    summary.textContent = "Provider settings";
+    details.append(summary);
+    const provider = namedSelect3("provider");
+    for (const key2 of Object.keys(PROVIDERS2)) appendOption3(provider, key2, key2, false);
+    provider.value = settings2.provider;
+    provider.addEventListener("change", () => {
+      settings2.provider = provider.value;
+      settings2.model = defaultModel2(settings2.provider);
+      saveSettings2();
+      registerCustomOrigin2();
+      render2();
+    });
+    const base = namedInput3("baseUrl", settings2.baseUrl || "", "url");
+    base.placeholder = "https://openrouter.ai/api/v1";
+    base.addEventListener("change", () => {
+      settings2.baseUrl = base.value.trim();
+      saveSettings2();
+      registerCustomOrigin2();
+      render2();
+    });
+    const model = namedInput3("model", settings2.model || defaultModel2(settings2.provider));
+    model.disabled = settings2.provider === "mock";
+    model.addEventListener("change", () => {
+      settings2.model = model.value.trim();
+      saveSettings2();
+      render2();
+    });
+    const key = namedInput3("apiKey", "", "password");
+    key.placeholder = readKey2(settings2.provider) ? maskedKey2(settings2.provider) : "API key";
+    key.disabled = settings2.provider === "mock";
+    const save = button3("Store key", "secondary-btn");
+    save.disabled = settings2.provider === "mock";
+    save.addEventListener("click", () => {
+      const value = key.value.trim();
+      if (value) localStorage.setItem(keyName2(settings2.provider), value);
+      key.value = "";
+      render2();
+    });
+    const del = button3("Delete key", "secondary-btn");
+    del.disabled = settings2.provider === "mock";
+    del.addEventListener("click", () => {
+      localStorage.removeItem(keyName2(settings2.provider));
+      render2();
+    });
+    details.append(
+      field3("Provider", provider),
+      settings2.provider === "custom" ? field3("Base URL", base) : hiddenBase2(base),
+      field3("Model", model),
+      field3("API key", key),
+      row2(save, del),
+      notice2("Keys stay in this browser localStorage. The mock provider does not use the network.")
+    );
+    return details;
+  }
+  function renderReviewPanel(ctx, render2) {
+    const panel = el3("section", "import-review-panel");
+    const result = currentResult(ctx);
+    if (!result) {
+      const empty = el3("div", "empty-state import-empty");
+      const h = el3("h2");
+      h.textContent = "No schema proposal";
+      const p = el3("p");
+      p.textContent = "Run the compiler to review, edit, validate, and approve a schema.";
+      empty.append(h, p);
+      panel.append(empty);
+      return panel;
+    }
+    panel.append(renderIssueSummary(result), renderSchemaSummary(result.schema));
+    if (result.schema) {
+      panel.append(renderAssumptions(result.schema), renderSectionEditors(ctx, result, render2), renderFullJson(result.schema));
+    }
+    panel.append(renderApproval(ctx, result, render2));
+    return panel;
+  }
+  function renderIssueSummary(result) {
+    const section = titled2("Validation");
+    const counts = issueCounts(result.issues);
+    const row3 = el3("div", "import-metric-row");
+    row3.append(metric2("Errors", counts.error), metric2("Warnings", counts.warn));
+    section.append(row3);
+    const list = el3("div", "import-issue-list");
+    if (!result.issues.length) {
+      const ok = el3("p", "badge engine-ok import-status-badge");
+      ok.textContent = "No validation issues";
+      list.append(ok);
+    } else {
+      for (const issue of result.issues) {
+        const item = el3("div", `engine-list-row import-issue ${issue.level === "error" ? "engine-fail" : "import-warn"}`);
+        item.textContent = `${issue.level.toUpperCase()} ${issue.path}: ${issue.msg}`;
+        list.append(item);
+      }
+    }
+    section.append(list);
+    return section;
+  }
+  function renderSchemaSummary(schema2) {
+    const section = titled2("Sections");
+    if (!schema2) {
+      const p = el3("p", "engine-warning");
+      p.textContent = "Compiler output could not be parsed as JSON.";
+      section.append(p);
+      return section;
+    }
+    const grid = el3("div", "import-section-grid");
+    for (const [label, value] of [
+      ["resources", count(schema2.resources)],
+      ["scales", count(schema2.scales)],
+      ["ladders", count(schema2.ladders)],
+      ["entities", count(schema2.entities)],
+      ["formulas", count(schema2.formulas)],
+      ["processes", count(schema2.processes)],
+      ["events", count(schema2.events)]
+    ]) {
+      grid.append(metric2(label, value));
+    }
+    section.append(grid);
+    return section;
+  }
+  function renderAssumptions(schema2) {
+    const section = titled2("Assumptions");
+    const items = Array.isArray(schema2._assumptions) ? schema2._assumptions : schema2.meta && Array.isArray(schema2.meta.assumptions) ? schema2.meta.assumptions : [];
+    if (!items.length) {
+      const p = el3("p", "muted-line");
+      p.textContent = "No assumptions were provided.";
+      section.append(p);
+      return section;
+    }
+    const list = el3("ul", "import-assumption-list");
+    for (const item of items) {
+      const li = el3("li");
+      li.textContent = String(item);
+      list.append(li);
+    }
+    section.append(list);
+    return section;
+  }
+  function renderSectionEditors(ctx, result, render2) {
+    const section = titled2("Section editor");
+    const wrap = el3("div", "import-editor-list");
+    for (const key of SECTION_KEYS) {
+      if (!result.schema || !(key in result.schema)) continue;
+      const details = el3("details", "import-editor");
+      const summary = el3("summary");
+      summary.textContent = key;
+      const textarea = el3("textarea", "import-json-input");
+      textarea.name = key;
+      textarea.value = JSON.stringify(result.schema[key], null, 2);
+      const validate = button3("Revalidate section", "secondary-btn");
+      validate.addEventListener("click", () => {
+        revalidateSection(ctx, key, textarea.value);
+        render2();
+      });
+      details.append(summary, textarea, validate);
+      wrap.append(details);
+    }
+    section.append(wrap);
+    return section;
+  }
+  function renderFullJson(schema2) {
+    const details = el3("details", "import-full-json");
+    const summary = el3("summary");
+    summary.textContent = "Normalized JSON preview";
+    const pre = el3("pre", "engine-preview import-json-pre");
+    pre.textContent = JSON.stringify(schema2, null, 2);
+    details.append(summary, pre);
+    return details;
+  }
+  function renderApproval(ctx, result, render2) {
+    const section = el3("section", "import-approval");
+    const approve = button3("Approve and apply to engine", "primary-btn");
+    const counts = issueCounts(result.issues);
+    approve.disabled = !result.schema || counts.error > 0 || busy2;
+    approve.addEventListener("click", () => {
+      const current = currentResult(ctx);
+      if (!current || !current.schema || issueCounts(current.issues).error > 0) return;
+      setActiveSchema(current.schema);
+      current.approved = true;
+      addLog(ctx, "Schema approved and active engine session reset.");
+      render2();
+    });
+    const note = el3("p", "muted-line");
+    note.textContent = counts.error > 0 ? "Fix validation errors before approval. Raw LLM output is never applied directly." : "Approval resets the active engine session to use this normalized schema.";
+    section.append(approve, note);
+    return section;
+  }
+  async function runCompile(ctx, render2) {
+    busy2 = true;
+    addLog(ctx, `Compile started with provider ${settings2.provider}.`);
+    render2();
+    try {
+      const result = await compileSchemaForImport(ctx, providerConfig2());
+      setCurrentResult(ctx, result);
+      const counts = issueCounts(result.issues);
+      addLog(ctx, `Compile finished: ${counts.error} errors, ${counts.warn} warnings.`);
+    } catch (err) {
+      setCurrentResult(ctx, {
+        raw: "",
+        schema: null,
+        issues: [{ level: "error", path: "$", msg: safeError2(err) }],
+        compiledAt: (/* @__PURE__ */ new Date()).toISOString(),
+        approved: false
+      });
+      addLog(ctx, `Compile failed: ${safeError2(err)}`);
+    } finally {
+      busy2 = false;
+      render2();
+    }
+  }
+  function revalidateSection(ctx, key, value) {
+    const result = currentResult(ctx);
+    if (!result || !result.schema) return;
+    try {
+      const schema2 = JSON.parse(JSON.stringify(result.schema));
+      schema2[key] = JSON.parse(value);
+      const checked = validateSchema(schema2);
+      result.schema = checked.schema;
+      result.issues = checked.issues;
+      result.approved = false;
+      addLog(ctx, `Section ${key} revalidated: ${issueCounts(checked.issues).error} errors.`);
+    } catch (err) {
+      result.issues = result.issues.filter((issue) => issue.path !== key);
+      result.issues.unshift({ level: "error", path: key, msg: safeError2(err) });
+      result.approved = false;
+      addLog(ctx, `Section ${key} JSON parse failed.`);
+    }
+  }
+  function currentResult(ctx) {
+    const entry = stateByCard.get(cardKey(ctx));
+    return entry && entry.result;
+  }
+  function setCurrentResult(ctx, result) {
+    const key = cardKey(ctx);
+    const entry = stateByCard.get(key) || { log: [] };
+    entry.result = result;
+    stateByCard.set(key, entry);
+  }
+  function currentLog(ctx) {
+    const entry = stateByCard.get(cardKey(ctx));
+    return entry && entry.log ? entry.log : [];
+  }
+  function addLog(ctx, text) {
+    const key = cardKey(ctx);
+    const entry = stateByCard.get(key) || { log: [] };
+    entry.log = [`${(/* @__PURE__ */ new Date()).toISOString()} ${text}`].concat(entry.log || []).slice(0, 8);
+    stateByCard.set(key, entry);
+  }
+  function cardKey(ctx) {
+    const file = ctx && ctx.file;
+    return file ? `${file.name}:${file.size}:${file.type}` : "__no_card__";
+  }
+  function providerConfig2() {
+    return {
+      provider: settings2.provider,
+      model: settings2.model || defaultModel2(settings2.provider),
+      baseUrl: settings2.provider === "custom" ? settings2.baseUrl : "",
+      apiKey: settings2.provider === "mock" ? "" : readKey2(settings2.provider)
+    };
+  }
+  function loadSettings2() {
+    return {
+      provider: localStorage.getItem("simbot.byok.provider") || "mock",
+      model: localStorage.getItem("simbot.byok.model") || "gemini-2.5-flash",
+      baseUrl: localStorage.getItem("simbot.byok.customBase") || ""
+    };
+  }
+  function saveSettings2() {
+    localStorage.setItem("simbot.byok.provider", settings2.provider);
+    localStorage.setItem("simbot.byok.model", settings2.model || "");
+    localStorage.setItem("simbot.byok.customBase", settings2.baseUrl || "");
+  }
+  function registerCustomOrigin2() {
+    if (settings2.provider !== "custom" || !settings2.baseUrl || !window.SIMBOT_NETWORK_POLICY) return;
+    try {
+      const url = new URL(settings2.baseUrl);
+      if (url.protocol === "https:") window.SIMBOT_NETWORK_POLICY.setAllowedCustomOrigin(url.origin);
+    } catch (_) {
+    }
+  }
+  function readKey2(provider) {
+    return localStorage.getItem(keyName2(provider)) || "";
+  }
+  function keyName2(provider) {
+    return `simbot.byok.${provider}`;
+  }
+  function maskedKey2(provider) {
+    const key = readKey2(provider);
+    return key ? `stored: ****${key.slice(-4)}` : "";
+  }
+  function defaultModel2(provider) {
+    return providerDef2(provider).defModel || "";
+  }
+  function issueCounts(issues) {
+    return (issues || []).reduce((acc, issue) => {
+      acc[issue.level] = (acc[issue.level] || 0) + 1;
+      return acc;
+    }, { error: 0, warn: 0 });
+  }
+  function count(value) {
+    return Array.isArray(value) ? value.length : value && typeof value === "object" ? Object.keys(value).length : 0;
+  }
+  function safeError2(err) {
+    const message = err && err.message ? err.message : String(err || "Error");
+    return message.replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]").replace(/https?:\/\/\S+/g, "[url]").slice(0, 360);
+  }
+  function hiddenBase2(node) {
+    const wrap = el3("div", "play-hidden");
+    wrap.append(node);
+    return wrap;
+  }
+  function titled2(title) {
+    const section = el3("section", "play-side-section import-section");
+    const h3 = el3("h3");
+    h3.textContent = title;
+    section.append(h3);
+    return section;
+  }
+  function metric2(label, value) {
+    const card = el3("div", "metric import-metric");
+    const span = el3("span");
+    span.textContent = label;
+    const strong = el3("strong");
+    strong.textContent = String(value);
+    card.append(span, strong);
+    return card;
+  }
+  function field3(label, child) {
+    const wrap = el3("label", "field");
+    const span = el3("span");
+    span.textContent = label;
+    wrap.append(span, child);
+    return wrap;
+  }
+  function row2(...children) {
+    const wrap = el3("div", "play-button-row");
+    wrap.append(...children);
+    return wrap;
+  }
+  function notice2(text) {
+    const p = el3("p", "muted-line play-notice");
+    p.textContent = text;
+    return p;
+  }
+  function namedInput3(name, value, type = "text") {
+    const node = el3("input");
+    node.name = name;
+    node.type = type;
+    node.value = value;
+    return node;
+  }
+  function namedSelect3(name) {
+    const node = el3("select");
+    node.name = name;
+    return node;
+  }
+  function appendOption3(select, value, label, disabled) {
+    const option = el3("option");
+    option.value = String(value);
+    option.textContent = label;
+    option.disabled = !!disabled;
+    select.append(option);
+  }
+  function button3(text, className) {
+    const node = el3("button", className);
+    node.type = "button";
+    node.textContent = text;
+    return node;
+  }
+  function el3(tag, className = "") {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    return node;
+  }
+
   // src/main.js
   var tabs = [
     { id: "overview", label: "\uAC1C\uC694" },
@@ -7172,7 +8093,8 @@ ${Array.from(extras).join(" ")}` : text;
     { id: "activate", label: "\uD65C\uC131\uD654 \uC2DC\uBBAC" },
     { id: "assets", label: "\uC5D0\uC14B" },
     { id: "engine", label: "\uC5D4\uC9C4(\uC2E4\uD5D8)" },
-    { id: "play", label: "\uD50C\uB808\uC774(\uC2E4\uD5D8)" }
+    { id: "play", label: "\uD50C\uB808\uC774(\uC2E4\uD5D8)" },
+    { id: "import", label: "\uC784\uD3EC\uD2B8(\uC2E4\uD5D8)" }
   ];
   var KNOWN_ORIGINS = [
     "https://generativelanguage.googleapis.com/",
@@ -7274,20 +8196,20 @@ ${Array.from(extras).join(" ")}` : text;
     const nav = document.getElementById("tabs");
     nav.replaceChildren();
     for (const tab of tabs) {
-      const button3 = document.createElement("button");
-      button3.type = "button";
-      button3.className = "tab";
-      button3.textContent = tab.label;
-      button3.setAttribute("aria-selected", String(state.activeTab === tab.id));
-      button3.disabled = !state.parsed && tab.id !== "overview" && tab.id !== "engine" && tab.id !== "play";
-      button3.addEventListener("click", () => {
+      const button4 = document.createElement("button");
+      button4.type = "button";
+      button4.className = "tab";
+      button4.textContent = tab.label;
+      button4.setAttribute("aria-selected", String(state.activeTab === tab.id));
+      button4.disabled = !state.parsed && tab.id !== "overview" && tab.id !== "engine" && tab.id !== "play" && tab.id !== "import";
+      button4.addEventListener("click", () => {
         if (state.activeTab === tab.id) return;
         clearTabResources();
         state.activeTab = tab.id;
         renderTabs();
         render();
       });
-      nav.append(button3);
+      nav.append(button4);
     }
   }
   async function loadFile(file) {
@@ -7335,6 +8257,10 @@ ${Array.from(extras).join(" ")}` : text;
     }
     if (state.activeTab === "play") {
       state.cleanup = renderPlayView(panel, ctx);
+      return;
+    }
+    if (state.activeTab === "import") {
+      state.cleanup = renderImportView(panel, ctx);
       return;
     }
     if (!state.parsed) {
@@ -7422,16 +8348,16 @@ ${Array.from(extras).join(" ")}` : text;
     return wrap;
   }
   function statCard(label, value) {
-    const el3 = document.createElement("section");
-    el3.className = "stat-card";
+    const el4 = document.createElement("section");
+    el4.className = "stat-card";
     const k = document.createElement("div");
     k.className = "stat-label";
     k.textContent = label;
     const v = document.createElement("div");
     v.className = "stat-value";
     v.textContent = value;
-    el3.append(k, v);
-    return el3;
+    el4.append(k, v);
+    return el4;
   }
   function sectionTitle(text) {
     const h = document.createElement("h2");
@@ -7469,8 +8395,8 @@ ${Array.from(extras).join(" ")}` : text;
     state.viewUrls.clear();
   }
   function setMessage(text) {
-    const el3 = document.getElementById("message");
-    if (el3) el3.textContent = text;
+    const el4 = document.getElementById("message");
+    if (el4) el4.textContent = text;
   }
   function formatBytes(value) {
     const n = Number(value || 0);

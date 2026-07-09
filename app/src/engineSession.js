@@ -1,10 +1,11 @@
-const schema = require('../../schema/yongsa-inn.v0.json');
+const defaultSchema = require('../../schema/yongsa-inn.v0.json');
 const { createState } = require('../../engine/core/createState.js');
 const { applyEvent } = require('../../engine/core/applyEvent.js');
 const { createRng } = require('../../engine/core/rng.js');
 
+let activeSchema = defaultSchema;
 let seedValue = 42;
-let engineState = createState(schema, seedValue);
+let engineState = createState(activeSchema, seedValue);
 let rng = createRng(seedValue);
 let logs = [];
 let eventCount = 0;
@@ -25,7 +26,12 @@ export const eventTypes = [
 ];
 
 export function getSchema() {
-  return schema;
+  return activeSchema;
+}
+
+export function setActiveSchema(schema) {
+  activeSchema = schema || defaultSchema;
+  return resetSession(getSeed());
 }
 
 export function getEngineState() {
@@ -46,7 +52,7 @@ export function getEventCount() {
 
 export function resetSession(seed) {
   seedValue = Number.isFinite(Number(seed)) ? Number(seed) : 42;
-  engineState = createState(schema, seedValue);
+  engineState = createState(activeSchema, seedValue);
   rng = createRng(seedValue);
   logs = [];
   eventCount = 0;
@@ -54,7 +60,7 @@ export function resetSession(seed) {
 }
 
 export function runEvent(event) {
-  const result = applyEvent(schema, engineState, event, rng);
+  const result = applyEvent(activeSchema, engineState, event, rng);
   if (result.log.some((entry) => entry.ok)) engineState = result.state;
   eventCount += 1;
   const item = { event, entries: result.log, index: logs.length + 1 };

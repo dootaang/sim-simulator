@@ -2,13 +2,14 @@ const { summarize, npcSummary, roomStatus, availableMenu, staffMax } = require('
 import { eventTypes, getEngineState, getEventCount, getLogs, getSchema, getSeed, resetSession, runEvent, summarizeEvent } from './engineSession.js';
 
 let selectedEvent = 'checkin';
-const schema = getSchema();
+let schema = getSchema();
 
 export function renderEngineView(container, ctx) {
   const root = el('div', 'engine-view');
   container.append(root);
 
   const render = () => {
+    schema = getSchema();
     root.replaceChildren();
     root.append(renderHeader(render), renderBody(render, ctx));
   };

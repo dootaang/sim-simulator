@@ -94,7 +94,8 @@ button { cursor: pointer; }
 .status-pill,
 .count-badge,
 .badge,
-.decorator-chip {
+.decorator-chip,
+.import-editor summary {
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
 }
@@ -726,19 +727,27 @@ select:focus { border-color: var(--amber-line); }
 .engine-table th { background: var(--inset); color: var(--ink-dim); }
 
 /* ── 플레이(실험) 탭 ────────────────────────────────────── */
-.play-view { display: grid; gap: 14px; }
+.play-view,
+.import-view { display: grid; gap: 14px; }
 .play-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; }
+.import-layout { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 14px; }
 
 .play-chat-panel,
 .play-side-panel,
 .play-side-section,
-.play-settings {
+.play-settings,
+.import-run-panel,
+.import-review-panel,
+.import-approval,
+.import-full-json,
+.import-editor {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
   padding: 16px;
 }
 .play-chat-panel, .play-side-panel { align-self: start; display: grid; gap: 14px; }
+.import-run-panel, .import-review-panel { align-self: start; display: grid; gap: 14px; }
 .play-chat-header { margin-bottom: 0; }
 
 .play-message-list {
@@ -781,7 +790,8 @@ select:focus { border-color: var(--amber-line); }
   padding: 10px 12px;
 }
 
-.play-side-panel { position: sticky; top: 12px; }
+.play-side-panel,
+.import-run-panel { position: sticky; top: 12px; }
 .play-settings { display: grid; gap: 10px; }
 .play-settings summary { cursor: pointer; font-family: var(--font-mono); font-size: 13px; color: var(--ink-mid); }
 .play-hidden { display: none; }
@@ -844,11 +854,74 @@ select:focus { border-color: var(--amber-line); }
 }
 
 /* ── 반응형 ─────────────────────────────────────────────── */
+/* Import compiler */
+.import-empty { padding: 36px 20px; }
+.import-section { display: grid; gap: 10px; }
+.import-status-badge { display: inline-flex; width: fit-content; }
+.import-metric-row,
+.import-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.import-section-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.import-metric strong { font-size: 18px; }
+.import-issue-list,
+.import-editor-list { display: grid; gap: 8px; }
+.import-issue { font-family: var(--font-mono); }
+.import-warn {
+  border-color: var(--warn);
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+.import-assumption-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--amber);
+}
+.import-editor {
+  padding: 0;
+  overflow: hidden;
+}
+.import-editor summary,
+.import-full-json summary {
+  cursor: pointer;
+  color: var(--ink-mid);
+}
+.import-editor summary { padding: 12px 14px; }
+.import-json-input {
+  display: block;
+  width: calc(100% - 28px);
+  min-height: 220px;
+  margin: 0 14px 12px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--inset);
+  color: var(--readout-ink);
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.import-editor .secondary-btn { margin: 0 14px 14px; }
+.import-json-pre {
+  max-height: 520px;
+  overflow: auto;
+  margin-top: 12px;
+}
+.import-approval {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.import-approval .primary-btn { margin-top: 0; }
+
 @media (max-width: 900px) {
   .topbar, .view-header, .with-controls { align-items: stretch; flex-direction: column; }
   .overview-grid, .result-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .activate-layout, .engine-layout, .play-layout { grid-template-columns: 1fr; }
-  .play-side-panel { position: static; }
+  .activate-layout, .engine-layout, .play-layout, .import-layout { grid-template-columns: 1fr; }
+  .play-side-panel, .import-run-panel { position: static; }
   .engine-header-controls { justify-content: flex-start; }
   .search-input { max-width: none; }
 }
