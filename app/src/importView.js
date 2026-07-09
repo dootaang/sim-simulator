@@ -229,12 +229,37 @@ function renderReviewPanel(ctx, render) {
     return panel;
   }
 
-  panel.append(renderIssueSummary(result), renderSchemaSummary(result.schema));
+  panel.append(renderCopyBar(result), renderIssueSummary(result), renderSchemaSummary(result.schema));
   if (result.schema) {
     panel.append(renderAssumptions(result.schema), renderSectionEditors(ctx, result, render), renderFullJson(result.schema));
   }
   panel.append(renderApproval(ctx, result, render));
   return panel;
+}
+
+// 검수 결과(검증 이슈 + 스키마 JSON)를 붙여넣기용 평문으로 클립보드에 복사.
+function renderCopyBar(result) {
+  const bar = el('div', 'import-copy-bar');
+  const copy = button('검수 결과 복사', 'secondary-btn');
+  copy.addEventListener('click', () => {
+    const issues = (result.issues || []).map((i) => `${String(i.level).toUpperCase()} ${i.path}: ${i.msg}`).join('\n') || '(이슈 없음)';
+    const text = `=== 검증 이슈 ===\n${issues}\n\n=== 스키마 JSON ===\n${result.schema ? JSON.stringify(result.schema, null, 2) : '(파싱 실패)'}`;
+    const done = () => { copy.textContent = '복사됨!'; setTimeout(() => { copy.textContent = '검수 결과 복사'; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => copyFallback(text, done));
+    else copyFallback(text, done);
+  });
+  bar.append(copy);
+  return bar;
+}
+
+function copyFallback(text, done) {
+  const ta = el('textarea', 'offscreen');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  document.body.append(ta);
+  ta.select();
+  try { document.execCommand('copy'); if (done) done(); } catch (_) { /* ignore */ }
+  ta.remove();
 }
 
 function renderIssueSummary(result) {

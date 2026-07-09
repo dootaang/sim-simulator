@@ -6310,7 +6310,7 @@ ${row3.content}`;
         schema2.scales.forEach((scale, index) => {
           const path = `scales[${index}]`;
           if (!isObject(scale)) return error(issues, path, "Scale must be an object.");
-          for (const key of ["id", "owner", "range", "default", "steps", "tiers"]) {
+          for (const key of ["id", "owner", "range", "default"]) {
             requireField(scale, key, `${path}.${key}`, issues);
           }
           if (scale.actionMinimums != null && !isObject(scale.actionMinimums)) {
@@ -6321,12 +6321,20 @@ ${row3.content}`;
           if (isRange(scale.range) && Number(scale.range[0]) >= Number(scale.range[1])) {
             warn(issues, `${path}.range`, "Scale range should ascend.");
           }
-          if (!isObject(scale.steps)) error(issues, `${path}.steps`, "steps must be an object.");
-          else {
-            for (const key of ["S", "M", "L", "XL", "S-", "M-", "L-", "XL-"]) {
-              if (scale.steps[key] == null) error(issues, `${path}.steps.${key}`, "Missing step size.");
+          if (scale.steps != null) {
+            if (!isObject(scale.steps)) {
+              warn(issues, `${path}.steps`, "steps\uAC00 \uC788\uC73C\uBA74 \uAC1D\uCCB4\uC5EC\uC57C \uD569\uB2C8\uB2E4.");
+            } else {
+              const stepKeys = ["S", "M", "L", "XL", "S-", "M-", "L-", "XL-"];
+              const present = stepKeys.filter((k) => scale.steps[k] != null);
+              if (present.length > 0 && present.length < stepKeys.length) {
+                for (const k of stepKeys) {
+                  if (scale.steps[k] == null) warn(issues, `${path}.steps.${k}`, "\uB378\uD0C0 \uC2A4\uCF00\uC77C\uC774\uBA74 S/M/L/XL \uC2A4\uD15D\uC774 \uBAA8\uB450 \uD544\uC694\uD569\uB2C8\uB2E4(HP\xB7\uC2A4\uD0EF \uAC19\uC740 \uD480 \uC2A4\uCF00\uC77C\uC774\uBA74 steps\uB97C \uBE44\uC6CC\uB450\uC138\uC694).");
+                }
+              }
             }
           }
+          if (scale.tiers == null) return;
           if (!requireArray(scale.tiers, `${path}.tiers`, issues)) return;
           scale.tiers.forEach((tier, tierIndex) => {
             const tierPath = `${path}.tiers[${tierIndex}]`;
@@ -8324,12 +8332,47 @@ ${Array.from(extras).join(" ")}` : text;
       panel.append(empty);
       return panel;
     }
-    panel.append(renderIssueSummary(result), renderSchemaSummary(result.schema));
+    panel.append(renderCopyBar(result), renderIssueSummary(result), renderSchemaSummary(result.schema));
     if (result.schema) {
       panel.append(renderAssumptions(result.schema), renderSectionEditors(ctx, result, render2), renderFullJson(result.schema));
     }
     panel.append(renderApproval(ctx, result, render2));
     return panel;
+  }
+  function renderCopyBar(result) {
+    const bar = el3("div", "import-copy-bar");
+    const copy = button3("\uAC80\uC218 \uACB0\uACFC \uBCF5\uC0AC", "secondary-btn");
+    copy.addEventListener("click", () => {
+      const issues = (result.issues || []).map((i) => `${String(i.level).toUpperCase()} ${i.path}: ${i.msg}`).join("\n") || "(\uC774\uC288 \uC5C6\uC74C)";
+      const text = `=== \uAC80\uC99D \uC774\uC288 ===
+${issues}
+
+=== \uC2A4\uD0A4\uB9C8 JSON ===
+${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4\uD328)"}`;
+      const done = () => {
+        copy.textContent = "\uBCF5\uC0AC\uB428!";
+        setTimeout(() => {
+          copy.textContent = "\uAC80\uC218 \uACB0\uACFC \uBCF5\uC0AC";
+        }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => copyFallback(text, done));
+      else copyFallback(text, done);
+    });
+    bar.append(copy);
+    return bar;
+  }
+  function copyFallback(text, done) {
+    const ta = el3("textarea", "offscreen");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    document.body.append(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+      if (done) done();
+    } catch (_) {
+    }
+    ta.remove();
   }
   function renderIssueSummary(result) {
     const section = titled2("\uAC80\uC99D");

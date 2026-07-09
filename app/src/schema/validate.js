@@ -78,7 +78,9 @@ function validateScales(schema, issues) {
   schema.scales.forEach((scale, index) => {
     const path = `scales[${index}]`;
     if (!isObject(scale)) return error(issues, path, 'Scale must be an object.');
-    for (const key of ['id', 'owner', 'range', 'default', 'steps', 'tiers']) {
+    // 필수: id·owner·range·default. steps·tiers는 스케일 종류에 따라 선택
+    // (호감도류=델타 스텝+티어밴드 / HP·스탯류=풀/포인트, steps·tiers 없음).
+    for (const key of ['id', 'owner', 'range', 'default']) {
       requireField(scale, key, `${path}.${key}`, issues);
     }
     // actionMinimums는 선택 — 호감도류엔 있지만 인기도 등엔 없다. 있으면 객체여야.
@@ -90,12 +92,22 @@ function validateScales(schema, issues) {
     if (isRange(scale.range) && Number(scale.range[0]) >= Number(scale.range[1])) {
       warn(issues, `${path}.range`, 'Scale range should ascend.');
     }
-    if (!isObject(scale.steps)) error(issues, `${path}.steps`, 'steps must be an object.');
-    else {
-      for (const key of ['S', 'M', 'L', 'XL', 'S-', 'M-', 'L-', 'XL-']) {
-        if (scale.steps[key] == null) error(issues, `${path}.steps.${key}`, 'Missing step size.');
+    // steps 선택 — 있으면 8개가 다 있어야 델타(scale_delta) 동작. 부분 누락은 경고, 없거나 빈 객체면 풀 스케일로 통과.
+    if (scale.steps != null) {
+      if (!isObject(scale.steps)) {
+        warn(issues, `${path}.steps`, 'steps가 있으면 객체여야 합니다.');
+      } else {
+        const stepKeys = ['S', 'M', 'L', 'XL', 'S-', 'M-', 'L-', 'XL-'];
+        const present = stepKeys.filter((k) => scale.steps[k] != null);
+        if (present.length > 0 && present.length < stepKeys.length) {
+          for (const k of stepKeys) {
+            if (scale.steps[k] == null) warn(issues, `${path}.steps.${k}`, '델타 스케일이면 S/M/L/XL 스텝이 모두 필요합니다(HP·스탯 같은 풀 스케일이면 steps를 비워두세요).');
+          }
+        }
       }
     }
+    // tiers 선택 — 풀/스탯 스케일엔 티어밴드가 없다. 있을 때만 검증.
+    if (scale.tiers == null) return;
     if (!requireArray(scale.tiers, `${path}.tiers`, issues)) return;
     scale.tiers.forEach((tier, tierIndex) => {
       const tierPath = `${path}.tiers[${tierIndex}]`;
