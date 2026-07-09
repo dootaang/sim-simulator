@@ -6,6 +6,12 @@ const SYSTEM_PROMPT = "당신은 RisuAI 시뮬봇 카드의 \"룰북 산문\"을
 
 const MAX_RULEBOOK_CHARS = 200000;
 
+const REWARD_SCHEMA_APPENDIX = "\n\n[rewards table rule]\nOutput JSON must include \"rewards\": { \"gold\": { \"E\":[min,max], \"D\":[min,max], \"C\":[min,max], \"B\":[min,max], \"A\":[min,max], \"S\":[min,max] } }. Quest/manual/request reward gold belongs only in this engine table, not in individual event params. If the rulebook does not give exact reward gold amounts, infer sensible tier ranges from menu prices and upgrade costs, then record the reason in _assumptions as temporary reward values.";
+
+function promptTemplate() {
+  return SYSTEM_PROMPT + REWARD_SCHEMA_APPENDIX;
+}
+
 function buildCompilerInput(lore) {
   const entries = Array.isArray(lore && lore.entries) ? lore.entries : [];
   const rows = entries
@@ -17,7 +23,7 @@ function buildCompilerInput(lore) {
       content: String(entry.content || ''),
     }));
 
-  if (!rows.length) return SYSTEM_PROMPT.replace('{{RULEBOOK}}', mockRulebook());
+  if (!rows.length) return promptTemplate().replace('{{RULEBOOK}}', mockRulebook());
 
   const constantRows = rows.filter((row) => row.constant);
   const restRows = rows.filter((row) => !row.constant).sort((a, b) => b.content.length - a.content.length || a.index - b.index);
@@ -36,7 +42,7 @@ function buildCompilerInput(lore) {
   if (omitted > 0 && typeof console !== 'undefined' && console.info) {
     console.info('[simbot] compiler input trimmed', { included: selected.length, omitted });
   }
-  return SYSTEM_PROMPT.replace('{{RULEBOOK}}', selected.join('\n\n').slice(0, MAX_RULEBOOK_CHARS));
+  return promptTemplate().replace('{{RULEBOOK}}', selected.join('\n\n').slice(0, MAX_RULEBOOK_CHARS));
 }
 
 function parseCompilerOutput(text) {

@@ -15,7 +15,10 @@ function runDayEnd(schema, state, rng) {
     turnedAway: 0,
     wagesDue: 0,
     wagesPaid: 0,
+    unpaidWagesPaid: 0,
     unpaidWagesAdded: 0,
+    unpaidWagesBefore: Number(state.unpaidWages || 0),
+    unpaidWagesAfter: Number(state.unpaidWages || 0),
     checkouts: [],
   };
 
@@ -27,6 +30,8 @@ function runDayEnd(schema, state, rng) {
 }
 
 function settleRevenue(schema, state, rng, report) {
+  // Automatic settlement models the hours the player did not manually run:
+  // stock-limited food/drink sales are the economy's main income channel.
   const daily = formulaById(schema, 'daily_revenue');
   const level = String((state.facilities && state.facilities.tavern) || 1);
   const baseline = daily && daily.baseline && daily.baseline[level];
@@ -74,6 +79,7 @@ function addSale(sales, menuName, qty, price) {
 }
 
 function deductWages(state, report) {
+  repayUnpaidWages(state, report);
   const due = (state.staff || []).reduce((sum, staff) => sum + Number(staff.dailyWage || 0), 0);
   const paid = Math.min(Number(state.gold || 0), due);
   state.gold -= paid;
@@ -81,6 +87,16 @@ function deductWages(state, report) {
   report.wagesDue = due;
   report.wagesPaid = paid;
   report.unpaidWagesAdded = due - paid;
+  report.unpaidWagesAfter = Number(state.unpaidWages || 0);
+}
+
+function repayUnpaidWages(state, report) {
+  const unpaid = Number(state.unpaidWages || 0);
+  if (unpaid <= 0) return;
+  const paid = Math.min(Number(state.gold || 0), unpaid);
+  state.gold -= paid;
+  state.unpaidWages = unpaid - paid;
+  report.unpaidWagesPaid = paid;
 }
 
 function checkoutDue(state, report) {

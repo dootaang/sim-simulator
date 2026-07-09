@@ -22,6 +22,7 @@ function validateSchema(obj) {
   validateEntities(schema, issues);
   validateFormulas(schema, issues);
   validateProcesses(schema, issues);
+  validateRewards(schema, issues);
   validateEvents(schema, issues);
 
   return { schema, issues };
@@ -188,6 +189,27 @@ function validateProcesses(schema, issues) {
       });
     }
   });
+}
+
+function validateRewards(schema, issues) {
+  if (schema.rewards == null) return;
+  if (!isObject(schema.rewards)) return warn(issues, 'rewards', 'rewards must be an object when present.');
+  if (!isObject(schema.rewards.gold)) return warn(issues, 'rewards.gold', 'rewards.gold must be an object when present.');
+
+  for (const [tier, range] of Object.entries(schema.rewards.gold)) {
+    const path = `rewards.gold.${tier}`;
+    if (!isRange(range)) {
+      warn(issues, path, 'Reward range must be an array of length 2.');
+      continue;
+    }
+    const min = Number(range[0]);
+    const max = Number(range[1]);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      warn(issues, path, 'Reward range values should be numeric.');
+    } else if (min > max) {
+      warn(issues, path, 'Reward range should ascend.');
+    }
+  }
 }
 
 function validateEvents(schema, issues) {

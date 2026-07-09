@@ -159,6 +159,43 @@ test('G8 applyEvent does not mutate frozen input state', () => {
   assert.equal(result.state.resources.food, 19);
 });
 
+test('M3c reward uses schema table and seeded rng without amount params', () => {
+  const state = createState(schema);
+  const before = JSON.stringify(state);
+  deepFreeze(state);
+
+  const result = step(state, createRng(42), 'reward', { tier: 'C', reason: 'quest complete' });
+  assert.equal(result.log[0].ok, true);
+  assert.equal(result.log[0].tier, 'C');
+  assert.equal(result.log[0].goldDelta, 265276);
+  assert.equal(result.state.gold, 765276);
+  assert.equal(JSON.stringify(state), before);
+
+  const missing = step(state, createRng(42), 'reward', { tier: 'Z', reason: 'bad tier' });
+  assert.equal(missing.log[0].ok, false);
+  assert.equal(missing.log[0].reason, 'unknown_reward_tier');
+  assert.equal(missing.state, state);
+
+  const withAmount = step(state, createRng(42), 'reward', { tier: 'C', amount: 1, reason: 'bad params' });
+  assert.equal(withAmount.log[0].ok, false);
+  assert.equal(withAmount.log[0].reason, 'reward_amount_not_allowed');
+  assert.equal(withAmount.state, state);
+});
+
+test('M3c dayEnd repays unpaid wages from automatic revenue before new wages', () => {
+  const state = createState(schema);
+  state.gold = 0;
+  state.unpaidWages = 120000;
+
+  const result = runDayEnd(schema, state, createRng(42));
+  assert.equal(result.report.grossGold, 130000);
+  assert.equal(result.report.unpaidWagesBefore, 120000);
+  assert.equal(result.report.unpaidWagesPaid, 120000);
+  assert.equal(result.report.unpaidWagesAfter, 0);
+  assert.equal(result.state.gold, 10000);
+  assert.equal(result.state.unpaidWages, 0);
+});
+
 test('selectors produce compact Korean state summary and NPC tier summary', () => {
   const state = createState(schema);
   const summary = summarize(schema, state);

@@ -33,6 +33,8 @@ function applyEvent(schema, state, event, rng) {
   switch (type) {
     case 'gold_delta':
       return goldDelta(next, params, ok);
+    case 'reward':
+      return reward(schema, next, params, rng, ok, fail);
     case 'resource_delta':
       return resourceDelta(next, params, ok, fail);
     case 'scale_delta':
@@ -63,6 +65,25 @@ function goldDelta(state, params, ok) {
   const before = state.gold;
   state.gold = Math.max(0, Number(state.gold || 0) + amount);
   return ok({ amount, before, after: state.gold, reason: params.reason || '' });
+}
+
+function reward(schema, state, params, rng, ok, fail) {
+  if ('amount' in params || 'goldDelta' in params) return fail('reward_amount_not_allowed');
+  const tier = params.tier;
+  const range = schema && schema.rewards && schema.rewards.gold && schema.rewards.gold[tier];
+  if (!isRewardRange(range)) return fail('unknown_reward_tier', tier);
+
+  const amount = rng.int(range[0], range[1]);
+  const before = state.gold;
+  state.gold = Number(state.gold || 0) + amount;
+  return ok({ tier, goldDelta: amount, before, after: state.gold, reason: params.reason || '' });
+}
+
+function isRewardRange(range) {
+  if (!Array.isArray(range) || range.length !== 2) return false;
+  const min = Number(range[0]);
+  const max = Number(range[1]);
+  return Number.isFinite(min) && Number.isFinite(max) && max >= min;
 }
 
 function resourceDelta(state, params, ok, fail) {

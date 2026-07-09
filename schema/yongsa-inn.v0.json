@@ -23,6 +23,18 @@
     "reputation": { "village": 0, "advent": 0, "mage": 0, "noble": 0, "under": 0, "merchant": 0 }
   },
 
+  "rewards": {
+    "gold": {
+      "E": [30000, 80000],
+      "D": [80000, 200000],
+      "C": [200000, 500000],
+      "B": [500000, 1200000],
+      "A": [1200000, 3000000],
+      "S": [3000000, 8000000]
+    },
+    "note": "Default quest/manual/request completion gold table. Values scale from several Lv1 menu sales through major facility-upgrade funding; exact canon values are not present in the rulebook, so this is recorded as an engine assumption."
+  },
+
   "resources": [
     { "id": "gold", "unit": "원", "min": 0 },
     { "id": "food", "unit": "인분", "min": 0, "basePrice": 3000 },
@@ -296,6 +308,7 @@
     { "id": "scale_delta", "params": { "scale": "affinity", "target": "npcId", "size": "S|M|L|XL", "direction": "+|-", "charBonus": "-1|0|1", "reason": "string" }, "note": "LLM은 크기만 분류. 엔진이 steps로 수치화, dailyCap 적용" },
     { "id": "rep_event", "params": { "axis": "village|advent|mage|noble|under|merchant", "category": "categories 키", "reason": "string" }, "note": "엔진이 시드 RNG로 범위 내 값 결정, 승급/강등 처리" },
     { "id": "exp_gain", "params": { "category": "sources 키", "reason": "string" }, "note": "엔진이 값/범위 RNG 적용, 레벨업 판정" },
+    { "id": "reward", "params": { "tier": "E|D|C|B|A|S", "reason": "string" }, "note": "Engine chooses gold from rewards.gold[tier] with seeded RNG; event params must not include amount." },
     { "id": "checkin", "params": { "roomNo": "int", "guestName": "string", "stayDays": "int" } },
     { "id": "checkout", "params": { "roomNo": "int", "guestName": "string" } },
     { "id": "sale", "params": { "menuName": "string", "qty": "int" } },
