@@ -9,7 +9,15 @@
 /* ============================================================
    Risu Console — 상상 세계를 해부하는 진단 계기판
    따뜻한 잉크빛 다크 + 앰버 인광. 모노=계기 라벨, sans=읽는 본문.
-   레이아웃은 기능 그대로, 시각 레이어만 재작성.
+
+   ★ 디자인 교체 규약 (미래의 리디자인을 위해)
+   이 파일 아래 모든 규칙은 색·폰트·모양을 오직 :root 토큰으로만
+   참조한다. 컴포넌트 규칙에 원시 색/폰트 값을 절대 넣지 말 것.
+   → 테마 전면 교체 = 이 :root 블록만 편집하면 끝 (마크업·JS 무변경).
+   → 밝은 테마로 뒤집기: --bg/--surface*/--ink*/--line* 명도만 반전하고
+     --amber 계열을 어두운 앰버로 낮추면 된다.
+   → 레이아웃 리듬(간격·그리드)을 바꾸려면 각 컴포넌트의 grid/gap/padding을
+     손댄다. 시각 정체성(look)과 배치(layout)는 분리돼 있다.
    ============================================================ */
 
 :root {
@@ -20,6 +28,7 @@
   --surface: #1c1815;
   --surface-2: #241f1a;
   --surface-3: #2c251d;
+  --inset: #17130f;          /* 움푹한 readout 패널 바닥(pre·게이지·표) */
   --line: #372f26;
   --line-strong: #4a3f31;
 
@@ -27,14 +36,18 @@
   --ink: #ece3d4;
   --ink-mid: #b6aa96;
   --ink-dim: #837964;
+  --ink-faint: #6a6153;      /* placeholder 등 최약 */
 
   /* 시그니처 — 앰버 인광 (살아있는/활성 신호 전부 이 색) */
   --amber: #f5a623;
   --amber-bright: #ffc257;
   --amber-dim: #a9791f;
+  --on-amber: #1a1206;       /* 앰버 면 위 텍스트 */
+  /* ↓ 앰버 파생 틴트: --amber를 바꾸면 아래 rgba도 같이 맞춰 바꿀 것 */
   --amber-glow: rgba(245, 166, 35, 0.16);
   --amber-line: rgba(245, 166, 35, 0.42);
   --amber-wash: rgba(245, 166, 35, 0.09);
+  --amber-halo: rgba(245, 166, 35, 0.06);
 
   /* 냉색 대위 — 기계/엔진, 아주 드물게 */
   --cyan: #74b7c3;
@@ -43,10 +56,13 @@
   --bad: #e2654a;
   --bad-wash: rgba(226, 101, 74, 0.12);
   --warn: #e0924a;
+  --warn-wash: rgba(224, 146, 74, 0.1);
 
+  /* 타이포 (웹폰트 금지 → 시스템 스택. 한글 자동 폴백) */
   --font-mono: 'Cascadia Code', 'Cascadia Mono', ui-monospace, 'JetBrains Mono', 'D2Coding', Consolas, 'Courier New', monospace;
   --font-sans: 'Pretendard', 'Malgun Gothic', 'Apple SD Gothic Neo', system-ui, -apple-system, 'Segoe UI', sans-serif;
 
+  /* 모양 */
   --r: 5px;
   --r-sm: 3px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
@@ -59,7 +75,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(1200px 500px at 78% -10%, rgba(245, 166, 35, 0.05), transparent 60%),
+    radial-gradient(1200px 500px at 78% -10%, var(--amber-halo), transparent 60%),
     var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
@@ -92,7 +108,7 @@ button { cursor: pointer; }
   outline-offset: 2px;
 }
 
-::selection { background: var(--amber-line); color: #1a1206; }
+::selection { background: var(--amber-line); color: var(--on-amber); }
 
 /* ── 상단 계기 헤더 ─────────────────────────────────────── */
 .topbar {
@@ -101,7 +117,7 @@ button { cursor: pointer; }
   justify-content: space-between;
   gap: 20px;
   padding: 18px 26px;
-  background: linear-gradient(180deg, #1a1613, #141110);
+  background: linear-gradient(180deg, var(--surface), var(--bg));
   border-bottom: 1px solid var(--line);
 }
 
@@ -142,7 +158,7 @@ button { cursor: pointer; }
   padding: 7px 12px;
   color: var(--amber);
   font-size: 12px;
-  background: #17130f;
+  background: var(--inset);
 }
 
 main {
@@ -198,7 +214,7 @@ main {
   margin-top: 16px;
   background: var(--amber);
   border: 1px solid var(--amber);
-  color: #1a1206;
+  color: var(--on-amber);
   font-weight: 700;
 }
 .primary-btn:hover { filter: brightness(1.08); box-shadow: 0 0 14px var(--amber-glow); }
@@ -237,7 +253,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
   box-shadow: 0 -1px 12px var(--amber-glow);
 }
 
-.tab:disabled { color: #4d463a; cursor: not-allowed; }
+.tab:disabled { color: var(--line-strong); cursor: not-allowed; }
 
 .panel { min-height: 380px; }
 
@@ -306,7 +322,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .warning-banner {
   border: 1px solid var(--warn);
-  background: rgba(224, 146, 74, 0.1);
+  background: var(--warn-wash);
   color: var(--warn);
   border-radius: var(--r);
   padding: 12px 14px;
@@ -329,7 +345,7 @@ details.source-preview pre,
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  background: #17130f;
+  background: var(--inset);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: 12px;
@@ -365,7 +381,7 @@ details.source-preview pre,
 .conversation-input::placeholder,
 .play-input::placeholder,
 input::placeholder,
-textarea::placeholder { color: #6a6153; }
+textarea::placeholder { color: var(--ink-faint); }
 
 .search-input:focus,
 input:focus,
@@ -402,7 +418,7 @@ select:focus { border-color: var(--amber-line); }
 .lazy-img[src] { opacity: 1; }
 .lazy-img.broken {
   opacity: 1;
-  background: repeating-linear-gradient(45deg, #211c17, #211c17 12px, #191510 12px, #191510 24px);
+  background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 12px, var(--bg) 12px, var(--bg) 24px);
 }
 
 .npc-body { padding: 14px; }
@@ -522,7 +538,7 @@ select:focus { border-color: var(--amber-line); }
   gap: 10px;
 }
 .metric {
-  background: #17130f;
+  background: var(--inset);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: 12px;
@@ -566,7 +582,7 @@ select:focus { border-color: var(--amber-line); }
   height: 72px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
-  background: #17130f;
+  background: var(--inset);
   color: var(--ink-dim);
   font-family: var(--font-mono);
   font-weight: 700;
@@ -612,7 +628,7 @@ select:focus { border-color: var(--amber-line); }
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  background: #17130f;
+  background: var(--inset);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   padding: 12px;
@@ -711,7 +727,7 @@ select:focus { border-color: var(--amber-line); }
 .engine-report { display: grid; gap: 8px; margin-top: 8px; }
 .engine-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12.5px; }
 .engine-table th, .engine-table td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; }
-.engine-table th { background: #17130f; color: var(--ink-dim); }
+.engine-table th { background: var(--inset); color: var(--ink-dim); }
 
 /* ── 플레이(실험) 탭 ────────────────────────────────────── */
 .play-view { display: grid; gap: 14px; }
@@ -783,7 +799,7 @@ select:focus { border-color: var(--amber-line); }
   border: 1px solid var(--amber-line);
   background:
     radial-gradient(120% 140% at 100% 0%, var(--amber-glow), transparent 60%),
-    #17130f;
+    var(--inset);
   color: var(--amber);
   border-radius: var(--r-sm);
   padding: 14px;
@@ -791,7 +807,7 @@ select:focus { border-color: var(--amber-line); }
   font-size: 14px;
   font-weight: 700;
   text-shadow: 0 0 10px var(--amber-glow);
-  box-shadow: inset 0 0 24px rgba(245, 166, 35, 0.06);
+  box-shadow: inset 0 0 24px var(--amber-halo);
 }
 
 /* ── 반응형 ─────────────────────────────────────────────── */
