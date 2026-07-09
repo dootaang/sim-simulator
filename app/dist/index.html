@@ -6161,7 +6161,7 @@ ${row3.entry.content}`).join("\n\n");
       var canonicalSchema = require_yongsa_inn_v0();
       var SYSTEM_PROMPT = '\uB2F9\uC2E0\uC740 RisuAI \uC2DC\uBBAC\uBD07 \uCE74\uB4DC\uC758 "\uB8F0\uBD81 \uC0B0\uBB38"\uC744 \uACB0\uC815\uB860 \uAC8C\uC784 \uC5D4\uC9C4\uC6A9 \uD45C\uC900 \uC2A4\uD0A4\uB9C8 JSON\uC73C\uB85C \uBCC0\uD658\uD558\uB294 \uCEF4\uD30C\uC77C\uB7EC\uB2E4.\n\n[\uC124\uACC4 \uCCA0\uD559] \uB7F0\uD0C0\uC784\uC5D0 \uC11C\uC0AC\uB294 LLM\uC774, \uC218\uCE58 \uACC4\uC0B0\xB7\uC0C1\uD0DC\uB294 \uC5D4\uC9C4\uC774 \uC18C\uC720\uD55C\uB2E4. \uB108\uC758 \uC784\uBB34\uB294 \uB8F0\uBD81\uC5D0\uC11C "\uC5D4\uC9C4\uC774 \uACC4\uC0B0\uD560 \uC218 \uC788\uB294 \uADDC\uCE59"(\uC218\uCE58\xB7\uBB38\uD131\xB7\uBC94\uC704\xB7\uD2F0\uC5B4\xB7\uACF5\uC2DD\xB7\uD45C)\uB9CC \uBF51\uC544 \uAD6C\uC870\uD654\uD558\uB294 \uAC83\uC774\uB2E4. \uBD84\uC704\uAE30\xB7\uC11C\uC0AC \uC9C0\uCE68\xB7\uC774\uBBF8\uC9C0 \uADDC\uCE59\uC740 \uB123\uC9C0 \uB9C8\uB77C.\n\n[\uCD9C\uB825 \uD615\uC2DD \u2014 \uC774 JSON \uD558\uB098\uB9CC. \uC55E\uB4A4 \uC124\uBA85\xB7\uB9C8\uD06C\uB2E4\uC6B4\xB7\uCF54\uB4DC\uD39C\uC2A4 \uAE08\uC9C0. \u2605\uD544\uB4DC\uBA85\uC740 \uC544\uB798 \uADF8\uB300\uB85C \uC4F0\uACE0 \uB300\uCCB4 \uC774\uB984\uC744 \uC9C0\uC5B4\uB0B4\uC9C0 \uB9C8\uB77C.]\n{\n  "meta": { "id": "kebab-id", "title": "\uCE74\uB4DC\uBA85", "schemaVersion": "0.1" },\n  "resources": [ { "id": "gold|food|drink|material", "unit": "\uBB38\uC790\uC5F4", "min": 0, "basePrice": \uC815\uC218\uC635\uC158 } ],\n  "scales": [ { "id": "affinity \uB4F1", "owner": "npc|player|captive", "range": [\uCD5C\uC18C,\uCD5C\uB300], "default": \uC815\uC218,\n    "steps": { "S": +\uC815\uC218, "M": +\uC815\uC218, "L": +\uC815\uC218, "XL": +\uC815\uC218, "S-": -\uC815\uC218, "M-": -\uC815\uC218, "L-": -\uC815\uC218, "XL-": -\uC815\uC218 },\n    "tiers": [ { "range": [lo,hi], "label": "\uD2F0\uC5B4\uBA85", "brief": "\uC9E7\uC740 \uC11C\uC220", "forbidden": ["\uAE08\uC9C0\uD589\uB3D9"] } ],\n    "actionMinimums": { "\uB3D9\uC791\uBA85": \uCD5C\uC18C\uC218\uCE58 } } ],\n  "ladders": [\n    { "id": "player_level", "currency": "exp", "thresholds": [\uBB38\uD131\uB4E4 \uB610\uB294 null], "sources": { "\uCE74\uD14C\uACE0\uB9AC": \uAC12 \uB610\uB294 [\uCD5C\uC18C,\uCD5C\uB300] } },\n    { "id": "reputation", "axes": ["\uCD95id"], "axisLabels": { "\uCD95id": "\uD55C\uAE00\uBA85" },\n      "ranks": [ { "id": "E", "next": \uBB38\uD131 }, { "id": "S", "next": null } ],\n      "onPromote": "resetExp", "onNegative": "demoteBorrow",\n      "categories": { "\uCD95id": { "\uCE74\uD14C\uACE0\uB9AC": [\uCD5C\uC18C,\uCD5C\uB300] } } } ],\n  "entities": [\n    { "type": "room", "fields": ["no","kind","pricePerNight","capacity","requiresRoomLevel"], "instances": [ { "no": \uC815\uC218, "kind": "\uBB38\uC790\uC5F4", "pricePerNight": \uC815\uC218, "capacity": \uC815\uC218\uB610\uB294null, "requiresRoomLevel": \uC815\uC218 } ] },\n    { "type": "menuItem", "fields": ["name","category","grade","price","requiresKitchenLevel","consumes"], "instances": [ { "name": "", "category": "", "grade": "E~S", "price": \uC815\uC218, "requiresKitchenLevel": \uC815\uC218, "consumes": { "food|drink": 1 } } ] },\n    { "type": "npc", "fields": ["id","nameKo","nameEn","class","group"], "instances": [ { "id":"", "nameKo":"", "nameEn":"", "class":"", "group":"" } ] },\n    { "type": "facility", "fields": ["id","label","maxLevel"], "instances": [ { "id":"", "label":"", "maxLevel": \uC815\uC218 } ] } ],\n  "formulas": [ { "id": "daily_revenue \uB4F1", "baseline": { "\uC2DC\uC124\uB808\uBCA8": { "cap": \uC815\uC218, "customers": [\uCD5C\uC18C,\uCD5C\uB300], "revenue": [\uCD5C\uC18C,\uCD5C\uB300] } }, "note": "" } ],\n  "processes": [ { "trigger": "dayEnd \uB4F1", "steps": [ { "id": "\uB2E8\uACC4id", "note": "" } ] } ],\n  "events": [ { "id": "sale|purchase|checkin|checkout|hire|fire|scale_delta|rep_event|exp_gain|gold_delta|resource_delta|day_end \uB4F1", "params": { "\uD544\uB4DC": "\uD0C0\uC785" } } ],\n  "initialState": { "day": 1, "gold": \uC815\uC218, "resources": {}, "facilities": {}, "staff": [], "player": {}, "reputation": {} },\n  "_assumptions": [ "\uB8F0\uBD81\uC5D0\uC11C \uD655\uC815 \uBABB \uD55C \uAC12\uACFC \uC0AC\uC720\uB97C \uBB38\uC7A5\uC73C\uB85C" ]\n}\n\n[\uBCC0\uD658 \uADDC\uCE59]\n1. \uB8F0\uBD81\uC5D0 \uBA85\uC2DC\uB41C \uC218\uCE58\uB9CC. \uC5C6\uB294 \uAC12\uC740 \uC9C0\uC5B4\uB0B4\uC9C0 \uB9D0\uACE0 \uC0DD\uB7B5\uD558\uAC70\uB098 null, \uADF8\uB9AC\uACE0 \uBB34\uC5C7\uC744 \uBABB \uC815\uD588\uB294\uC9C0 "_assumptions"\uC5D0 \uBC18\uB4DC\uC2DC \uC801\uB294\uB2E4.\n2. 0~200 \uB4F1 \uC720\uACC4 \uC218\uCE58 + \uAD6C\uAC04\uBCC4 \uC11C\uC220/\uAE08\uC9C0 = scales.tiers. \uC6D0\uBCF8 \uD2F0\uC5B4\uB97C \uD558\uB098\uB3C4 \uBE60\uB728\uB9AC\uC9C0 \uB9D0\uACE0 range\xB7label\xB7forbidden\uC744 \uC62E\uAE34\uB2E4.\n3. EXP \uB204\uC801\u2192\uBB38\uD131 \uC2B9\uAE09 = ladders. \uD3C9\uD310 \uC5EC\uB7EC \uCD95\uC740 axes\uB85C \uBB36\uACE0 \uCD95\uBCC4 \uBCC0\uB3D9 \uBC94\uC704\uD45C\uB97C categories\uB85C.\n4. \uD0DC\uADF8(\uC608: [ysp_affinity::id::\xB1N])\uB294 events\uB85C. \uC2A4\uCF00\uC77C \uBCC0\uB3D9\uC740 LLM\uC774 \uD06C\uAE30(S/M/L/XL)\uB9CC \uBD84\uB958\uD558\uACE0 \uC5D4\uC9C4\uC774 steps\uB85C \uC218\uCE58\uD654\uD558\uB294 \uC124\uACC4\uC774\uBBC0\uB85C params\uC5D0 size\uB97C \uB450\uACE0, \uC6D0\uBCF8\uC774 \xB1N\uC744 \uC918\uB3C4 \uADF8 \uAC12\uB4E4\uC740 steps\uB85C \uBF51\uB294\uB2E4.\n5. \u2605\uBA54\uB274\uB294 \uC5D4\uC9C4 \uD310\uB9E4\uC758 \uD575\uC2EC\uC774\uB2E4. \uC694\uB9AC\xB7\uC8FC\uB958\xB7\uD2B9\uC218\uBA54\uB274\xB7\uBB34\uAE30\xB7\uBC29\uC5B4\uAD6C \uB4F1 \uBAA8\uB4E0 \uD310\uB9E4 \uD488\uBAA9\uC744 entities.menuItem.instances\uC5D0 \uBE60\uC9D0\uC5C6\uC774 \uB123\uB418, name\uC740 \uB8F0\uBD81\uC5D0 \uC801\uD78C \uD55C\uAD6D\uC5B4 \uC774\uB984 \uADF8\uB300\uB85C(\uC608: "\uACE0\uAE30 \uC2A4\uD29C", "\uC5D0\uC77C", "\uCCA0\uC81C \uC7A5\uAC80"), price\uB294 \uC6D0\uBB38 \uAC00\uACA9(1\uB9CC\uC6D0=10000\uCC98\uB7FC \uC22B\uC790\uB9CC), requiresKitchenLevel/requiresForge\uB294 \uADF8 \uD488\uBAA9\uC774 \uB4F1\uC7A5\uD558\uB294 \uC2DC\uC124 \uB808\uBCA8({{#when kitchen level}} \uB4F1 \uC870\uAC74 \uBE14\uB85D\uC758 \uB808\uBCA8)\uB85C \uCC44\uC6B4\uB2E4. \uAC1D\uC2E4\xB7NPC\uB3C4 \uB9C8\uCC2C\uAC00\uC9C0\uB85C \uD45C/\uBAA9\uB85D\uC744 \uBE60\uC9D0\uC5C6\uC774 instances\uB85C.\n6. \uC815\uAE30 \uC815\uC0B0\xB7\uC77C\uAE09 \uCC28\uAC10\xB7\uC2DC\uAC04 \uACBD\uACFC\uB294 formulas + processes\uB85C.\n7. \u2605initialState\uB294 \uD50C\uB808\uC774\uB97C \uBC14\uB85C \uC2DC\uC791\uD560 \uC218 \uC788\uAC8C \uCC44\uC6B4\uB2E4. \uB8F0\uBD81\uC5D0 \uC2DC\uC791 \uC790\uBCF8\xB7\uCD08\uAE30 \uC7AC\uACE0\uAC00 \uC5C6\uC73C\uBA74(\uB300\uAC1C Lua \uBCC0\uC218\uB77C \uBA85\uC2DC \uC548 \uB428), \uC7AC\uD654 \uAC00\uACA9 \uADDC\uBAA8\uB97C \uBCF4\uACE0 \uCD08\uAE30 \uC6B4\uC601\uC774 \uAC00\uB2A5\uD55C \uAC12\uC73C\uB85C \uC815\uD55C\uB2E4: gold\uB294 \uAE30\uBCF8 \uC2DD\uC790\uC7AC/\uC7AC\uB8CC\uB97C \uC218\uC2ED \uC778\uBD84 \uC0B4 \uC218 \uC788\uB294 \uC218\uC900(\uC608: \uCD5C\uC18C 300,000 \uC774\uC0C1), food\xB7drink\uB294 \uCD5C\uC18C \uC601\uC5C5 \uAC00\uB2A5\uD55C \uCD08\uAE30 \uC7AC\uACE0(\uC608: \uAC01 20), facilities\uB294 \uBAA8\uB4E0 \uC2DC\uC124\uC744 \uB808\uBCA8 1\uB85C. \uC774\uB807\uAC8C \uC815\uD55C \uAC12\uC740 _assumptions\uC5D0 "\uC784\uC2DC \uC2DC\uC791\uAC12"\uC73C\uB85C \uAE30\uB85D\uD55C\uB2E4.\n8. \uCD9C\uB825\uC740 \uD30C\uC2F1 \uAC00\uB2A5\uD55C \uB2E8\uC77C JSON. \uADF8 \uC678 \uD14D\uC2A4\uD2B8 \uC808\uB300 \uAE08\uC9C0.\n\n\uC544\uB798 [\uB8F0\uBD81]\uC744 \uCEF4\uD30C\uC77C\uD558\uB77C.\n\n[\uB8F0\uBD81]\n{{RULEBOOK}}';
       var MAX_RULEBOOK_CHARS = 2e5;
-      var REWARD_SCHEMA_APPENDIX = '\n\n[rewards/upgrades/gather table rules]\nOutput JSON must include "rewards": { "gold": { "E":[min,max], "D":[min,max], "C":[min,max], "B":[min,max], "A":[min,max], "S":[min,max] } }. Quest/manual/request reward gold belongs only in this engine table, not in individual event params. If the rulebook does not give exact reward gold amounts, infer sensible tier ranges from menu prices and upgrade costs, then record the reason in _assumptions as temporary reward values.\n\nEach facility instance should include "upgradeCosts": { "2": cost, "3": cost, "4": cost } for the next-level expansion costs. Upgrade costs are engine-owned table values; never place costs, gold deltas, or target levels in individual upgrade events. If the rulebook does not provide exact costs, infer them from the economy scale and record the temporary assumption in _assumptions.\n\nOutput top-level "gather": { "small":[min,max], "large":[min,max], "bulk":[min,max], "note":"..." } for self-supply yields such as hunting, gathering, and monster byproducts. Gather quantities are engine-owned table values; never place qty or amount in individual gain_resource events.';
+      var REWARD_SCHEMA_APPENDIX = '\n\n[rewards/upgrades/gather table rules]\nOutput JSON must include "rewards": { "gold": { "E":[min,max], "D":[min,max], "C":[min,max], "B":[min,max], "A":[min,max], "S":[min,max] } }. Quest/manual/request reward gold belongs only in this engine table, not in individual event params.\n\n\u2605 Reward gold source priority: if the mined rules block has a per-rank table with a pay/reward range (e.g. a questPay or reward field already given as [min,max] numbers), copy those numbers EXACTLY into rewards.gold for the matching rank. Do NOT scale, round up, multiply, or inflate them \u2014 the mined numbers are the authoritative amounts. Only invent ranges for ranks that are ABSENT from the mined table, and keep those consistent in magnitude with the nearest mined rank (a lower rank must not exceed a higher rank). Sanity bound: unless a mined value explicitly says so, no rewards.gold max should exceed roughly 3x the most expensive facility upgrade cost \u2014 if your inferred number blows past that, you are hallucinating; pull it back down. If the rulebook gives no reward amounts at all, infer sensible tier ranges from menu prices and upgrade costs, then record the reason in _assumptions as temporary reward values.\n\nEach facility instance should include "upgradeCosts": { "2": cost, "3": cost, "4": cost } for the next-level expansion costs. Upgrade costs are engine-owned table values; never place costs, gold deltas, or target levels in individual upgrade events. If the rulebook does not provide exact costs, infer them from the economy scale and record the temporary assumption in _assumptions.\n\nOutput top-level "gather": { "small":[min,max], "large":[min,max], "bulk":[min,max], "note":"..." } for self-supply yields such as hunting, gathering, and monster byproducts. Gather quantities are engine-owned table values; never place qty or amount in individual gain_resource events.';
       function promptTemplate() {
         return SYSTEM_PROMPT + REWARD_SCHEMA_APPENDIX;
       }
@@ -6288,6 +6288,7 @@ ${row3.content}`;
           const luaParts = collectLuaCode(moduleRoot);
           const lua = luaParts.join("\n\n");
           const tables = parseLuaTables(lua);
+          normalizeRanges(tables);
           const constants = parseLuaConstants(lua);
           const tableNames = Object.keys(tables);
           const ruleTableNames = tableNames.filter((name) => RULE_TABLE_RE.test(name) && numericSignal(tables[name]));
@@ -6474,6 +6475,45 @@ ${row3.content}`;
         }
         return [isArr ? arr : obj, i];
       }
+      var RANGE_UNIT = { "\uB9CC": 1e4, "\uC5B5": 1e8 };
+      var RANGE_RE = /^(-?[\d,]+(?:\.\d+)?)(만|억)?[~〜～\-–—](-?[\d,]+(?:\.\d+)?)(만|억)?원?$/;
+      function parseNumberRange(raw) {
+        const t = String(raw == null ? "" : raw).replace(/\s+/g, "");
+        const m = RANGE_RE.exec(t);
+        if (!m) return null;
+        const u2 = m[4] ? RANGE_UNIT[m[4]] : 1;
+        const u1 = m[2] ? RANGE_UNIT[m[2]] : u2;
+        const lo = toRangeNumber(m[1], u1);
+        const hi = toRangeNumber(m[3], u2);
+        if (lo == null || hi == null) return null;
+        return [lo, hi];
+      }
+      function toRangeNumber(numStr, unit) {
+        const n = Number(String(numStr).replace(/,/g, ""));
+        if (!Number.isFinite(n)) return null;
+        return n * unit;
+      }
+      function normalizeRanges(node) {
+        if (Array.isArray(node)) {
+          for (let i = 0; i < node.length; i++) {
+            if (typeof node[i] === "string") {
+              const range = parseNumberRange(node[i]);
+              if (range) node[i] = range;
+            } else if (node[i] && typeof node[i] === "object" && !node[i].__ref) {
+              normalizeRanges(node[i]);
+            }
+          }
+        } else if (node && typeof node === "object" && !node.__ref) {
+          for (const key of Object.keys(node)) {
+            if (typeof node[key] === "string") {
+              const range = parseNumberRange(node[key]);
+              if (range) node[key] = range;
+            } else if (node[key] && typeof node[key] === "object" && !node[key].__ref) {
+              normalizeRanges(node[key]);
+            }
+          }
+        }
+      }
       function numericSignal(value) {
         let numbers = 0;
         let total = 0;
@@ -6566,7 +6606,9 @@ ${row3.content}`;
         parseLuaTables,
         parseLuaConstants,
         parseValue,
-        parseTable
+        parseTable,
+        parseNumberRange,
+        normalizeRanges
       };
     }
   });

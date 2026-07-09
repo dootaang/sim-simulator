@@ -17,6 +17,7 @@ function mineCard(parsed) {
     const luaParts = collectLuaCode(moduleRoot);
     const lua = luaParts.join('\n\n');
     const tables = parseLuaTables(lua);
+    normalizeRanges(tables);
     const constants = parseLuaConstants(lua);
     const tableNames = Object.keys(tables);
     const ruleTableNames = tableNames.filter((name) => RULE_TABLE_RE.test(name) && numericSignal(tables[name]));
@@ -188,6 +189,52 @@ function parseTable(s, i) {
   return [isArr ? arr : obj, i];
 }
 
+// 카드 룰표의 값은 종종 문자열 범위로 적힌다("300,000~1,000,000", "3~8만원", "50~150만").
+// 이런 "온전히 숫자 범위인" 문자열만 [min,max] 숫자 배열로 승격한다. 프로즈("소소한 선물 …")나
+// 색상 코드("99,99,255"), 랭크 문자열("C~B")은 전체 매칭 실패로 그대로 남는다.
+const RANGE_UNIT = { '만': 10000, '억': 100000000 };
+const RANGE_RE = /^(-?[\d,]+(?:\.\d+)?)(만|억)?[~〜～\-–—](-?[\d,]+(?:\.\d+)?)(만|억)?원?$/;
+
+function parseNumberRange(raw) {
+  const t = String(raw == null ? '' : raw).replace(/\s+/g, '');
+  const m = RANGE_RE.exec(t);
+  if (!m) return null;
+  const u2 = m[4] ? RANGE_UNIT[m[4]] : 1;
+  const u1 = m[2] ? RANGE_UNIT[m[2]] : u2; // 뒤 숫자에만 단위가 붙으면("3~8만") 앞에도 적용
+  const lo = toRangeNumber(m[1], u1);
+  const hi = toRangeNumber(m[3], u2);
+  if (lo == null || hi == null) return null;
+  return [lo, hi];
+}
+
+function toRangeNumber(numStr, unit) {
+  const n = Number(String(numStr).replace(/,/g, ''));
+  if (!Number.isFinite(n)) return null;
+  return n * unit;
+}
+
+function normalizeRanges(node) {
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      if (typeof node[i] === 'string') {
+        const range = parseNumberRange(node[i]);
+        if (range) node[i] = range;
+      } else if (node[i] && typeof node[i] === 'object' && !node[i].__ref) {
+        normalizeRanges(node[i]);
+      }
+    }
+  } else if (node && typeof node === 'object' && !node.__ref) {
+    for (const key of Object.keys(node)) {
+      if (typeof node[key] === 'string') {
+        const range = parseNumberRange(node[key]);
+        if (range) node[key] = range;
+      } else if (node[key] && typeof node[key] === 'object' && !node[key].__ref) {
+        normalizeRanges(node[key]);
+      }
+    }
+  }
+}
+
 function numericSignal(value) {
   let numbers = 0;
   let total = 0;
@@ -293,4 +340,6 @@ module.exports = {
   parseLuaConstants,
   parseValue,
   parseTable,
+  parseNumberRange,
+  normalizeRanges,
 };
