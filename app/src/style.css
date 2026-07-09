@@ -41,6 +41,10 @@
   --amber-wash: rgba(245, 166, 35, 0.09);
   --amber-halo: rgba(245, 166, 35, 0.06);
 
+  /* 인광 readout 본문 색 — A/B 전환 레버.
+     A(현재)=앰버 풀 인광. 나중에 B로 낮추려면 이 한 줄만 var(--ink-mid)로. */
+  --readout-ink: var(--amber);
+
   /* 냉색 대위 — 기계/엔진, 아주 드물게 */
   --cyan: #74b7c3;
 
@@ -626,7 +630,7 @@ select:focus { border-color: var(--amber-line); }
   padding: 12px;
   font-family: var(--font-mono);
   font-size: 12.5px;
-  color: var(--amber);
+  color: var(--readout-ink);
 }
 
 .engine-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
@@ -786,20 +790,57 @@ select:focus { border-color: var(--amber-line); }
 .play-side-section { display: grid; gap: 10px; }
 .play-context-pre { max-height: 220px; overflow: auto; color: var(--ink-mid); }
 
-/* 시그니처: 인광 게이지 */
+/* 시그니처: 인광 게이지 — 상시 로어북 대비 이번 턴 주입량 */
 .play-token-meter {
+  display: grid;
+  gap: 6px;
   border: 1px solid var(--amber-line);
   background:
     radial-gradient(120% 140% at 100% 0%, var(--amber-glow), transparent 60%),
     var(--inset);
-  color: var(--amber);
   border-radius: var(--r-sm);
   padding: 14px;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  text-shadow: 0 0 10px var(--amber-glow);
   box-shadow: inset 0 0 24px var(--amber-halo);
+}
+
+.play-token-now {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 12px var(--amber-glow);
+}
+
+.play-token-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+}
+
+.play-token-track {
+  margin-top: 6px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.play-token-fill {
+  height: 100%;
+  width: var(--pct, 0%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+  box-shadow: 0 0 10px var(--amber-glow);
+  transition: width 420ms ease;
+}
+
+.play-token-base {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-dim);
 }
 
 /* ── 반응형 ─────────────────────────────────────────────── */

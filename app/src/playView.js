@@ -1,6 +1,6 @@
 const schema = require('../../schema/yongsa-inn.v0.json');
 const { summarize, npcSummary } = require('../../engine/core/selectors.js');
-const { estimateTokens } = require('../core/lorebook/tokens.js');
+const { estimateTokens, estimateLorebookTokens } = require('../core/lorebook/tokens.js');
 const { buildPrompt, parseAssistantResponse } = require('./llm/prompt.js');
 const { PROVIDERS, callProvider, providerDef } = require('./llm/providers.js');
 import { getEngineState, runEvent, summarizeEvent } from './engineSession.js';
@@ -192,12 +192,13 @@ function renderStateBox() {
   return section;
 }
 
+const BASELINE_REF = 12029; // 용사여관 상시 로어북 실측치(앱 토큰 추정기) — 카드 미로드 시 폴백
+
 function renderTokenBox(ctx) {
   const section = titled('토큰 미터');
   const current = lastPrompt ? lastPrompt.injectedTokens : estimateTokens(summarize(schema, getEngineState()));
-  const meter = el('div', 'play-token-meter');
-  meter.textContent = `이번 턴 주입: ${current.toLocaleString('ko-KR')} 토큰 (원본 상시 로어북: 16,124)`;
-  section.append(meter);
+  const baseline = ctx.lore ? (estimateLorebookTokens(ctx.lore.entries).constant || BASELINE_REF) : BASELINE_REF;
+  section.append(tokenGauge(current, baseline));
   if (lastPrompt) {
     const list = el('div', 'engine-list');
     for (const [key, value] of Object.entries(lastPrompt.injectedParts)) {
@@ -213,6 +214,29 @@ function renderTokenBox(ctx) {
     section.append(note);
   }
   return section;
+}
+
+// 인광 게이지: 상시 로어북(원본 매턴 고정) 대비 이번 턴 주입량을 막대로.
+// 막대 길이는 데이터 비례 치수이므로 --pct 변수로 값만 전달(모양은 전부 CSS).
+function tokenGauge(current, baseline) {
+  const pct = baseline > 0 ? Math.min(100, Math.round((current / baseline) * 100)) : 0;
+  const wrap = el('div', 'play-token-meter');
+
+  const now = el('div', 'play-token-now');
+  now.textContent = `${current.toLocaleString('ko-KR')} 토큰`;
+  const sub = el('div', 'play-token-sub');
+  sub.textContent = '이번 턴 주입';
+
+  const track = el('div', 'play-token-track');
+  const fill = el('div', 'play-token-fill');
+  fill.style.setProperty('--pct', pct + '%');
+  track.append(fill);
+
+  const base = el('div', 'play-token-base');
+  base.textContent = `상시 로어북(원본 매턴 고정) ${baseline.toLocaleString('ko-KR')} 토큰의 ${pct}%`;
+
+  wrap.append(now, sub, track, base);
+  return wrap;
 }
 
 async function submitTurn(text, ctx, render) {

@@ -49,6 +49,10 @@
   --amber-wash: rgba(245, 166, 35, 0.09);
   --amber-halo: rgba(245, 166, 35, 0.06);
 
+  /* 인광 readout 본문 색 — A/B 전환 레버.
+     A(현재)=앰버 풀 인광. 나중에 B로 낮추려면 이 한 줄만 var(--ink-mid)로. */
+  --readout-ink: var(--amber);
+
   /* 냉색 대위 — 기계/엔진, 아주 드물게 */
   --cyan: #74b7c3;
 
@@ -634,7 +638,7 @@ select:focus { border-color: var(--amber-line); }
   padding: 12px;
   font-family: var(--font-mono);
   font-size: 12.5px;
-  color: var(--amber);
+  color: var(--readout-ink);
 }
 
 .engine-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
@@ -794,20 +798,57 @@ select:focus { border-color: var(--amber-line); }
 .play-side-section { display: grid; gap: 10px; }
 .play-context-pre { max-height: 220px; overflow: auto; color: var(--ink-mid); }
 
-/* 시그니처: 인광 게이지 */
+/* 시그니처: 인광 게이지 — 상시 로어북 대비 이번 턴 주입량 */
 .play-token-meter {
+  display: grid;
+  gap: 6px;
   border: 1px solid var(--amber-line);
   background:
     radial-gradient(120% 140% at 100% 0%, var(--amber-glow), transparent 60%),
     var(--inset);
-  color: var(--amber);
   border-radius: var(--r-sm);
   padding: 14px;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  text-shadow: 0 0 10px var(--amber-glow);
   box-shadow: inset 0 0 24px var(--amber-halo);
+}
+
+.play-token-now {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 12px var(--amber-glow);
+}
+
+.play-token-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+}
+
+.play-token-track {
+  margin-top: 6px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.play-token-fill {
+  height: 100%;
+  width: var(--pct, 0%);
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+  box-shadow: 0 0 10px var(--amber-glow);
+  transition: width 420ms ease;
+}
+
+.play-token-base {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-dim);
 }
 
 /* ── 반응형 ─────────────────────────────────────────────── */
@@ -4302,7 +4343,7 @@ select:focus { border-color: var(--amber-line); }
         if (!entry || entry.isFolder) return 0;
         return estimateTokens2(entry.content);
       }
-      function estimateLorebookTokens2(entries) {
+      function estimateLorebookTokens3(entries) {
         const real = (entries || []).filter((e) => e && !e.isFolder);
         const rows = real.map((e) => ({ uid: e.uid, name: e.name || e.keys && e.keys[0] || "", tokens: estimateEntryTokens(e), constant: !!e.constant, enabled: e.enabled !== false }));
         return {
@@ -4336,7 +4377,7 @@ select:focus { border-color: var(--amber-line); }
         }
         return { budget: limit, used, kept, dropped };
       }
-      module.exports = { estimateTokens: estimateTokens2, estimateEntryTokens, estimateLorebookTokens: estimateLorebookTokens2, applyTokenBudget };
+      module.exports = { estimateTokens: estimateTokens2, estimateEntryTokens, estimateLorebookTokens: estimateLorebookTokens3, applyTokenBudget };
     }
   });
 
@@ -6781,7 +6822,7 @@ ${Array.from(extras).join(" ")}` : text;
   // src/playView.js
   var schema3 = require_yongsa_inn_v0();
   var { summarize: summarize2, npcSummary: npcSummary2 } = require_selectors();
-  var { estimateTokens } = require_tokens();
+  var { estimateTokens, estimateLorebookTokens: estimateLorebookTokens2 } = require_tokens();
   var { buildPrompt, parseAssistantResponse } = require_prompt();
   var { PROVIDERS, callProvider, providerDef } = require_providers();
   var messages = [];
@@ -6953,12 +6994,12 @@ ${Array.from(extras).join(" ")}` : text;
     }
     return section;
   }
+  var BASELINE_REF = 12029;
   function renderTokenBox(ctx) {
     const section = titled("\uD1A0\uD070 \uBBF8\uD130");
     const current = lastPrompt ? lastPrompt.injectedTokens : estimateTokens(summarize2(schema3, getEngineState()));
-    const meter = el2("div", "play-token-meter");
-    meter.textContent = `\uC774\uBC88 \uD134 \uC8FC\uC785: ${current.toLocaleString("ko-KR")} \uD1A0\uD070 (\uC6D0\uBCF8 \uC0C1\uC2DC \uB85C\uC5B4\uBD81: 16,124)`;
-    section.append(meter);
+    const baseline = ctx.lore ? estimateLorebookTokens2(ctx.lore.entries).constant || BASELINE_REF : BASELINE_REF;
+    section.append(tokenGauge(current, baseline));
     if (lastPrompt) {
       const list = el2("div", "engine-list");
       for (const [key, value] of Object.entries(lastPrompt.injectedParts)) {
@@ -6974,6 +7015,22 @@ ${Array.from(extras).join(" ")}` : text;
       section.append(note);
     }
     return section;
+  }
+  function tokenGauge(current, baseline) {
+    const pct = baseline > 0 ? Math.min(100, Math.round(current / baseline * 100)) : 0;
+    const wrap = el2("div", "play-token-meter");
+    const now = el2("div", "play-token-now");
+    now.textContent = `${current.toLocaleString("ko-KR")} \uD1A0\uD070`;
+    const sub = el2("div", "play-token-sub");
+    sub.textContent = "\uC774\uBC88 \uD134 \uC8FC\uC785";
+    const track = el2("div", "play-token-track");
+    const fill = el2("div", "play-token-fill");
+    fill.style.setProperty("--pct", pct + "%");
+    track.append(fill);
+    const base = el2("div", "play-token-base");
+    base.textContent = `\uC0C1\uC2DC \uB85C\uC5B4\uBD81(\uC6D0\uBCF8 \uB9E4\uD134 \uACE0\uC815) ${baseline.toLocaleString("ko-KR")} \uD1A0\uD070\uC758 ${pct}%`;
+    wrap.append(now, sub, track, base);
+    return wrap;
   }
   async function submitTurn(text, ctx, render2) {
     busy = true;
