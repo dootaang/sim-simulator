@@ -1,10 +1,13 @@
 'use strict';
 
+const { getVertexAccessToken, invalidateVertexAccessToken } = require('./vertexAuth.js');
+
 const PROVIDERS = {
   mock: { kind: 'mock', base: '', keyRequired: false, defModel: '' },
   gemini: { kind: 'openai', base: 'https://generativelanguage.googleapis.com/v1beta/openai', keyRequired: true, defModel: 'gemini-2.5-flash' },
   openai: { kind: 'openai', base: 'https://api.openai.com/v1', keyRequired: true, defModel: 'gpt-4o-mini' },
   anthropic: { kind: 'anthropic', base: 'https://api.anthropic.com', keyRequired: true, defModel: 'claude-sonnet-5' },
+  vertex: { kind: 'vertex', base: '', keyRequired: true, defModel: 'gemini-2.5-flash' },
   custom: { kind: 'openai', base: '', keyRequired: true, defModel: '' },
 };
 
@@ -14,6 +17,7 @@ async function callProvider(cfg, prompt) {
   const def = providerDef(cfg.provider);
   if (def.kind === 'mock') return mockResponse(prompt);
   if (def.keyRequired && !cfg.apiKey) throw new Error('API 키가 설정되지 않았습니다');
+  if (def.kind === 'vertex') return callVertex(def, cfg, prompt);
   const req = buildRequest(def, cfg, prompt);
   const bodyText = await requestWithRetry(req, async (request) => {
     const response = await fetch(request.url, {
@@ -28,6 +32,65 @@ async function callProvider(cfg, prompt) {
     };
   }, { retryNetwork: false });
   return parseResponse(req.kind, JSON.parse(bodyText));
+}
+
+async function callVertex(def, cfg, prompt) {
+  const auth = await getVertexAccessToken(cfg.apiKey);
+  const location = String(cfg.location || 'global').trim() || 'global';
+  const host = location === 'global'
+    ? 'https://aiplatform.googleapis.com'
+    : `https://${location}-aiplatform.googleapis.com`;
+  const model = cfg.model || def.defModel;
+  if (!model) throw new Error('모델명을 입력하세요');
+  const req = {
+    url: `${host}/v1/projects/${encodeURIComponent(auth.projectId)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`,
+    method: 'POST',
+    kind: 'vertex',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${auth.accessToken}`,
+    },
+    body: JSON.stringify(buildVertexBody(prompt)),
+  };
+  let refreshed = false;
+  const bodyText = await requestWithRetry(req, async (request) => {
+    let response = await fetch(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+    });
+    if (response.status === 401 && !refreshed) {
+      refreshed = true;
+      invalidateVertexAccessToken(cfg.apiKey);
+      const fresh = await getVertexAccessToken(cfg.apiKey);
+      request.headers.Authorization = `Bearer ${fresh.accessToken}`;
+      response = await fetch(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+      });
+    }
+    return {
+      status: response.status,
+      bodyText: await response.text(),
+      retryAfterMs: retryAfterMs(response.headers.get('retry-after')),
+    };
+  }, { retryNetwork: false });
+  return parseVertexResponse(JSON.parse(bodyText));
+}
+
+function buildVertexBody(prompt) {
+  return {
+    systemInstruction: { parts: [{ text: String(prompt.system || '') }] },
+    contents: (prompt.messages || []).map((message) => ({
+      role: message && message.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: String((message && message.content) || '') }],
+    })),
+    generationConfig: {
+      temperature: prompt.temperature == null ? 0.7 : prompt.temperature,
+      maxOutputTokens: prompt.maxTokens || 8192,
+    },
+  };
 }
 
 function buildRequest(def, cfg, prompt) {
@@ -87,6 +150,20 @@ function parseResponse(kind, json) {
   return out;
 }
 
+function parseVertexResponse(json) {
+  const blocked = json && json.promptFeedback && json.promptFeedback.blockReason;
+  if (blocked) throw new Error(`안전 필터가 요청을 차단했어요 (${blocked})`);
+  const candidate = json && json.candidates && json.candidates[0];
+  if (candidate && candidate.finishReason === 'MAX_TOKENS') throw new Error('응답이 최대 길이에서 잘렸어요');
+  if (candidate && candidate.finishReason === 'SAFETY') throw new Error('안전 필터가 응답을 차단했어요');
+  const parts = candidate && candidate.content && candidate.content.parts;
+  const out = Array.isArray(parts)
+    ? parts.map((part) => part && typeof part.text === 'string' ? part.text : '').join('')
+    : '';
+  if (typeof out !== 'string' || !out.trim()) throw new Error('모델이 빈 응답을 반환했어요');
+  return out;
+}
+
 async function requestWithRetry(req, doFetch, opts = {}) {
   const retries = opts.retries == null ? 2 : opts.retries;
   const retries429 = opts.retries429 == null ? 4 : opts.retries429;
@@ -97,6 +174,7 @@ async function requestWithRetry(req, doFetch, opts = {}) {
     try {
       result = await doFetch(req);
     } catch (err) {
+      if (err && err.simbotSafe) throw err;
       throw new Error('네트워크 요청에 실패했습니다. CORS 또는 제공자 설정을 확인하세요.');
     }
     if (result.status >= 200 && result.status < 300) return result.bodyText;

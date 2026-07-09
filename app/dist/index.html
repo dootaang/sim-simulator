@@ -691,13 +691,20 @@ select:focus { border-color: var(--amber-line); }
 .engine-form select,
 .engine-form input,
 .play-settings select,
-.play-settings input {
+.play-settings input,
+.play-settings textarea {
   width: 100%;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
   background: var(--surface-2);
   color: var(--ink);
   padding: 9px 11px;
+}
+.play-settings textarea {
+  min-height: 150px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
 }
 
 .engine-log-list { display: grid; gap: 8px; }
@@ -5654,15 +5661,159 @@ ${row3.entry.content}`).join("\n\n");
     }
   });
 
+  // src/llm/vertexAuth.js
+  var require_vertexAuth = __commonJS({
+    "src/llm/vertexAuth.js"(exports, module) {
+      "use strict";
+      var TOKEN_URI = "https://oauth2.googleapis.com/token";
+      var SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+      var cache = /* @__PURE__ */ new Map();
+      async function getVertexAccessToken(saJsonString) {
+        let sa;
+        try {
+          sa = parseServiceAccount(saJsonString);
+        } catch (err) {
+          throw authError(err && err.message ? err.message : "\uC778\uC99D \uC124\uC815 \uD615\uC2DD\uC744 \uD655\uC778\uD558\uC138\uC694");
+        }
+        const cached = cache.get(sa.client_email);
+        if (cached && cached.expiresAt > Date.now() + 6e4) {
+          return { accessToken: cached.accessToken, projectId: sa.project_id };
+        }
+        try {
+          const tokenUri = sa.token_uri || TOKEN_URI;
+          const now = Math.floor(Date.now() / 1e3);
+          const header = { alg: "RS256", typ: "JWT" };
+          const claims = {
+            iss: sa.client_email,
+            scope: SCOPE,
+            aud: tokenUri,
+            iat: now,
+            exp: now + 3600
+          };
+          const signingInput = `${base64urlJson(header)}.${base64urlJson(claims)}`;
+          const key = await importPrivateKey(sa.private_key);
+          const signature = await crypto.subtle.sign(
+            "RSASSA-PKCS1-v1_5",
+            key,
+            utf8(signingInput)
+          );
+          const assertion = `${signingInput}.${base64urlBytes(signature)}`;
+          const body = new URLSearchParams();
+          body.set("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
+          body.set("assertion", assertion);
+          const response = await fetch(tokenUri, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: body.toString()
+          });
+          if (!response.ok) throw new Error(`\uD1A0\uD070 \uAD50\uD658 \uC2E4\uD328 (${response.status})`);
+          const json = await response.json();
+          if (!json || typeof json.access_token !== "string" || !json.access_token) {
+            throw new Error("\uD1A0\uD070 \uC751\uB2F5 \uD615\uC2DD\uC744 \uD655\uC778\uD558\uC138\uC694");
+          }
+          const expiresIn = Number(json.expires_in || 3600);
+          cache.set(sa.client_email, {
+            accessToken: json.access_token,
+            expiresAt: Date.now() + Math.max(0, expiresIn - 60) * 1e3
+          });
+          return { accessToken: json.access_token, projectId: sa.project_id };
+        } catch (err) {
+          throw authError(err && err.message ? err.message : "\uD1A0\uD070 \uBC1C\uAE09 \uACBD\uB85C\uB97C \uD655\uC778\uD558\uC138\uC694");
+        }
+      }
+      function invalidateVertexAccessToken(saJsonString) {
+        try {
+          const sa = parseServiceAccount(saJsonString);
+          cache.delete(sa.client_email);
+        } catch (_) {
+        }
+      }
+      function parseServiceAccount(saJsonString) {
+        let sa;
+        try {
+          sa = JSON.parse(String(saJsonString || ""));
+        } catch (_) {
+          throw new Error("\uC778\uC99D \uC124\uC815 \uD615\uC2DD\uC744 \uD655\uC778\uD558\uC138\uC694");
+        }
+        for (const key of ["client_email", "private_key", "project_id"]) {
+          if (!sa || typeof sa[key] !== "string" || !sa[key].trim()) {
+            throw new Error("\uC778\uC99D \uC124\uC815 \uD544\uC218 \uD544\uB4DC\uB97C \uD655\uC778\uD558\uC138\uC694");
+          }
+        }
+        if (sa.token_uri != null && typeof sa.token_uri !== "string") {
+          throw new Error("\uC778\uC99D \uC124\uC815 \uD544\uC218 \uD544\uB4DC\uB97C \uD655\uC778\uD558\uC138\uC694");
+        }
+        return {
+          client_email: sa.client_email,
+          private_key: sa.private_key,
+          project_id: sa.project_id,
+          token_uri: sa.token_uri || TOKEN_URI
+        };
+      }
+      function authError(reason) {
+        const err = new Error(`Vertex \uC778\uC99D \uC2E4\uD328: ${sanitizeReason(reason)}`);
+        err.simbotSafe = true;
+        return err;
+      }
+      function sanitizeReason(reason) {
+        return String(reason || "\uC778\uC99D \uC124\uC815\uC744 \uD655\uC778\uD558\uC138\uC694").replace(/ya29\.[A-Za-z0-9._-]+/g, "[redacted]").replace(/-----BEGIN[\s\S]*?-----END [A-Z ]+-----/g, "[redacted]").replace(/https?:\/\/\S+/g, "[url]").slice(0, 160);
+      }
+      async function importPrivateKey(pem) {
+        const der = pemToDer(pem);
+        return crypto.subtle.importKey(
+          "pkcs8",
+          der,
+          { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+      }
+      function pemToDer(pem) {
+        const b64 = String(pem || "").replace(/-----BEGIN PRIVATE KEY-----/g, "").replace(/-----END PRIVATE KEY-----/g, "").replace(/\s+/g, "");
+        if (!b64) throw new Error("\uAC1C\uC778 \uD0A4 \uD615\uC2DD\uC744 \uD655\uC778\uD558\uC138\uC694");
+        return base64ToBytes(b64).buffer;
+      }
+      function base64urlJson(value) {
+        return base64urlBytes(utf8(JSON.stringify(value)));
+      }
+      function base64urlBytes(value) {
+        let binary = "";
+        const bytes = value instanceof ArrayBuffer ? new Uint8Array(value) : new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+        for (let i = 0; i < bytes.length; i += 1) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      }
+      function base64ToBytes(value) {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      }
+      function utf8(value) {
+        return new TextEncoder().encode(value);
+      }
+      module.exports = {
+        getVertexAccessToken,
+        invalidateVertexAccessToken,
+        _test: {
+          base64urlJson,
+          base64urlBytes,
+          pemToDer
+        }
+      };
+    }
+  });
+
   // src/llm/providers.js
   var require_providers = __commonJS({
     "src/llm/providers.js"(exports, module) {
       "use strict";
+      var { getVertexAccessToken, invalidateVertexAccessToken } = require_vertexAuth();
       var PROVIDERS3 = {
         mock: { kind: "mock", base: "", keyRequired: false, defModel: "" },
         gemini: { kind: "openai", base: "https://generativelanguage.googleapis.com/v1beta/openai", keyRequired: true, defModel: "gemini-2.5-flash" },
         openai: { kind: "openai", base: "https://api.openai.com/v1", keyRequired: true, defModel: "gpt-4o-mini" },
         anthropic: { kind: "anthropic", base: "https://api.anthropic.com", keyRequired: true, defModel: "claude-sonnet-5" },
+        vertex: { kind: "vertex", base: "", keyRequired: true, defModel: "gemini-2.5-flash" },
         custom: { kind: "openai", base: "", keyRequired: true, defModel: "" }
       };
       var providerDef3 = (provider) => PROVIDERS3[provider] || PROVIDERS3.mock;
@@ -5670,6 +5821,7 @@ ${row3.entry.content}`).join("\n\n");
         const def = providerDef3(cfg.provider);
         if (def.kind === "mock") return mockResponse(prompt);
         if (def.keyRequired && !cfg.apiKey) throw new Error("API \uD0A4\uAC00 \uC124\uC815\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4");
+        if (def.kind === "vertex") return callVertex(def, cfg, prompt);
         const req = buildRequest(def, cfg, prompt);
         const bodyText = await requestWithRetry(req, async (request) => {
           const response = await fetch(request.url, {
@@ -5684,6 +5836,61 @@ ${row3.entry.content}`).join("\n\n");
           };
         }, { retryNetwork: false });
         return parseResponse(req.kind, JSON.parse(bodyText));
+      }
+      async function callVertex(def, cfg, prompt) {
+        const auth = await getVertexAccessToken(cfg.apiKey);
+        const location = String(cfg.location || "global").trim() || "global";
+        const host = location === "global" ? "https://aiplatform.googleapis.com" : `https://${location}-aiplatform.googleapis.com`;
+        const model = cfg.model || def.defModel;
+        if (!model) throw new Error("\uBAA8\uB378\uBA85\uC744 \uC785\uB825\uD558\uC138\uC694");
+        const req = {
+          url: `${host}/v1/projects/${encodeURIComponent(auth.projectId)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`,
+          method: "POST",
+          kind: "vertex",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${auth.accessToken}`
+          },
+          body: JSON.stringify(buildVertexBody(prompt))
+        };
+        let refreshed = false;
+        const bodyText = await requestWithRetry(req, async (request) => {
+          let response = await fetch(request.url, {
+            method: request.method,
+            headers: request.headers,
+            body: request.body
+          });
+          if (response.status === 401 && !refreshed) {
+            refreshed = true;
+            invalidateVertexAccessToken(cfg.apiKey);
+            const fresh = await getVertexAccessToken(cfg.apiKey);
+            request.headers.Authorization = `Bearer ${fresh.accessToken}`;
+            response = await fetch(request.url, {
+              method: request.method,
+              headers: request.headers,
+              body: request.body
+            });
+          }
+          return {
+            status: response.status,
+            bodyText: await response.text(),
+            retryAfterMs: retryAfterMs(response.headers.get("retry-after"))
+          };
+        }, { retryNetwork: false });
+        return parseVertexResponse(JSON.parse(bodyText));
+      }
+      function buildVertexBody(prompt) {
+        return {
+          systemInstruction: { parts: [{ text: String(prompt.system || "") }] },
+          contents: (prompt.messages || []).map((message) => ({
+            role: message && message.role === "assistant" ? "model" : "user",
+            parts: [{ text: String(message && message.content || "") }]
+          })),
+          generationConfig: {
+            temperature: prompt.temperature == null ? 0.7 : prompt.temperature,
+            maxOutputTokens: prompt.maxTokens || 8192
+          }
+        };
       }
       function buildRequest(def, cfg, prompt) {
         const base = String(cfg.baseUrl || def.base || "").replace(/\/+$/, "");
@@ -5740,6 +5947,17 @@ ${row3.entry.content}`).join("\n\n");
         if (typeof out !== "string" || !out.trim()) throw new Error("\uBAA8\uB378\uC774 \uBE48 \uC751\uB2F5\uC744 \uBC18\uD658\uD588\uC5B4\uC694");
         return out;
       }
+      function parseVertexResponse(json) {
+        const blocked = json && json.promptFeedback && json.promptFeedback.blockReason;
+        if (blocked) throw new Error(`\uC548\uC804 \uD544\uD130\uAC00 \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC5B4\uC694 (${blocked})`);
+        const candidate = json && json.candidates && json.candidates[0];
+        if (candidate && candidate.finishReason === "MAX_TOKENS") throw new Error("\uC751\uB2F5\uC774 \uCD5C\uB300 \uAE38\uC774\uC5D0\uC11C \uC798\uB838\uC5B4\uC694");
+        if (candidate && candidate.finishReason === "SAFETY") throw new Error("\uC548\uC804 \uD544\uD130\uAC00 \uC751\uB2F5\uC744 \uCC28\uB2E8\uD588\uC5B4\uC694");
+        const parts = candidate && candidate.content && candidate.content.parts;
+        const out = Array.isArray(parts) ? parts.map((part) => part && typeof part.text === "string" ? part.text : "").join("") : "";
+        if (typeof out !== "string" || !out.trim()) throw new Error("\uBAA8\uB378\uC774 \uBE48 \uC751\uB2F5\uC744 \uBC18\uD658\uD588\uC5B4\uC694");
+        return out;
+      }
       async function requestWithRetry(req, doFetch, opts = {}) {
         const retries = opts.retries == null ? 2 : opts.retries;
         const retries429 = opts.retries429 == null ? 4 : opts.retries429;
@@ -5750,6 +5968,7 @@ ${row3.entry.content}`).join("\n\n");
           try {
             result = await doFetch(req);
           } catch (err) {
+            if (err && err.simbotSafe) throw err;
             throw new Error("\uB124\uD2B8\uC6CC\uD06C \uC694\uCCAD\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4. CORS \uB610\uB294 \uC81C\uACF5\uC790 \uC124\uC815\uC744 \uD655\uC778\uD558\uC138\uC694.");
           }
           if (result.status >= 200 && result.status < 300) return result.bodyText;
@@ -6322,7 +6541,16 @@ ${row3.content}`;
   function selectAsset(group, emotion) {
     const items = group.emotions.get(emotion);
     if (!items || !items.length) return null;
-    return items[Math.floor(Math.random() * items.length)];
+    return items[stableIndex(`${group.charId}:${emotion}`, items.length)];
+  }
+  function stableIndex(value, length) {
+    let hash = 2166136261;
+    const text = String(value || "");
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0) % length;
   }
   function isImageAsset(asset) {
     const mime = String(asset.mime || "").toLowerCase();
@@ -7410,6 +7638,13 @@ ${Array.from(extras).join(" ")}` : text;
       registerCustomOrigin();
       render2();
     });
+    const location = namedInput2("location", settings.location || "global");
+    location.placeholder = "us-central1 \uB610\uB294 global";
+    location.addEventListener("change", () => {
+      settings.location = location.value.trim() || "global";
+      saveSettings();
+      render2();
+    });
     const model = namedInput2("model", settings.model || defaultModel(settings.provider));
     model.disabled = settings.provider === "mock";
     model.addEventListener("change", () => {
@@ -7417,8 +7652,8 @@ ${Array.from(extras).join(" ")}` : text;
       saveSettings();
       render2();
     });
-    const key = namedInput2("apiKey", "", "password");
-    key.placeholder = readKey(settings.provider) ? maskedKey(settings.provider) : "API \uD0A4";
+    const key = settings.provider === "vertex" ? namedTextarea("apiKey", "") : namedInput2("apiKey", "", "password");
+    key.placeholder = readKey(settings.provider) ? maskedKey(settings.provider) : settings.provider === "vertex" ? "\uC11C\uBE44\uC2A4 \uACC4\uC815 JSON \uBD99\uC5EC\uB123\uAE30" : "API \uD0A4";
     key.disabled = settings.provider === "mock";
     const save = button2("\uC800\uC7A5", "secondary-btn");
     save.disabled = settings.provider === "mock";
@@ -7437,10 +7672,11 @@ ${Array.from(extras).join(" ")}` : text;
     details.append(
       field2("\uC81C\uACF5\uC790", provider),
       settings.provider === "custom" ? field2("Base URL", base) : hiddenBase(base),
+      settings.provider === "vertex" ? field2("\uB9AC\uC804", location) : hiddenBase(location),
       field2("\uBAA8\uB378", model),
-      field2("API \uD0A4", key),
+      field2(settings.provider === "vertex" ? "\uC11C\uBE44\uC2A4 \uACC4\uC815 JSON" : "API \uD0A4", key),
       row(save, del),
-      notice("\uD0A4\uB294 \uC774 \uBE0C\uB77C\uC6B0\uC800\uC758 localStorage\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4. \uACF5\uC6A9 PC\uC5D0\uC11C\uB294 \uC0AC\uC6A9 \uD6C4 \uBC18\uB4DC\uC2DC \uC0AD\uC81C\uD558\uC138\uC694."),
+      settings.provider === "vertex" ? notice("\uC11C\uBE44\uC2A4 \uACC4\uC815 JSON\uC740 GCP \uC804\uCCB4 \uAD8C\uD55C\uC744 \uAC00\uC9C8 \uC218 \uC788\uB294 \uAC15\uB825\uD55C \uC790\uACA9\uC99D\uBA85\uC785\uB2C8\uB2E4. \uACF5\uC6A9 PC\uC5D0\uC11C \uC800\uC7A5\uD558\uC9C0 \uB9D0\uACE0 \uC0AC\uC6A9 \uD6C4 \uC0AD\uC81C\uD558\uC138\uC694.") : notice("\uD0A4\uB294 \uC774 \uBE0C\uB77C\uC6B0\uC800\uC758 localStorage\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4. \uACF5\uC6A9 PC\uC5D0\uC11C\uB294 \uC0AC\uC6A9 \uD6C4 \uBC18\uB4DC\uC2DC \uC0AD\uC81C\uD558\uC138\uC694."),
       notice("\uD50C\uB808\uC774 \uC2DC \uB300\uD654 \uB0B4\uC6A9\xB7\uBC1C\uB3D9\uD55C \uB85C\uC5B4\uBD81\xB7\uC0C1\uD0DC \uC694\uC57D\uC774 \uC120\uD0DD\uD55C LLM \uC81C\uACF5\uC790\uC5D0\uAC8C \uC804\uC1A1\uB429\uB2C8\uB2E4.")
     );
     return details;
@@ -7528,6 +7764,7 @@ ${Array.from(extras).join(" ")}` : text;
       provider: settings.provider,
       model: settings.model || defaultModel(settings.provider),
       baseUrl: settings.provider === "custom" ? settings.baseUrl : "",
+      location: settings.provider === "vertex" ? settings.location || "global" : "",
       apiKey: settings.provider === "mock" ? "" : readKey(settings.provider)
     };
   }
@@ -7535,13 +7772,15 @@ ${Array.from(extras).join(" ")}` : text;
     return {
       provider: localStorage.getItem("simbot.byok.provider") || "mock",
       model: localStorage.getItem("simbot.byok.model") || "gemini-2.5-flash",
-      baseUrl: localStorage.getItem("simbot.byok.customBase") || ""
+      baseUrl: localStorage.getItem("simbot.byok.customBase") || "",
+      location: localStorage.getItem("simbot.byok.location") || "global"
     };
   }
   function saveSettings() {
     localStorage.setItem("simbot.byok.provider", settings.provider);
     localStorage.setItem("simbot.byok.model", settings.model || "");
     localStorage.setItem("simbot.byok.customBase", settings.baseUrl || "");
+    localStorage.setItem("simbot.byok.location", settings.location || "global");
   }
   function registerCustomOrigin() {
     if (settings.provider !== "custom" || !settings.baseUrl || !window.SIMBOT_NETWORK_POLICY) return;
@@ -7558,6 +7797,7 @@ ${Array.from(extras).join(" ")}` : text;
     return `simbot.byok.${provider}`;
   }
   function maskedKey(provider) {
+    if (provider === "vertex") return "\uC800\uC7A5\uB428: \uC11C\uBE44\uC2A4 \uACC4\uC815 JSON";
     const key = readKey(provider);
     if (!key) return "";
     return `\uC800\uC7A5\uB428: ****${key.slice(-4)}`;
@@ -7602,6 +7842,12 @@ ${Array.from(extras).join(" ")}` : text;
     const node = el2("input");
     node.name = name;
     node.type = type;
+    node.value = value;
+    return node;
+  }
+  function namedTextarea(name, value) {
+    const node = el2("textarea");
+    node.name = name;
     node.value = value;
     return node;
   }
@@ -7793,6 +8039,13 @@ ${Array.from(extras).join(" ")}` : text;
       registerCustomOrigin2();
       render2();
     });
+    const location = namedInput3("location", settings2.location || "global");
+    location.placeholder = "us-central1 \uB610\uB294 global";
+    location.addEventListener("change", () => {
+      settings2.location = location.value.trim() || "global";
+      saveSettings2();
+      render2();
+    });
     const model = namedInput3("model", settings2.model || defaultModel2(settings2.provider));
     model.disabled = settings2.provider === "mock";
     model.addEventListener("change", () => {
@@ -7800,8 +8053,8 @@ ${Array.from(extras).join(" ")}` : text;
       saveSettings2();
       render2();
     });
-    const key = namedInput3("apiKey", "", "password");
-    key.placeholder = readKey2(settings2.provider) ? maskedKey2(settings2.provider) : "API \uD0A4";
+    const key = settings2.provider === "vertex" ? namedTextarea2("apiKey", "") : namedInput3("apiKey", "", "password");
+    key.placeholder = readKey2(settings2.provider) ? maskedKey2(settings2.provider) : settings2.provider === "vertex" ? "\uC11C\uBE44\uC2A4 \uACC4\uC815 JSON \uBD99\uC5EC\uB123\uAE30" : "API \uD0A4";
     key.disabled = settings2.provider === "mock";
     const save = button3("\uD0A4 \uC800\uC7A5", "secondary-btn");
     save.disabled = settings2.provider === "mock";
@@ -7820,10 +8073,11 @@ ${Array.from(extras).join(" ")}` : text;
     details.append(
       field3("\uC81C\uACF5\uC790", provider),
       settings2.provider === "custom" ? field3("\uBCA0\uC774\uC2A4 URL", base) : hiddenBase2(base),
+      settings2.provider === "vertex" ? field3("\uB9AC\uC804", location) : hiddenBase2(location),
       field3("\uBAA8\uB378", model),
-      field3("API \uD0A4", key),
+      field3(settings2.provider === "vertex" ? "\uC11C\uBE44\uC2A4 \uACC4\uC815 JSON" : "API \uD0A4", key),
       row2(save, del),
-      notice2("\uD0A4\uB294 \uC774 \uBE0C\uB77C\uC6B0\uC800\uC758 localStorage\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4. mock \uC81C\uACF5\uC790\uB294 \uB124\uD2B8\uC6CC\uD06C\uB97C \uC4F0\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.")
+      settings2.provider === "vertex" ? notice2("\uC11C\uBE44\uC2A4 \uACC4\uC815 JSON\uC740 GCP \uC804\uCCB4 \uAD8C\uD55C\uC744 \uAC00\uC9C8 \uC218 \uC788\uB294 \uAC15\uB825\uD55C \uC790\uACA9\uC99D\uBA85\uC785\uB2C8\uB2E4. \uACF5\uC6A9 PC\uC5D0\uC11C \uC800\uC7A5\uD558\uC9C0 \uB9D0\uACE0 \uC0AC\uC6A9 \uD6C4 \uC0AD\uC81C\uD558\uC138\uC694.") : notice2("\uD0A4\uB294 \uC774 \uBE0C\uB77C\uC6B0\uC800\uC758 localStorage\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4. mock \uC81C\uACF5\uC790\uB294 \uB124\uD2B8\uC6CC\uD06C\uB97C \uC4F0\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.")
     );
     return details;
   }
@@ -8028,6 +8282,7 @@ ${Array.from(extras).join(" ")}` : text;
       provider: settings2.provider,
       model: settings2.model || defaultModel2(settings2.provider),
       baseUrl: settings2.provider === "custom" ? settings2.baseUrl : "",
+      location: settings2.provider === "vertex" ? settings2.location || "global" : "",
       apiKey: settings2.provider === "mock" ? "" : readKey2(settings2.provider)
     };
   }
@@ -8035,13 +8290,15 @@ ${Array.from(extras).join(" ")}` : text;
     return {
       provider: localStorage.getItem("simbot.byok.provider") || "mock",
       model: localStorage.getItem("simbot.byok.model") || "gemini-2.5-flash",
-      baseUrl: localStorage.getItem("simbot.byok.customBase") || ""
+      baseUrl: localStorage.getItem("simbot.byok.customBase") || "",
+      location: localStorage.getItem("simbot.byok.location") || "global"
     };
   }
   function saveSettings2() {
     localStorage.setItem("simbot.byok.provider", settings2.provider);
     localStorage.setItem("simbot.byok.model", settings2.model || "");
     localStorage.setItem("simbot.byok.customBase", settings2.baseUrl || "");
+    localStorage.setItem("simbot.byok.location", settings2.location || "global");
   }
   function registerCustomOrigin2() {
     if (settings2.provider !== "custom" || !settings2.baseUrl || !window.SIMBOT_NETWORK_POLICY) return;
@@ -8058,6 +8315,7 @@ ${Array.from(extras).join(" ")}` : text;
     return `simbot.byok.${provider}`;
   }
   function maskedKey2(provider) {
+    if (provider === "vertex") return "stored: service account JSON";
     const key = readKey2(provider);
     return key ? `stored: ****${key.slice(-4)}` : "";
   }
@@ -8122,6 +8380,12 @@ ${Array.from(extras).join(" ")}` : text;
     node.value = value;
     return node;
   }
+  function namedTextarea2(name, value) {
+    const node = el3("textarea");
+    node.name = name;
+    node.value = value;
+    return node;
+  }
   function namedSelect3(name) {
     const node = el3("select");
     node.name = name;
@@ -8160,7 +8424,8 @@ ${Array.from(extras).join(" ")}` : text;
   var KNOWN_ORIGINS = [
     "https://generativelanguage.googleapis.com/",
     "https://api.openai.com/",
-    "https://api.anthropic.com/"
+    "https://api.anthropic.com/",
+    "https://oauth2.googleapis.com/"
   ];
   var allowedCustomOrigin = "";
   var state = {
@@ -8204,28 +8469,56 @@ ${Array.from(extras).join(" ")}` : text;
     };
   }
   function renderShell() {
-    app.innerHTML = `
-    <header class="topbar">
-      <div>
-        <h1>\uC2DC\uBBAC\uBD07 \uCE74\uB4DC \uD50C\uB808\uC774\uADF8\uB77C\uC6B4\uB4DC</h1>
-        <p>RisuAI \uACC4\uC5F4 \uCE74\uB4DC \uB0B4\uBD80\uB97C \uC644\uC804 \uB85C\uCEEC\uC5D0\uC11C \uD0D0\uC0C9\uD569\uB2C8\uB2E4.</p>
-      </div>
-      <div class="status-pill" id="loadStatus">\uCE74\uB4DC \uC5C6\uC74C</div>
-    </header>
-    <main>
-      <section class="drop-section">
-        <div class="dropzone" id="dropzone" tabindex="0">
-          <div class="drop-title">\uCE74\uB4DC\uB97C \uC5EC\uAE30\uC5D0 \uB4DC\uB86D</div>
-          <div class="drop-sub">.charx, .png, .jpg, .jpeg, .json, .risum</div>
-          <button class="primary-btn" id="pickButton" type="button">\uD30C\uC77C \uC120\uD0DD</button>
-          <input id="fileInput" type="file" hidden>
-        </div>
-        <div class="message" id="message" role="status"></div>
-      </section>
-      <nav class="tabs" id="tabs" aria-label="\uCE74\uB4DC \uBCF4\uAE30 \uD0ED"></nav>
-      <section class="panel" id="panel"></section>
-    </main>
-  `;
+    const header = document.createElement("header");
+    header.className = "topbar";
+    const titleWrap = document.createElement("div");
+    const title = document.createElement("h1");
+    title.textContent = "\uC2DC\uBBAC\uBD07 \uCE74\uB4DC \uD50C\uB808\uC774\uADF8\uB77C\uC6B4\uB4DC";
+    const subtitle = document.createElement("p");
+    subtitle.textContent = "RisuAI \uACC4\uC5F4 \uCE74\uB4DC \uB0B4\uBD80\uB97C \uC644\uC804 \uB85C\uCEEC\uC5D0\uC11C \uD0D0\uC0C9\uD569\uB2C8\uB2E4.";
+    titleWrap.append(title, subtitle);
+    const status = document.createElement("div");
+    status.className = "status-pill";
+    status.id = "loadStatus";
+    status.textContent = "\uCE74\uB4DC \uC5C6\uC74C";
+    header.append(titleWrap, status);
+    const main = document.createElement("main");
+    const dropSection = document.createElement("section");
+    dropSection.className = "drop-section";
+    const dropzoneNode = document.createElement("div");
+    dropzoneNode.className = "dropzone";
+    dropzoneNode.id = "dropzone";
+    dropzoneNode.tabIndex = 0;
+    const dropTitle = document.createElement("div");
+    dropTitle.className = "drop-title";
+    dropTitle.textContent = "\uCE74\uB4DC\uB97C \uC5EC\uAE30\uC5D0 \uB4DC\uB86D";
+    const dropSub = document.createElement("div");
+    dropSub.className = "drop-sub";
+    dropSub.textContent = ".charx, .png, .jpg, .jpeg, .json, .risum";
+    const pickButton = document.createElement("button");
+    pickButton.className = "primary-btn";
+    pickButton.id = "pickButton";
+    pickButton.type = "button";
+    pickButton.textContent = "\uD30C\uC77C \uC120\uD0DD";
+    const inputNode = document.createElement("input");
+    inputNode.id = "fileInput";
+    inputNode.type = "file";
+    inputNode.hidden = true;
+    dropzoneNode.append(dropTitle, dropSub, pickButton, inputNode);
+    const message = document.createElement("div");
+    message.className = "message";
+    message.id = "message";
+    message.setAttribute("role", "status");
+    dropSection.append(dropzoneNode, message);
+    const nav = document.createElement("nav");
+    nav.className = "tabs";
+    nav.id = "tabs";
+    nav.setAttribute("aria-label", "\uCE74\uB4DC \uBCF4\uAE30 \uD0ED");
+    const panel = document.createElement("section");
+    panel.className = "panel";
+    panel.id = "panel";
+    main.append(dropSection, nav, panel);
+    app.replaceChildren(header, main);
     const dropzone = document.getElementById("dropzone");
     const input2 = document.getElementById("fileInput");
     document.getElementById("pickButton").addEventListener("click", () => input2.click());
@@ -8339,10 +8632,14 @@ ${Array.from(extras).join(" ")}` : text;
       const parsed = new URL(url, window.location.href);
       const href = parsed.href;
       if (KNOWN_ORIGINS.some((origin) => href.startsWith(origin))) return true;
+      if (parsed.protocol === "https:" && isAiplatformHost(parsed.hostname)) return true;
       return !!allowedCustomOrigin && parsed.protocol === "https:" && parsed.origin === allowedCustomOrigin;
     } catch (_) {
       return false;
     }
+  }
+  function isAiplatformHost(hostname) {
+    return hostname === "aiplatform.googleapis.com" || /^[a-z0-9-]+-aiplatform\.googleapis\.com$/i.test(hostname);
   }
   function createContext() {
     return {

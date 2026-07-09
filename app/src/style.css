@@ -683,13 +683,20 @@ select:focus { border-color: var(--amber-line); }
 .engine-form select,
 .engine-form input,
 .play-settings select,
-.play-settings input {
+.play-settings input,
+.play-settings textarea {
   width: 100%;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
   background: var(--surface-2);
   color: var(--ink);
   padding: 9px 11px;
+}
+.play-settings textarea {
+  min-height: 150px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
 }
 
 .engine-log-list { display: grid; gap: 8px; }

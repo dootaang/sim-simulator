@@ -145,6 +145,14 @@ function renderSettings(render) {
     render();
   });
 
+  const location = namedInput('location', settings.location || 'global');
+  location.placeholder = 'us-central1 또는 global';
+  location.addEventListener('change', () => {
+    settings.location = location.value.trim() || 'global';
+    saveSettings();
+    render();
+  });
+
   const model = namedInput('model', settings.model || defaultModel(settings.provider));
   model.disabled = settings.provider === 'mock';
   model.addEventListener('change', () => {
@@ -153,8 +161,14 @@ function renderSettings(render) {
     render();
   });
 
-  const key = namedInput('apiKey', '', 'password');
-  key.placeholder = readKey(settings.provider) ? maskedKey(settings.provider) : 'API 키';
+  const key = settings.provider === 'vertex'
+    ? namedTextarea('apiKey', '')
+    : namedInput('apiKey', '', 'password');
+  key.placeholder = readKey(settings.provider)
+    ? maskedKey(settings.provider)
+    : settings.provider === 'vertex'
+      ? '서비스 계정 JSON 붙여넣기'
+      : 'API 키';
   key.disabled = settings.provider === 'mock';
   const save = button('저장', 'secondary-btn');
   save.disabled = settings.provider === 'mock';
@@ -174,10 +188,13 @@ function renderSettings(render) {
   details.append(
     field('제공자', provider),
     settings.provider === 'custom' ? field('Base URL', base) : hiddenBase(base),
+    settings.provider === 'vertex' ? field('리전', location) : hiddenBase(location),
     field('모델', model),
-    field('API 키', key),
+    field(settings.provider === 'vertex' ? '서비스 계정 JSON' : 'API 키', key),
     row(save, del),
-    notice('키는 이 브라우저의 localStorage에만 저장됩니다. 공용 PC에서는 사용 후 반드시 삭제하세요.'),
+    settings.provider === 'vertex'
+      ? notice('서비스 계정 JSON은 GCP 전체 권한을 가질 수 있는 강력한 자격증명입니다. 공용 PC에서 저장하지 말고 사용 후 삭제하세요.')
+      : notice('키는 이 브라우저의 localStorage에만 저장됩니다. 공용 PC에서는 사용 후 반드시 삭제하세요.'),
     notice('플레이 시 대화 내용·발동한 로어북·상태 요약이 선택한 LLM 제공자에게 전송됩니다.')
   );
   return details;
@@ -280,6 +297,7 @@ function providerConfig() {
     provider: settings.provider,
     model: settings.model || defaultModel(settings.provider),
     baseUrl: settings.provider === 'custom' ? settings.baseUrl : '',
+    location: settings.provider === 'vertex' ? (settings.location || 'global') : '',
     apiKey: settings.provider === 'mock' ? '' : readKey(settings.provider),
   };
 }
@@ -289,6 +307,7 @@ function loadSettings() {
     provider: localStorage.getItem('simbot.byok.provider') || 'mock',
     model: localStorage.getItem('simbot.byok.model') || 'gemini-2.5-flash',
     baseUrl: localStorage.getItem('simbot.byok.customBase') || '',
+    location: localStorage.getItem('simbot.byok.location') || 'global',
   };
 }
 
@@ -296,6 +315,7 @@ function saveSettings() {
   localStorage.setItem('simbot.byok.provider', settings.provider);
   localStorage.setItem('simbot.byok.model', settings.model || '');
   localStorage.setItem('simbot.byok.customBase', settings.baseUrl || '');
+  localStorage.setItem('simbot.byok.location', settings.location || 'global');
 }
 
 function registerCustomOrigin() {
@@ -315,6 +335,7 @@ function keyName(provider) {
 }
 
 function maskedKey(provider) {
+  if (provider === 'vertex') return '저장됨: 서비스 계정 JSON';
   const key = readKey(provider);
   if (!key) return '';
   return `저장됨: ****${key.slice(-4)}`;
@@ -367,6 +388,13 @@ function namedInput(name, value, type = 'text') {
   const node = el('input');
   node.name = name;
   node.type = type;
+  node.value = value;
+  return node;
+}
+
+function namedTextarea(name, value) {
+  const node = el('textarea');
+  node.name = name;
   node.value = value;
   return node;
 }

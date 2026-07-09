@@ -183,7 +183,17 @@ function rankEmotion(name, preferred) {
 function selectAsset(group, emotion) {
   const items = group.emotions.get(emotion);
   if (!items || !items.length) return null;
-  return items[Math.floor(Math.random() * items.length)];
+  return items[stableIndex(`${group.charId}:${emotion}`, items.length)];
+}
+
+function stableIndex(value, length) {
+  let hash = 2166136261;
+  const text = String(value || '');
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % length;
 }
 
 function isImageAsset(asset) {

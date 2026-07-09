@@ -24,6 +24,7 @@ const KNOWN_ORIGINS = [
   'https://generativelanguage.googleapis.com/',
   'https://api.openai.com/',
   'https://api.anthropic.com/',
+  'https://oauth2.googleapis.com/',
 ];
 let allowedCustomOrigin = '';
 
@@ -72,28 +73,58 @@ function disableNetworkApis() {
 }
 
 function renderShell() {
-  app.innerHTML = `
-    <header class="topbar">
-      <div>
-        <h1>시뮬봇 카드 플레이그라운드</h1>
-        <p>RisuAI 계열 카드 내부를 완전 로컬에서 탐색합니다.</p>
-      </div>
-      <div class="status-pill" id="loadStatus">카드 없음</div>
-    </header>
-    <main>
-      <section class="drop-section">
-        <div class="dropzone" id="dropzone" tabindex="0">
-          <div class="drop-title">카드를 여기에 드롭</div>
-          <div class="drop-sub">.charx, .png, .jpg, .jpeg, .json, .risum</div>
-          <button class="primary-btn" id="pickButton" type="button">파일 선택</button>
-          <input id="fileInput" type="file" hidden>
-        </div>
-        <div class="message" id="message" role="status"></div>
-      </section>
-      <nav class="tabs" id="tabs" aria-label="카드 보기 탭"></nav>
-      <section class="panel" id="panel"></section>
-    </main>
-  `;
+  const header = document.createElement('header');
+  header.className = 'topbar';
+  const titleWrap = document.createElement('div');
+  const title = document.createElement('h1');
+  title.textContent = '시뮬봇 카드 플레이그라운드';
+  const subtitle = document.createElement('p');
+  subtitle.textContent = 'RisuAI 계열 카드 내부를 완전 로컬에서 탐색합니다.';
+  titleWrap.append(title, subtitle);
+  const status = document.createElement('div');
+  status.className = 'status-pill';
+  status.id = 'loadStatus';
+  status.textContent = '카드 없음';
+  header.append(titleWrap, status);
+
+  const main = document.createElement('main');
+  const dropSection = document.createElement('section');
+  dropSection.className = 'drop-section';
+  const dropzoneNode = document.createElement('div');
+  dropzoneNode.className = 'dropzone';
+  dropzoneNode.id = 'dropzone';
+  dropzoneNode.tabIndex = 0;
+  const dropTitle = document.createElement('div');
+  dropTitle.className = 'drop-title';
+  dropTitle.textContent = '카드를 여기에 드롭';
+  const dropSub = document.createElement('div');
+  dropSub.className = 'drop-sub';
+  dropSub.textContent = '.charx, .png, .jpg, .jpeg, .json, .risum';
+  const pickButton = document.createElement('button');
+  pickButton.className = 'primary-btn';
+  pickButton.id = 'pickButton';
+  pickButton.type = 'button';
+  pickButton.textContent = '파일 선택';
+  const inputNode = document.createElement('input');
+  inputNode.id = 'fileInput';
+  inputNode.type = 'file';
+  inputNode.hidden = true;
+  dropzoneNode.append(dropTitle, dropSub, pickButton, inputNode);
+  const message = document.createElement('div');
+  message.className = 'message';
+  message.id = 'message';
+  message.setAttribute('role', 'status');
+  dropSection.append(dropzoneNode, message);
+
+  const nav = document.createElement('nav');
+  nav.className = 'tabs';
+  nav.id = 'tabs';
+  nav.setAttribute('aria-label', '카드 보기 탭');
+  const panel = document.createElement('section');
+  panel.className = 'panel';
+  panel.id = 'panel';
+  main.append(dropSection, nav, panel);
+  app.replaceChildren(header, main);
 
   const dropzone = document.getElementById('dropzone');
   const input = document.getElementById('fileInput');
@@ -218,10 +249,15 @@ function isAllowedFetchUrl(url) {
     const parsed = new URL(url, window.location.href);
     const href = parsed.href;
     if (KNOWN_ORIGINS.some((origin) => href.startsWith(origin))) return true;
+    if (parsed.protocol === 'https:' && isAiplatformHost(parsed.hostname)) return true;
     return !!allowedCustomOrigin && parsed.protocol === 'https:' && parsed.origin === allowedCustomOrigin;
   } catch (_) {
     return false;
   }
+}
+
+function isAiplatformHost(hostname) {
+  return hostname === 'aiplatform.googleapis.com' || /^[a-z0-9-]+-aiplatform\.googleapis\.com$/i.test(hostname);
 }
 
 function createContext() {
