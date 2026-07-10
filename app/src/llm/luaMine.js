@@ -114,8 +114,9 @@ function collectLuaCode(moduleRoot) {
 function parseLuaTables(lua) {
   const tables = {};
   const re = /(?:local\s+)?(\w+)\s*=\s*\{/g;
+  const searchable = maskLongBrackets(lua);
   let match;
-  while ((match = re.exec(lua))) {
+  while ((match = re.exec(searchable))) {
     const braceIndex = match.index + match[0].lastIndexOf('{');
     const parsed = parseValue(lua, braceIndex);
     tables[match[1]] = parsed[0];
@@ -141,10 +142,70 @@ function parseLuaConstants(lua) {
 function skip(s, i) {
   while (i < s.length) {
     if (/\s/.test(s[i])) i++;
-    else if (s.slice(i, i + 2) === '--') { while (i < s.length && s[i] !== '\n') i++; }
+    else if (s.slice(i, i + 2) === '--') {
+      const bracket = longBracketAt(s, i + 2);
+      if (bracket) i = longBracketEnd(s, bracket);
+      else while (i < s.length && s[i] !== '\n') i++;
+    }
     else break;
   }
   return i;
+}
+
+function longBracketAt(s, i) {
+  if (s[i] !== '[') return null;
+  let j = i + 1;
+  while (s[j] === '=') j++;
+  if (s[j] !== '[') return null;
+  return { contentStart: j + 1, close: `]${'='.repeat(j - i - 1)}]` };
+}
+
+function longBracketEnd(s, bracket) {
+  const closeAt = s.indexOf(bracket.close, bracket.contentStart);
+  return closeAt < 0 ? s.length : closeAt + bracket.close.length;
+}
+
+function parseLongString(s, i) {
+  const bracket = longBracketAt(s, i);
+  const closeAt = bracket ? s.indexOf(bracket.close, bracket.contentStart) : -1;
+  if (!bracket) return [null, i + 1];
+  if (closeAt < 0) return [s.slice(bracket.contentStart), s.length];
+  return [s.slice(bracket.contentStart, closeAt), closeAt + bracket.close.length];
+}
+
+// Keep offsets stable for the assignment regex while hiding regions where Lua code is inert.
+// Quoted strings and ordinary line comments retain their legacy discovery behavior.
+function maskLongBrackets(s) {
+  const out = s.split('');
+  let i = 0;
+  while (i < s.length) {
+    if (s[i] === '"' || s[i] === "'") {
+      const quote = s[i++];
+      while (i < s.length && s[i] !== quote) i += s[i] === '\\' ? 2 : 1;
+      if (i < s.length) i++;
+      continue;
+    }
+    if (s.slice(i, i + 2) === '--') {
+      const bracket = longBracketAt(s, i + 2);
+      if (bracket) {
+        const end = longBracketEnd(s, bracket);
+        for (let j = i; j < end; j++) if (s[j] !== '\n' && s[j] !== '\r') out[j] = ' ';
+        i = end;
+        continue;
+      }
+      while (i < s.length && s[i] !== '\n') i++;
+      continue;
+    }
+    const bracket = longBracketAt(s, i);
+    if (bracket) {
+      const end = longBracketEnd(s, bracket);
+      for (let j = i; j < end; j++) if (s[j] !== '\n' && s[j] !== '\r') out[j] = ' ';
+      i = end;
+      continue;
+    }
+    i++;
+  }
+  return out.join('');
 }
 
 function parseStr(s, i) {
@@ -160,6 +221,7 @@ function parseValue(s, i) {
   const c = s[i];
   if (c === '{') return parseTable(s, i);
   if (c === '"' || c === "'") return parseStr(s, i);
+  if (c === '[' && longBracketAt(s, i)) return parseLongString(s, i);
   const num = /^-?\d+(\.\d+)?/.exec(s.slice(i));
   if (num) return [Number(num[0]), i + num[0].length];
   const id = /^[A-Za-z_][\w.]*/.exec(s.slice(i));
@@ -173,7 +235,7 @@ function parseTable(s, i) {
     i = skip(s, i);
     if (s[i] === '}') { i++; break; }
     if (i >= s.length) break;
-    if (s[i] === '[') {
+    if (s[i] === '[' && !longBracketAt(s, i)) {
       const [k, i2] = parseValue(s, i + 1);
       let j = skip(s, i2); if (s[j] === ']') j++; j = skip(s, j);
       if (s[j] === '=') { const [v, i3] = parseValue(s, j + 1); obj[String(k)] = v; isArr = false; i = i3; } else i = j;
