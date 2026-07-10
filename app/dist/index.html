@@ -6314,11 +6314,7 @@ ${lines.join("\n")}`;
           "---",
           String(userInput || "")
         ].filter((part) => part !== "").join("\n");
-        const messages2 = (recentMessages || []).slice(-8).map((message) => ({
-          role: message.role === "assistant" ? "assistant" : "user",
-          content: String(message.content || "")
-        }));
-        messages2.push({ role: "user", content: context });
+        const messages2 = conversationMessages([...(recentMessages || []).slice(-8), { role: "user", content: context }]);
         const injectedParts = {
           state: estimateTokens2(stateText),
           npc: estimateTokens2(npcText),
@@ -6354,11 +6350,7 @@ ${lines.join("\n")}`;
           combatLine,
           flavorText ? `\uD50C\uB808\uC774\uC5B4\uC758 \uC5F0\uCD9C \uC758\uB3C4: ${flavorText}` : ""
         ].filter(Boolean).join("\n");
-        const messages2 = (recentMessages || []).slice(-4).map((message) => ({
-          role: message.role === "assistant" ? "assistant" : "user",
-          content: String(message.content || "")
-        }));
-        messages2.push({ role: "user", content: context });
+        const messages2 = conversationMessages([...(recentMessages || []).slice(-4), { role: "user", content: context }]);
         const injectedParts = { state: estimateTokens2(combatLine), results: estimateTokens2(resultText), flavor: estimateTokens2(flavorText || "") };
         return {
           system: buildSystemPrompt(schema2).split("\n\n[\uC808\uB300 \uADDC\uCE59]")[0] + "\n\n\uC544\uB798 [\uD655\uC815\uB41C \uC804\uD22C \uACB0\uACFC]\uB294 \uC5D4\uC9C4\uC774 \uC774\uBBF8 \uACC4\uC0B0\xB7\uBC18\uC601\uD55C \uC0AC\uC2E4\uC774\uB2E4. \uC774 \uC218\uCE58\xB7\uC0DD\uC0AC\uB97C \uADF8\uB300\uB85C \uB530\uB77C \uD55C\uAD6D\uC5B4\uB85C \uC9E7\uAC8C(250\uC790 \uB0B4\uC678) \uC11C\uC0AC\uD654\uD558\uB77C. \uACB0\uACFC\uB97C \uBC14\uAFB8\uAC70\uB098 \uC0C8 \uC0AC\uAC74 JSON\uC744 \uB0B4\uC9C0 \uB9C8\uB77C.",
@@ -6368,6 +6360,18 @@ ${lines.join("\n")}`;
           relatedNpcIds: [],
           injectedText: { state: combatLine, results: resultText, flavorText: flavorText || "" }
         };
+      }
+      var MARKER_ONLY_RE = /^[\s⚡🧪]*$/;
+      function conversationMessages(rows) {
+        const out = [];
+        for (const row3 of rows || []) {
+          const role = row3.role === "assistant" ? "assistant" : "user";
+          const content = String(row3.content || "");
+          if (role === "assistant" && MARKER_ONLY_RE.test(content)) continue;
+          if (out.length && out[out.length - 1].role === role) out[out.length - 1].content += "\n\n" + content;
+          else out.push({ role, content });
+        }
+        return out;
       }
       function parseAssistantResponse2(text) {
         const source = String(text || "");
@@ -9664,7 +9668,7 @@ ${Array.from(extras).join(" ")}` : text;
     const actionResult = runEvent(event);
     appendEventChips(event.id, actionResult.entries, chips, resultTexts);
     const state2 = getEngineState();
-    if ((event.id === "combat_action" || event.id === "use_item") && state2.combat && state2.combat.active && !state2.combat.cleared && !state2.combat.fled) {
+    if (event.id === "combat_action" && state2.combat && state2.combat.active && !state2.combat.cleared && !state2.combat.fled) {
       const enemyResult = runEvent({ id: "enemy_turn", params: {} });
       appendEventChips("enemy_turn", enemyResult.entries, chips, resultTexts);
     }
@@ -9678,6 +9682,13 @@ ${Array.from(extras).join(" ")}` : text;
     const pending = { role: "assistant", content: "", chips };
     messages.push(pending);
     input2.value = "";
+    if (event.id === "use_item") {
+      if (fastCombat) fastCombatLog.push(...resultTexts);
+      pending.content = "\u{1F9EA}";
+      busy = false;
+      render2();
+      return;
+    }
     render2();
     if (fastCombat && !fastCombatEnded) {
       fastCombatLog.push(...resultTexts);

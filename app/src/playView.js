@@ -396,7 +396,8 @@ async function runCombatTurn(event, input, ctx, render) {
   const actionResult = runEvent(event);
   appendEventChips(event.id, actionResult.entries, chips, resultTexts);
   const state = getEngineState();
-  if ((event.id === 'combat_action' || event.id === 'use_item') && state.combat && state.combat.active && !state.combat.cleared && !state.combat.fled) {
+  // 소모품(use_item)은 즉각 적용 프리 액션 — 턴을 소비하지 않아 적 반격을 부르지 않는다(사용자 결정 2026-07-11).
+  if (event.id === 'combat_action' && state.combat && state.combat.active && !state.combat.cleared && !state.combat.fled) {
     const enemyResult = runEvent({ id: 'enemy_turn', params: {} });
     appendEventChips('enemy_turn', enemyResult.entries, chips, resultTexts);
   }
@@ -412,6 +413,14 @@ async function runCombatTurn(event, input, ctx, render) {
   const pending = { role: 'assistant', content: '', chips };
   messages.push(pending);
   input.value = '';
+  if (event.id === 'use_item') {
+    // 즉각 적용: LLM 호출도 없다(칩이 결과). 빠른 전투 중이면 종료 시 일괄 서사에 포함되게 버퍼에만 남긴다.
+    if (fastCombat) fastCombatLog.push(...resultTexts);
+    pending.content = '🧪';
+    busy = false;
+    render();
+    return;
+  }
   render();
   if (fastCombat && !fastCombatEnded) {
     fastCombatLog.push(...resultTexts);

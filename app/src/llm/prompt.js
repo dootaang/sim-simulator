@@ -166,11 +166,8 @@ function buildPrompt({ schema, state, lore, recentMessages, userInput, lastVerdi
     String(userInput || ''),
   ].filter((part) => part !== '').join('\n');
 
-  const messages = (recentMessages || []).slice(-8).map((message) => ({
-    role: message.role === 'assistant' ? 'assistant' : 'user',
-    content: String(message.content || ''),
-  }));
-  messages.push({ role: 'user', content: context });
+  // 컨텍스트(user)까지 포함해 병합 — 이력 끝이 user(연출문 등)면 컨텍스트와 한 메시지로 합쳐진다.
+  const messages = conversationMessages([...(recentMessages || []).slice(-8), { role: 'user', content: context }]);
 
   const injectedParts = {
     state: estimateTokens(stateText),
@@ -209,11 +206,7 @@ function buildNarrationPrompt({ schema, state, results, flavorText, recentMessag
     combatLine,
     flavorText ? `플레이어의 연출 의도: ${flavorText}` : '',
   ].filter(Boolean).join('\n');
-  const messages = (recentMessages || []).slice(-4).map((message) => ({
-    role: message.role === 'assistant' ? 'assistant' : 'user',
-    content: String(message.content || ''),
-  }));
-  messages.push({ role: 'user', content: context });
+  const messages = conversationMessages([...(recentMessages || []).slice(-4), { role: 'user', content: context }]);
   const injectedParts = { state: estimateTokens(combatLine), results: estimateTokens(resultText), flavor: estimateTokens(flavorText || '') };
   return {
     system: buildSystemPrompt(schema).split('\n\n[절대 규칙]')[0] + '\n\n아래 [확정된 전투 결과]는 엔진이 이미 계산·반영한 사실이다. 이 수치·생사를 그대로 따라 한국어로 짧게(250자 내외) 서사화하라. 결과를 바꾸거나 새 사건 JSON을 내지 마라.',
@@ -223,6 +216,22 @@ function buildNarrationPrompt({ schema, state, results, flavorText, recentMessag
     relatedNpcIds: [],
     injectedText: { state: combatLine, results: resultText, flavorText: flavorText || '' },
   };
+}
+
+// 대화 이력을 API 전송용으로 정리: ①마커 전용 assistant 메시지('⚡'/'🧪' — 엔진 전용 턴 표기)를
+// 제거하고 ②연속 동일 role을 병합한다. 제공자(Vertex/Anthropic)의 교대 role 규칙 위반으로
+// 400이 나는 것을 구조적으로 방지(감사 지적 — 빠른 전투·즉각 아이템 턴이 연속 assistant를 만들 수 있음).
+const MARKER_ONLY_RE = /^[\s⚡🧪]*$/;
+function conversationMessages(rows) {
+  const out = [];
+  for (const row of rows || []) {
+    const role = row.role === 'assistant' ? 'assistant' : 'user';
+    const content = String(row.content || '');
+    if (role === 'assistant' && MARKER_ONLY_RE.test(content)) continue;
+    if (out.length && out[out.length - 1].role === role) out[out.length - 1].content += '\n\n' + content;
+    else out.push({ role, content });
+  }
+  return out;
 }
 
 function parseAssistantResponse(text) {
