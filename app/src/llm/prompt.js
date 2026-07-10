@@ -100,9 +100,11 @@ function hasSaleCapability(schema) {
     || (schema.resources || []).some((resource) => resource.basePrice != null);
 }
 
+// 여관형 = 숙박(room)과 메뉴 판매(menuItem)를 둘 다 갖춘 스키마.
+// menuItem만 있는 카드(예: 헌터물의 마정석 판매)에 "여관 주인" 정체성을 씌우지 않는다.
 function isInnLike(schema) {
   const types = new Set((schema.entities || []).map((entry) => entry.type));
-  return types.has('menuItem') || types.has('room');
+  return types.has('menuItem') && types.has('room');
 }
 
 function hasGoldRewards(schema) {

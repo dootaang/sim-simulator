@@ -112,14 +112,22 @@ function validateScales(schema, issues) {
     scale.tiers.forEach((tier, tierIndex) => {
       const tierPath = `${path}.tiers[${tierIndex}]`;
       if (!isObject(tier)) return error(issues, tierPath, 'Tier must be an object.');
-      for (const key of ['range', 'label', 'brief', 'forbidden']) requireField(tier, key, `${tierPath}.${key}`, issues);
+      for (const key of ['range', 'label', 'brief']) requireField(tier, key, `${tierPath}.${key}`, issues);
       validateRange(tier.range, `${tierPath}.range`, issues, 'error');
       if (isRange(scale.range) && isRange(tier.range)) {
         if (Number(tier.range[0]) < Number(scale.range[0]) || Number(tier.range[1]) > Number(scale.range[1])) {
           warn(issues, `${tierPath}.range`, 'Tier range falls outside scale range.');
         }
       }
-      if (!Array.isArray(tier.forbidden)) error(issues, `${tierPath}.forbidden`, 'forbidden must be an array.');
+      // forbidden 선택 — NPC 행동 규범용 필드라 플레이어 스탯 티어(예: 헌터 STR 랭크 서술)엔
+      // 없는 게 정상. 없거나 모양이 다르면 빈 배열로 정규화하고 경고만 남긴다.
+      if (tier.forbidden == null) {
+        tier.forbidden = [];
+        warn(issues, `${tierPath}.forbidden`, 'forbidden missing; defaulted to [] (player-stat tiers have no behavior norms).');
+      } else if (!Array.isArray(tier.forbidden)) {
+        tier.forbidden = [];
+        warn(issues, `${tierPath}.forbidden`, 'forbidden was not an array; normalized to [].');
+      }
     });
   });
 }

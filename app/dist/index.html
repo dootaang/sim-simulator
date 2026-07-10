@@ -5173,7 +5173,8 @@ select:focus { border-color: var(--amber-line); }
         const facilities = state2.facilities || {};
         const resources = state2.resources || {};
         const lines = [];
-        const innLike = (schema2.entities || []).some((entry) => entry.type === "menuItem" || entry.type === "room");
+        const types = new Set((schema2.entities || []).map((entry) => entry.type));
+        const innLike = types.has("menuItem") && types.has("room");
         if (innLike) {
           lines.push(`[\uC5EC\uAD00] ${state2.day}\uC77C\uCC28 \xB7 \uACE8\uB4DC ${formatNumber(state2.gold)}\uC6D0 \xB7 \uC2DD\uC790\uC7AC ${resources.food || 0}\uC778\uBD84 \xB7 \uC8FC\uB958 ${resources.drink || 0}\uC794 \xB7 \uC2DC\uC124 \uC8FC\uC810${facilities.tavern || 0}/\uC8FC\uBC29${facilities.kitchen || 0}/\uAC1D\uC2E4${facilities.room || 0}/\uC219\uC18C${facilities.quarters || 0}`);
           const staff = (state2.staff || []).map((item) => {
@@ -6145,7 +6146,7 @@ select:focus { border-color: var(--amber-line); }
       }
       function isInnLike(schema2) {
         const types = new Set((schema2.entities || []).map((entry) => entry.type));
-        return types.has("menuItem") || types.has("room");
+        return types.has("menuItem") && types.has("room");
       }
       function hasGoldRewards(schema2) {
         return !!(schema2.rewards && schema2.rewards.gold);
@@ -7516,14 +7517,20 @@ ${row3.content}`;
           scale.tiers.forEach((tier, tierIndex) => {
             const tierPath = `${path}.tiers[${tierIndex}]`;
             if (!isObject(tier)) return error(issues, tierPath, "Tier must be an object.");
-            for (const key of ["range", "label", "brief", "forbidden"]) requireField(tier, key, `${tierPath}.${key}`, issues);
+            for (const key of ["range", "label", "brief"]) requireField(tier, key, `${tierPath}.${key}`, issues);
             validateRange(tier.range, `${tierPath}.range`, issues, "error");
             if (isRange(scale.range) && isRange(tier.range)) {
               if (Number(tier.range[0]) < Number(scale.range[0]) || Number(tier.range[1]) > Number(scale.range[1])) {
                 warn(issues, `${tierPath}.range`, "Tier range falls outside scale range.");
               }
             }
-            if (!Array.isArray(tier.forbidden)) error(issues, `${tierPath}.forbidden`, "forbidden must be an array.");
+            if (tier.forbidden == null) {
+              tier.forbidden = [];
+              warn(issues, `${tierPath}.forbidden`, "forbidden missing; defaulted to [] (player-stat tiers have no behavior norms).");
+            } else if (!Array.isArray(tier.forbidden)) {
+              tier.forbidden = [];
+              warn(issues, `${tierPath}.forbidden`, "forbidden was not an array; normalized to [].");
+            }
           });
         });
       }

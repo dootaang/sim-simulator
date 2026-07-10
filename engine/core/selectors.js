@@ -45,7 +45,10 @@ function summarize(schema, state) {
   const facilities = state.facilities || {};
   const resources = state.resources || {};
   const lines = [];
-  const innLike = (schema.entities || []).some((entry) => entry.type === 'menuItem' || entry.type === 'room');
+  // 여관형 = 숙박(room)과 메뉴 판매(menuItem)를 둘 다 갖춘 스키마.
+  // menuItem만 있는 카드(예: 헌터물의 마정석 판매)는 여관이 아니다.
+  const types = new Set((schema.entities || []).map((entry) => entry.type));
+  const innLike = types.has('menuItem') && types.has('room');
   if (innLike) {
     lines.push(`[여관] ${state.day}일차 · 골드 ${formatNumber(state.gold)}원 · 식자재 ${resources.food || 0}인분 · 주류 ${resources.drink || 0}잔 · 시설 주점${facilities.tavern || 0}/주방${facilities.kitchen || 0}/객실${facilities.room || 0}/숙소${facilities.quarters || 0}`);
 
