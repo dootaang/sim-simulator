@@ -300,6 +300,20 @@ function validateScales(schema, issues) {
     // tiers 선택 — 풀/스탯 스케일엔 티어밴드가 없다. 있을 때만 검증.
     if (scale.tiers == null) return;
     if (!requireArray(scale.tiers, `${path}.tiers`, issues)) return;
+    // LLM 형태 변주 관용: 상한 없는 티어("신뢰 100+")를 숫자 하나로 내는 경우가 있다(소전 실측).
+    // 숫자 range를 [n, 다음 티어 시작-1]로, 마지막 티어는 스케일 상한으로 정규화한다.
+    scale.tiers.forEach((tier, tierIndex) => {
+      if (!isObject(tier) || typeof tier.range !== 'number' || !Number.isFinite(tier.range)) return;
+      const start = Math.trunc(tier.range);
+      const nextTier = scale.tiers[tierIndex + 1];
+      const nextStart = isObject(nextTier)
+        ? (typeof nextTier.range === 'number' ? Math.trunc(nextTier.range) : (isRange(nextTier.range) ? Number(nextTier.range[0]) : NaN))
+        : NaN;
+      const scaleMax = isRange(scale.range) ? Number(scale.range[1]) : NaN;
+      const end = Number.isFinite(nextStart) && nextStart > start ? nextStart - 1 : (Number.isFinite(scaleMax) && scaleMax >= start ? scaleMax : start);
+      tier.range = [start, end];
+      warn(issues, `${path}.tiers[${tierIndex}].range`, `숫자 range ${start}을(를) [${start}, ${end}]로 정규화했습니다.`);
+    });
     scale.tiers.forEach((tier, tierIndex) => {
       const tierPath = `${path}.tiers[${tierIndex}]`;
       if (!isObject(tier)) return error(issues, tierPath, 'Tier must be an object.');
