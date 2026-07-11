@@ -158,6 +158,7 @@ function parseVertexResponse(json, allowTruncated) {
   const blocked = json && json.promptFeedback && json.promptFeedback.blockReason;
   if (blocked) throw new Error(`안전 필터가 요청을 차단했어요 (${blocked})`);
   const candidate = json && json.candidates && json.candidates[0];
+  if (!candidate) throw new Error('모델 응답에 후보가 없어요 — 정책 차단 또는 요청 형식 오류일 수 있어요');
   const truncated = !!(candidate && candidate.finishReason === 'MAX_TOKENS');
   if (truncated && !allowTruncated) throw new Error('응답이 최대 길이에서 잘렸어요');
   if (candidate && candidate.finishReason === 'SAFETY') throw new Error('안전 필터가 응답을 차단했어요');

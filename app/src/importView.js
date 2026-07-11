@@ -43,7 +43,7 @@ export async function compileSchemaForImport(ctx, config) {
   const compilerInput = buildCompilerInput(ctx && ctx.lore, mined);
   const raw = cfg.provider === 'mock'
     ? mockCompilerOutput()
-    : await compileWithContinuation(cfg, compilerInput);
+    : await compileWithContinuation(cfg, compilerInput, ctx ? (message) => addLog(ctx, message) : null);
   const parsed = parseCompilerOutput(raw);
   if (!parsed.ok) {
     return {
@@ -71,7 +71,8 @@ export async function compileSchemaForImport(ctx, config) {
 // 대형 카드(NPC 수십 명)의 스키마 JSON은 모델 출력 상한을 넘어 잘릴 수 있다.
 // 부분 응답을 버리지 않고(allowTruncated) "끊긴 지점부터 이어서"를 최대 3회 요청해 이어붙인다.
 // 상한 자체를 올리지 않는 이유: 프로바이더/모델별 최대 출력이 달라(예: 16K 캡 모델) 초과 요청은 400이 난다.
-async function compileWithContinuation(cfg, compilerInput) {
+async function compileWithContinuation(cfg, compilerInput, onLog) {
+  const log = typeof onLog === 'function' ? onLog : () => {};
   const messages = [{ role: 'user', content: 'Return only the compiled JSON object.' }];
   let combined = '';
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -83,14 +84,44 @@ async function compileWithContinuation(cfg, compilerInput) {
       allowTruncated: true,
     });
     const text = typeof result === 'string' ? result : String((result && result.text) || '');
-    const truncated = !!(result && typeof result === 'object' && result.truncated);
-    // 연속분 서두의 코드펜스/공백 제거 후 이어붙인다(모델이 새 펜스를 다시 여는 경우 대비).
-    combined += combined ? text.replace(/^\s*```(?:json)?\s*/i, '') : text;
+    // finish_reason이 비표준(null 등)이라 잘림 신호를 못 받는 프록시 대비:
+    // 괄호 균형 스니핑으로 미완성 JSON을 잘림으로 간주한다.
+    const flagged = !!(result && typeof result === 'object' && result.truncated);
+    const stripped = combined ? text.replace(/^\s*```(?:json)?\s*/i, '') : text;
+    // 모델이 이어쓰기 대신 JSON 전체를 처음부터 다시 출력한 경우: 이어붙이지 않고 교체한다.
+    const restarted = combined && stripped.trimStart().startsWith('{') && combined.trimStart().replace(/^```(?:json)?\s*/i, '').startsWith(stripped.trimStart().slice(0, 40));
+    combined = restarted ? text : combined + stripped;
+    const truncated = flagged || looksTruncatedJson(combined);
     if (!truncated) return combined;
+    if (attempt < 3) log(`컴파일 응답 잘림 — 이어서 요청 (${attempt + 2}/4회차, 매 회차 전체 룰북이 재전송되어 토큰이 추가 소모됩니다)`);
     messages.push({ role: 'assistant', content: text });
     messages.push({ role: 'user', content: '출력이 중간에 잘렸다. 직전 출력이 끊긴 지점의 바로 다음 문자부터, 반복·설명·코드펜스 없이 이어서 계속 출력하라.' });
   }
   throw new Error('연속 요청 후에도 응답이 계속 잘려요 — 출력 한도가 큰 모델(예: gemini-2.5-pro, claude-sonnet)을 선택해 주세요');
+}
+
+// 문자열/이스케이프를 제외한 중괄호·대괄호 깊이로 JSON 완결 여부를 어림한다.
+// 깊이가 0으로 닫히지 않으면 미완성(잘림)으로 간주 — finish_reason 비표준 프록시 보완.
+function looksTruncatedJson(text) {
+  const start = text.indexOf('{');
+  if (start < 0) return false; // JSON이 아예 없으면 잘림 판정 대상 아님(파서가 처리)
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let opened = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{' || ch === '[') { depth += 1; opened = true; }
+    else if (ch === '}' || ch === ']') { depth -= 1; if (opened && depth === 0) return false; }
+  }
+  return opened && depth > 0;
 }
 
 function renderHeader(ctx, render) {
@@ -586,7 +617,13 @@ function entityCount(schema, type) {
 
 function safeError(err) {
   const message = err && err.message ? err.message : String(err || 'Error');
-  return message.replace(/sk-[A-Za-z0-9_-]+/g, '[redacted]').replace(/https?:\/\/\S+/g, '[url]').slice(0, 360);
+  return message
+    // GCP 서비스 계정 JSON이 에러에 섞여 나올 수 있다(Vertex 인증 실패 등) — PEM/private_key 마스킹.
+    .replace(/-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END[A-Z ]*PRIVATE KEY-----|$)/g, '[redacted-key]')
+    .replace(/"private_key"\s*:\s*"[^"]*"?/g, '"private_key":"[redacted]"')
+    .replace(/sk-[A-Za-z0-9_-]+/g, '[redacted]')
+    .replace(/https?:\/\/\S+/g, '[url]')
+    .slice(0, 360);
 }
 
 function titled(title) {

@@ -7457,6 +7457,7 @@ ${row3.entry.content}`).join("\n\n");
         const blocked = json && json.promptFeedback && json.promptFeedback.blockReason;
         if (blocked) throw new Error(`\uC548\uC804 \uD544\uD130\uAC00 \uC694\uCCAD\uC744 \uCC28\uB2E8\uD588\uC5B4\uC694 (${blocked})`);
         const candidate = json && json.candidates && json.candidates[0];
+        if (!candidate) throw new Error("\uBAA8\uB378 \uC751\uB2F5\uC5D0 \uD6C4\uBCF4\uAC00 \uC5C6\uC5B4\uC694 \u2014 \uC815\uCC45 \uCC28\uB2E8 \uB610\uB294 \uC694\uCCAD \uD615\uC2DD \uC624\uB958\uC77C \uC218 \uC788\uC5B4\uC694");
         const truncated = !!(candidate && candidate.finishReason === "MAX_TOKENS");
         if (truncated && !allowTruncated) throw new Error("\uC751\uB2F5\uC774 \uCD5C\uB300 \uAE38\uC774\uC5D0\uC11C \uC798\uB838\uC5B4\uC694");
         if (candidate && candidate.finishReason === "SAFETY") throw new Error("\uC548\uC804 \uD544\uD130\uAC00 \uC751\uB2F5\uC744 \uCC28\uB2E8\uD588\uC5B4\uC694");
@@ -11503,7 +11504,8 @@ ${Array.from(extras).join(" ")}` : text;
   }
   function safeError(err) {
     const message = err && err.message ? err.message : String(err || "\uC624\uB958");
-    return `\uC694\uCCAD \uC2E4\uD328: ${message.replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]").replace(/https?:\/\/\S+/g, "[url]").slice(0, 360)}`;
+    const masked = message.replace(/-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END[A-Z ]*PRIVATE KEY-----|$)/g, "[redacted-key]").replace(/"private_key"\s*:\s*"[^"]*"?/g, '"private_key":"[redacted]"').replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]").replace(/https?:\/\/\S+/g, "[url]").slice(0, 360);
+    return `\uC694\uCCAD \uC2E4\uD328: ${masked}`;
   }
   function titled(title) {
     const section = el2("section", "play-side-section");
@@ -11687,7 +11689,7 @@ ${Array.from(extras).join(" ")}` : text;
     const cfg = config || providerConfig2(settings2);
     const mined = cfg.provider === "mock" ? null : Object.prototype.hasOwnProperty.call(cfg, "mined") ? cfg.mined : mineCard(ctx && ctx.parsed);
     const compilerInput = buildCompilerInput(ctx && ctx.lore, mined);
-    const raw = cfg.provider === "mock" ? mockCompilerOutput() : await compileWithContinuation(cfg, compilerInput);
+    const raw = cfg.provider === "mock" ? mockCompilerOutput() : await compileWithContinuation(cfg, compilerInput, ctx ? (message) => addLog(ctx, message) : null);
     const parsed = parseCompilerOutput(raw);
     if (!parsed.ok) {
       return {
@@ -11711,7 +11713,9 @@ ${Array.from(extras).join(" ")}` : text;
       patches: patched.patches
     };
   }
-  async function compileWithContinuation(cfg, compilerInput) {
+  async function compileWithContinuation(cfg, compilerInput, onLog) {
+    const log = typeof onLog === "function" ? onLog : () => {
+    };
     const messages2 = [{ role: "user", content: "Return only the compiled JSON object." }];
     let combined = "";
     for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -11723,13 +11727,43 @@ ${Array.from(extras).join(" ")}` : text;
         allowTruncated: true
       });
       const text = typeof result === "string" ? result : String(result && result.text || "");
-      const truncated = !!(result && typeof result === "object" && result.truncated);
-      combined += combined ? text.replace(/^\s*```(?:json)?\s*/i, "") : text;
+      const flagged = !!(result && typeof result === "object" && result.truncated);
+      const stripped = combined ? text.replace(/^\s*```(?:json)?\s*/i, "") : text;
+      const restarted = combined && stripped.trimStart().startsWith("{") && combined.trimStart().replace(/^```(?:json)?\s*/i, "").startsWith(stripped.trimStart().slice(0, 40));
+      combined = restarted ? text : combined + stripped;
+      const truncated = flagged || looksTruncatedJson(combined);
       if (!truncated) return combined;
+      if (attempt < 3) log(`\uCEF4\uD30C\uC77C \uC751\uB2F5 \uC798\uB9BC \u2014 \uC774\uC5B4\uC11C \uC694\uCCAD (${attempt + 2}/4\uD68C\uCC28, \uB9E4 \uD68C\uCC28 \uC804\uCCB4 \uB8F0\uBD81\uC774 \uC7AC\uC804\uC1A1\uB418\uC5B4 \uD1A0\uD070\uC774 \uCD94\uAC00 \uC18C\uBAA8\uB429\uB2C8\uB2E4)`);
       messages2.push({ role: "assistant", content: text });
       messages2.push({ role: "user", content: "\uCD9C\uB825\uC774 \uC911\uAC04\uC5D0 \uC798\uB838\uB2E4. \uC9C1\uC804 \uCD9C\uB825\uC774 \uB04A\uAE34 \uC9C0\uC810\uC758 \uBC14\uB85C \uB2E4\uC74C \uBB38\uC790\uBD80\uD130, \uBC18\uBCF5\xB7\uC124\uBA85\xB7\uCF54\uB4DC\uD39C\uC2A4 \uC5C6\uC774 \uC774\uC5B4\uC11C \uACC4\uC18D \uCD9C\uB825\uD558\uB77C." });
     }
     throw new Error("\uC5F0\uC18D \uC694\uCCAD \uD6C4\uC5D0\uB3C4 \uC751\uB2F5\uC774 \uACC4\uC18D \uC798\uB824\uC694 \u2014 \uCD9C\uB825 \uD55C\uB3C4\uAC00 \uD070 \uBAA8\uB378(\uC608: gemini-2.5-pro, claude-sonnet)\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694");
+  }
+  function looksTruncatedJson(text) {
+    const start = text.indexOf("{");
+    if (start < 0) return false;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let opened = false;
+    for (let i = start; i < text.length; i += 1) {
+      const ch = text[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === "\\") escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === "{" || ch === "[") {
+        depth += 1;
+        opened = true;
+      } else if (ch === "}" || ch === "]") {
+        depth -= 1;
+        if (opened && depth === 0) return false;
+      }
+    }
+    return opened && depth > 0;
   }
   function renderHeader2(ctx, render2) {
     const header = el3("div", "view-header import-header");
@@ -12159,7 +12193,7 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
   }
   function safeError2(err) {
     const message = err && err.message ? err.message : String(err || "Error");
-    return message.replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]").replace(/https?:\/\/\S+/g, "[url]").slice(0, 360);
+    return message.replace(/-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END[A-Z ]*PRIVATE KEY-----|$)/g, "[redacted-key]").replace(/"private_key"\s*:\s*"[^"]*"?/g, '"private_key":"[redacted]"').replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]").replace(/https?:\/\/\S+/g, "[url]").slice(0, 360);
   }
   function titled2(title) {
     const section = el3("section", "play-side-section import-section");

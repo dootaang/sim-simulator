@@ -890,7 +890,14 @@ function maskedKey(provider) {
 
 function safeError(err) {
   const message = err && err.message ? err.message : String(err || '오류');
-  return `요청 실패: ${message.replace(/sk-[A-Za-z0-9_-]+/g, '[redacted]').replace(/https?:\/\/\S+/g, '[url]').slice(0, 360)}`;
+  const masked = message
+    // GCP 서비스 계정 JSON이 에러에 섞여 나올 수 있다(Vertex 인증 실패 등) — PEM/private_key 마스킹.
+    .replace(/-----BEGIN[A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END[A-Z ]*PRIVATE KEY-----|$)/g, '[redacted-key]')
+    .replace(/"private_key"\s*:\s*"[^"]*"?/g, '"private_key":"[redacted]"')
+    .replace(/sk-[A-Za-z0-9_-]+/g, '[redacted]')
+    .replace(/https?:\/\/\S+/g, '[url]')
+    .slice(0, 360);
+  return `요청 실패: ${masked}`;
 }
 
 function titled(title) {
