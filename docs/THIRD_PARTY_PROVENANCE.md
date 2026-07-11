@@ -2,6 +2,15 @@
 
 이 프로젝트(GPL-3.0-or-later)에 선별 이식한 외부 코드의 출처를 기록한다. ADR 0001 · CLAUDE-TASK-HYPA §9 정책.
 
+## SQLite Wasm
+
+- Package: `@sqlite.org/sqlite-wasm` `3.53.0-build1`
+- Repo: https://github.com/sqlite/sqlite-wasm
+- License: Apache-2.0
+- 사용 범위: 전용 Worker 안의 SQLite OO1 API와 OPFS VFS. `sqlite3.wasm` 및 공식 OPFS async proxy를 빌드 결과에 그대로 배포한다.
+- 우리 코드: `app/src/persistence/sqliteWorker.ts`, `app/core/session/browserPersistence.ts`
+- Worker1/Promiser API는 2026-04-15부터 deprecated이므로 사용하지 않고, 공식 권고대로 라이브러리를 자체 Worker 안에서 직접 초기화한다.
+
 ## RisuAI
 
 - Repo: https://github.com/kwaroran/RisuAI

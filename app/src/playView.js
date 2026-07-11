@@ -5,10 +5,11 @@ const { resolveSpeaker, resolveSpeakerList } = require('./speakerResolver.js');
 const { PROVIDERS, callProvider } = require('./llm/providers.js');
 const { providerConfig, loadSettings, saveSettings, registerCustomOrigin, readKey, keyName, defaultModel } = require('./llm/byokSettings.js');
 const { el, button, field, row, notice, hiddenBase, namedInput, namedTextarea, namedSelect, appendOption, copyFallback: fallbackCopy } = require('./ui/dom.js');
-import { applyContinuityPatch, approveMemory, buttonOnlyEvents, exportPlaySession, getContinuityPatches, getEngineState, getMemoryRecords, getSchema, getSessionEpoch, hashPromptPayload, importPlaySession, ingestMemoryTurn, proposeContinuityPatch, recordPromptRun, rejectContinuityPatch, rejectMemory, retrieveGroundedMemory, runEvent, summarizeEvent, summarizeEventItem, validateMemoryFactRefs } from './engineSession.js';
+import { applyContinuityPatch, approveMemory, buttonOnlyEvents, exportPlaySession, getContinuityPatches, getEngineState, getEventCount, getMemoryRecords, getSchema, getSessionEpoch, hashPromptPayload, importPlaySession, ingestMemoryTurn, proposeContinuityPatch, recordPromptRun, rejectContinuityPatch, rejectMemory, retrieveGroundedMemory, runEvent, summarizeEvent, summarizeEventItem, validateMemoryFactRefs } from './engineSession.js';
 const { parsePlaySessionImport } = require('../core/session/playSession.js');
 import { buildNpcClusters, preferredEmotion, selectAsset } from './npcGallery.js';
 import { verifyNarrative } from '../core/memory/narrativeVerifier.ts';
+import { createBrowserPlaySessionPersistence } from '../core/session/browserPersistence.ts';
 
 let messages = [];
 let busy = false;
@@ -31,6 +32,18 @@ let ledgerDeltas = [];
 let purchaseDraft = {};
 let messageSerial = 0;
 let conversationTurn = 0;
+let persistence = null;
+let persistenceSchemaHash = '';
+let persistenceReady = false;
+let persistenceStatus = '자동 저장 준비 중';
+let persistenceGeneration = 0;
+let persistTimer = null;
+let persistInFlight = false;
+let persistQueued = false;
+let lastPersistHash = '';
+let lastPersistQuickSignature = '';
+let persistenceListenersInstalled = false;
+let persistenceLoadKey = '';
 
 export function primaryCharacter(parsed, lore, groups = buildNpcClusters(parsed, lore).groups) {
   const name = String((parsed && parsed.name) || '시뮬봇');
@@ -49,6 +62,122 @@ function detachSheetKeyHandler() {
 function lsGet(key) { try { return localStorage.getItem(key); } catch (_) { return null; } }
 function lsSet(key, value) { try { localStorage.setItem(key, value); } catch (_) {} }
 function lsRemove(key) { try { localStorage.removeItem(key); } catch (_) {} }
+
+function applySessionPayload(payload, ctx) {
+  importPlaySession(payload);
+  messageSerial = 0;
+  messages = payload.messages.map((message) => {
+    messageSerial += 1;
+    return message.id ? message : { ...message, id: `message-${getSessionEpoch()}-${String(messageSerial).padStart(6, '0')}` };
+  });
+  conversationTurn = messages.filter((message) => message.role === 'user').length;
+  stage = []; lastPrompt = null; fastCombatLog = []; ledgerDeltas = []; purchaseDraft = {};
+  lodgingSelection = new Set(); lodgingSelectionDay = null;
+  sessionCardKey = cardKeyOf(ctx);
+}
+
+function persistentPayloadHash(payload) {
+  return hashPromptPayload({ journal: payload.journal, messages: payload.messages, promptRuns: payload.promptRuns, memory: payload.memory });
+}
+
+// Avoid cloning and hashing a multi-million-token session on UI-only renders.
+// The compact signature changes for every durable engine/message/memory decision;
+// the full canonical payload hash remains the final write guard below.
+function persistentQuickSignature() {
+  const lastMessage = messages[messages.length - 1] || null;
+  const memoryStatus = getMemoryRecords().map((record) => `${record.id}:${record.status}:${record.lifecycle || ''}`);
+  const patchStatus = getContinuityPatches().map((patch) => `${patch.id}:${patch.status}`);
+  return hashPromptPayload({
+    epoch: getSessionEpoch(),
+    eventCount: getEventCount(),
+    messageCount: messages.length,
+    lastMessage: lastMessage && { id: lastMessage.id, role: lastMessage.role, content: lastMessage.content, chips: lastMessage.chips },
+    memoryStatus,
+    patchStatus,
+  });
+}
+
+async function ensureAutoPersistence(ctx, render) {
+  const schemaHash = hashPromptPayload(getSchema());
+  const generation = ++persistenceGeneration;
+  persistenceReady = false;
+  persistenceStatus = '자동 저장소 연결 중';
+  if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; }
+  try {
+    if (!persistence || persistenceSchemaHash !== schemaHash) {
+      const previous = persistence;
+      persistence = null;
+      if (previous) try { await previous.close(); } catch (_) {}
+      persistence = await createBrowserPlaySessionPersistence();
+      persistenceSchemaHash = schemaHash;
+    }
+    const latest = await persistence.getLatest(schemaHash);
+    if (generation !== persistenceGeneration) return;
+    if (latest && latest.payload) {
+      const payload = parsePlaySessionImport(JSON.stringify(latest.payload));
+      applySessionPayload(payload, ctx);
+      lastPersistHash = persistentPayloadHash(payload);
+      lastPersistQuickSignature = persistentQuickSignature();
+      persistenceStatus = `자동 복구 완료 · ${persistence.health.backend}`;
+    } else {
+      lastPersistHash = '';
+      lastPersistQuickSignature = '';
+      persistenceStatus = `자동 저장 준비됨 · ${persistence.health.backend}`;
+    }
+    persistenceReady = true;
+    render();
+  } catch (error) {
+    if (generation !== persistenceGeneration) return;
+    persistenceStatus = `자동 저장 준비 실패 · ${safeError(error).replace(/^요청 실패:\s*/, '')}`;
+    persistenceReady = false;
+    persistenceLoadKey = '';
+    render();
+  }
+}
+
+function scheduleAutoSave(delay = 750) {
+  if (!persistenceReady || !persistence || busy) return;
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => { persistTimer = null; void savePersistentSessionNow(); }, delay);
+}
+
+async function savePersistentSessionNow() {
+  if (!persistenceReady || !persistence || busy) return;
+  if (persistInFlight) { persistQueued = true; return; }
+  persistInFlight = true;
+  try {
+    const quickSignature = persistentQuickSignature();
+    if (quickSignature === lastPersistQuickSignature) return;
+    const payload = exportPlaySession({ messages, savedAt: Date.now(), title: sceneLine() });
+    const contentHash = persistentPayloadHash(payload);
+    if (contentHash === lastPersistHash) {
+      lastPersistQuickSignature = quickSignature;
+      return;
+    }
+    await persistence.put({
+      id: `play:${persistenceSchemaHash}`,
+      schemaHash: persistenceSchemaHash,
+      title: payload.title,
+      updatedAt: payload.savedAt,
+      payload,
+    });
+    lastPersistHash = contentHash;
+    lastPersistQuickSignature = quickSignature;
+    persistenceStatus = `자동 저장됨 · ${persistence.health.backend}`;
+  } catch (error) {
+    persistenceStatus = `자동 저장 실패 · ${safeError(error).replace(/^요청 실패:\s*/, '')}`;
+  } finally {
+    persistInFlight = false;
+    if (persistQueued) { persistQueued = false; void savePersistentSessionNow(); }
+  }
+}
+
+function installPersistenceListeners() {
+  if (persistenceListenersInstalled || typeof window === 'undefined') return;
+  persistenceListenersInstalled = true;
+  window.addEventListener('pagehide', () => { void savePersistentSessionNow(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void savePersistentSessionNow(); });
+}
 
 // 비동기 콜백(LLM 응답 등)이 언마운트된 뷰의 DOM을 만지지 않도록, 항상 현재 마운트의 render만 실행한다.
 function refresh() {
@@ -92,12 +221,23 @@ export function renderPlayView(container, ctx) {
     // 전체 재구축 시 스크롤이 top으로 튀는 것 방지: 채팅을 항상 최신(하단)으로.
     const list = root.querySelector('.play-message-list');
     if (list) list.scrollTop = list.scrollHeight;
+    if (persistenceReady && !busy) scheduleAutoSave();
   };
   activeRender = render;
+  const autoSaveKey = hashPromptPayload(getSchema());
+  const needsPersistenceLoad = persistenceLoadKey !== autoSaveKey;
+  if (needsPersistenceLoad) {
+    persistenceReady = false;
+    if (persistTimer) { clearTimeout(persistTimer); persistTimer = null; }
+    persistenceLoadKey = autoSaveKey;
+  }
   render();
+  if (needsPersistenceLoad) void ensureAutoPersistence(ctx, render);
+  installPersistenceListeners();
   return () => {
     if (activeRender === render) activeRender = null;
     detachSheetKeyHandler();
+    void savePersistentSessionNow();
     document.body.classList.remove('sheet-open');
   };
 }
@@ -152,7 +292,7 @@ function renderBottomSheet(ctx, render) {
   const sheet = el('aside', 'play-bottom-sheet'); sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-modal', 'true'); sheet.setAttribute('aria-label', '플레이 상태와 설정');
   const head = el('div', 'sheet-head'); const handle = button('상태 패널 닫기', 'sheet-handle'); const close = button('닫기', 'secondary-btn');
   handle.addEventListener('click', closeSheet); close.addEventListener('click', closeSheet); head.append(handle, close);
-  sheet.append(head, renderLedgerSection(render), renderSettings(ctx, render), renderStateBox(ctx, render), renderTokenBox(ctx)); overlay.append(sheet);
+  sheet.append(head, renderLedgerSection(render), renderMemorySection(render), renderSettings(ctx, render), renderStateBox(ctx, render), renderTokenBox(ctx)); overlay.append(sheet);
   detachSheetKeyHandler(); // 재렌더 시 이전 렌더의 리스너가 남지 않도록 항상 정리
   if (mobileSheetOpen) {
     document.body.classList.add('sheet-open');
@@ -1083,17 +1223,11 @@ function renderSettings(ctx, render) {
     if (!file || busy) return;
     try {
       const payload = parsePlaySessionImport(await file.text());
-      importPlaySession(payload); // 스키마 지문·해시·판정 검증 — 실패 시 throw, 기존 세션 무손상
-      messageSerial = 0;
-      messages = payload.messages.map((message) => {
-        messageSerial += 1;
-        return message.id ? message : { ...message, id: `message-${getSessionEpoch()}-${String(messageSerial).padStart(6, '0')}` };
-      });
-      conversationTurn = messages.filter((message) => message.role === 'user').length;
-      stage = []; lastPrompt = null; fastCombatLog = []; ledgerDeltas = []; purchaseDraft = {};
-      lodgingSelection = new Set(); lodgingSelectionDay = null;
-      sessionCardKey = cardKeyOf(ctx); // 새 epoch 채택 — 다음 렌더가 복원한 대화를 지우지 않게
+      applySessionPayload(payload, ctx); // 스키마 지문·해시·판정 검증 — 실패 시 throw, 기존 세션 무손상
       messages.push({ role: 'ledger', chips: [{ ok: true, kind: 'system', text: `세션 이어하기 — 대화 ${payload.messages.length}개 · 엔진 사건 ${payload.journal.events.length}개 복원` }] });
+      lastPersistHash = '';
+      lastPersistQuickSignature = '';
+      scheduleAutoSave(0);
     } catch (err) {
       messages.push({ role: 'ledger', chips: [{ ok: false, kind: 'system', text: `세션 가져오기 거부 — ${importFailureKo(err)}` }] });
     }
@@ -1112,6 +1246,7 @@ function renderSettings(ctx, render) {
     row(save, del),
     row(exportSession, importSession),
     importFile,
+    notice(persistenceStatus),
     settings.provider === 'vertex'
       ? notice('서비스 계정 JSON은 GCP 전체 권한을 가질 수 있는 강력한 자격증명입니다. 공용 PC에서 저장하지 말고 사용 후 삭제하세요.')
       : notice('키는 이 브라우저의 localStorage에만 저장됩니다. 공용 PC에서는 사용 후 반드시 삭제하세요.'),

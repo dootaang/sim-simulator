@@ -1,5 +1,5 @@
 import * as esbuild from 'esbuild';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -18,6 +18,22 @@ await esbuild.build({
   legalComments: 'inline',
   logLevel: 'info',
 });
+
+await esbuild.build({
+  entryPoints: [path.join(root, 'src', 'persistence', 'sqliteWorker.ts')],
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  target: ['es2022'],
+  outfile: path.join(dist, 'sqlite-worker.js'),
+  legalComments: 'inline',
+  logLevel: 'info',
+});
+
+await Promise.all([
+  copyFile(path.join(root, 'node_modules', '@sqlite.org', 'sqlite-wasm', 'dist', 'sqlite3.wasm'), path.join(dist, 'sqlite3.wasm')),
+  copyFile(path.join(root, 'node_modules', '@sqlite.org', 'sqlite-wasm', 'dist', 'sqlite3-opfs-async-proxy.js'), path.join(dist, 'sqlite3-opfs-async-proxy.js')),
+]);
 
 const [js, css] = await Promise.all([
   readFile(tempJs, 'utf8'),

@@ -13212,6 +13212,235 @@ ${Array.from(extras).join(" ")}` : text;
     return { text: kept.join("\n").trim() || (issues.length ? fallback : narrative), issues };
   }
 
+  // core/session/browserPersistence.ts
+  var SqliteWorkerPersistence = class {
+    constructor(worker, health) {
+      this.sequence = 0;
+      this.pending = /* @__PURE__ */ new Map();
+      this.worker = worker;
+      this.health = health;
+      this.onMessageBound = (event) => this.onMessage(event);
+      this.onErrorBound = (event) => this.onError(event);
+      worker.addEventListener("message", this.onMessageBound);
+      worker.addEventListener("error", this.onErrorBound);
+    }
+    call(type, payload) {
+      const id = ++this.sequence;
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.pending.delete(id);
+          reject(new Error(`sqlite_worker_timeout:${type}`));
+        }, 15e3);
+        this.pending.set(id, { resolve, reject, timer });
+        this.worker.postMessage({ id, type, payload });
+      });
+    }
+    onMessage(event) {
+      const message = event?.data;
+      const pending = this.pending.get(Number(message?.id));
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      this.pending.delete(Number(message.id));
+      if (message.ok) pending.resolve(message.result);
+      else pending.reject(new Error(String(message.error || "sqlite_worker_error")));
+    }
+    onError(event) {
+      const error = new Error(String(event?.message || "sqlite_worker_crashed"));
+      for (const pending of this.pending.values()) {
+        clearTimeout(pending.timer);
+        pending.reject(error);
+      }
+      this.pending.clear();
+    }
+    async init() {
+      return this.call("init");
+    }
+    async put(session) {
+      await this.call("put", session);
+    }
+    async get(id) {
+      return this.call("get", { id });
+    }
+    async getLatest(schemaHash) {
+      return this.call("getLatest", { schemaHash });
+    }
+    async list() {
+      return this.call("list");
+    }
+    async delete(id) {
+      await this.call("delete", { id });
+    }
+    async close() {
+      try {
+        await this.call("close");
+      } finally {
+        this.worker.removeEventListener("message", this.onMessageBound);
+        this.worker.removeEventListener("error", this.onErrorBound);
+        this.worker.terminate();
+      }
+    }
+  };
+  var IndexedDbPersistence = class {
+    constructor(db) {
+      this.health = { backend: "indexeddb", persistent: true };
+      this.db = db;
+    }
+    transaction(mode, run) {
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction("sessions", mode);
+        const fail = () => reject(tx.error || new Error("indexeddb_transaction_failed"));
+        tx.addEventListener("abort", fail, { once: true });
+        tx.addEventListener("error", fail, { once: true });
+        run(tx.objectStore("sessions"), resolve, reject);
+      });
+    }
+    async put(session) {
+      await this.transaction("readwrite", (store, resolve, reject) => {
+        const request = store.put(session);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error || new Error("indexeddb_put_failed"));
+      });
+    }
+    async get(id) {
+      return this.transaction("readonly", (store, resolve, reject) => {
+        const request = store.get(id);
+        request.onsuccess = () => resolve(request.result ?? null);
+        request.onerror = () => reject(request.error || new Error("indexeddb_get_failed"));
+      });
+    }
+    async getLatest(schemaHash) {
+      const rows = await this.transaction("readonly", (store, resolve, reject) => {
+        const request = store.index("schemaHash").getAll(schemaHash);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("indexeddb_query_failed"));
+      });
+      return rows.sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id))[0] ?? null;
+    }
+    async list() {
+      const rows = await this.transaction("readonly", (store, resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("indexeddb_list_failed"));
+      });
+      return rows.sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id));
+    }
+    async delete(id) {
+      await this.transaction("readwrite", (store, resolve, reject) => {
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error || new Error("indexeddb_delete_failed"));
+      });
+    }
+    async close() {
+      this.db.close();
+    }
+  };
+  var ResilientPersistence = class {
+    constructor(primary) {
+      this.fallbackPromise = null;
+      this.active = primary;
+    }
+    get health() {
+      return this.active.health;
+    }
+    async fallback() {
+      if (!this.fallbackPromise) this.fallbackPromise = openIndexedDb().catch(() => createMemoryPlaySessionPersistence());
+      const next = await this.fallbackPromise;
+      if (this.active !== next) {
+        try {
+          await this.active.close();
+        } catch (_) {
+        }
+        this.active = next;
+      }
+      return next;
+    }
+    async run(operation) {
+      try {
+        return await operation(this.active);
+      } catch (_) {
+        return operation(await this.fallback());
+      }
+    }
+    async put(session) {
+      await this.run((store) => store.put(session));
+    }
+    async get(id) {
+      return this.run((store) => store.get(id));
+    }
+    async getLatest(schemaHash) {
+      return this.run((store) => store.getLatest(schemaHash));
+    }
+    async list() {
+      return this.run((store) => store.list());
+    }
+    async delete(id) {
+      await this.run((store) => store.delete(id));
+    }
+    async close() {
+      await this.active.close();
+    }
+  };
+  function createMemoryPlaySessionPersistence() {
+    const rows = /* @__PURE__ */ new Map();
+    return {
+      health: { backend: "memory", persistent: false, detail: "test-or-last-resort" },
+      async put(session) {
+        rows.set(session.id, structuredClone(session));
+      },
+      async get(id) {
+        return rows.has(id) ? structuredClone(rows.get(id)) : null;
+      },
+      async getLatest(schemaHash) {
+        return Array.from(rows.values()).filter((row3) => row3.schemaHash === schemaHash).sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id)).map((row3) => structuredClone(row3))[0] ?? null;
+      },
+      async list() {
+        return Array.from(rows.values()).sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id)).map((row3) => structuredClone(row3));
+      },
+      async delete(id) {
+        rows.delete(id);
+      },
+      async close() {
+      }
+    };
+  }
+  async function openIndexedDb() {
+    if (typeof indexedDB === "undefined") return createMemoryPlaySessionPersistence();
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open("simbot-sessions", 1);
+      request.onupgradeneeded = () => {
+        const db2 = request.result;
+        const store = db2.objectStoreNames.contains("sessions") ? request.transaction.objectStore("sessions") : db2.createObjectStore("sessions", { keyPath: "id" });
+        if (!store.indexNames.contains("schemaHash")) store.createIndex("schemaHash", "schemaHash", { unique: false });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("indexeddb_open_failed"));
+    });
+    return new IndexedDbPersistence(db);
+  }
+  async function createBrowserPlaySessionPersistence(options = {}) {
+    if (typeof Worker !== "undefined" || options.workerFactory) {
+      let sqlite = null;
+      try {
+        const worker = options.workerFactory ? options.workerFactory() : new Worker(options.workerUrl ?? "./sqlite-worker.js", { type: "module", name: "simbot-sqlite" });
+        sqlite = new SqliteWorkerPersistence(worker, { backend: "sqlite-opfs", persistent: false });
+        const health = await sqlite.init();
+        if (health?.persistent) return new ResilientPersistence(Object.assign(sqlite, { health }));
+        await sqlite.close();
+      } catch (_) {
+        if (sqlite) try {
+          await sqlite.close();
+        } catch (_2) {
+        }
+      }
+    }
+    try {
+      return await openIndexedDb();
+    } catch (_) {
+      return createMemoryPlaySessionPersistence();
+    }
+  }
+
   // src/playView.js
   var { summarize: summarize2, npcSummary: npcSummary2, availableActions, availableManagement, roomStatus: roomStatus2, staffMax: staffMax2 } = require_selectors();
   var { estimateTokens: estimateTokens2, estimateLorebookTokens: estimateLorebookTokens2 } = require_tokens();
@@ -13242,6 +13471,18 @@ ${Array.from(extras).join(" ")}` : text;
   var purchaseDraft = {};
   var messageSerial = 0;
   var conversationTurn = 0;
+  var persistence = null;
+  var persistenceSchemaHash = "";
+  var persistenceReady = false;
+  var persistenceStatus = "\uC790\uB3D9 \uC800\uC7A5 \uC900\uBE44 \uC911";
+  var persistenceGeneration = 0;
+  var persistTimer = null;
+  var persistInFlight = false;
+  var persistQueued = false;
+  var lastPersistHash = "";
+  var lastPersistQuickSignature = "";
+  var persistenceListenersInstalled = false;
+  var persistenceLoadKey = "";
   function primaryCharacter(parsed, lore, groups = buildNpcClusters(parsed, lore).groups) {
     const name = String(parsed && parsed.name || "\uC2DC\uBBAC\uBD07");
     const exact = groups.find((group2) => group2.charId.toLowerCase() === name.toLowerCase());
@@ -13276,6 +13517,136 @@ ${Array.from(extras).join(" ")}` : text;
       localStorage.removeItem(key);
     } catch (_) {
     }
+  }
+  function applySessionPayload(payload, ctx) {
+    importPlaySession(payload);
+    messageSerial = 0;
+    messages = payload.messages.map((message) => {
+      messageSerial += 1;
+      return message.id ? message : { ...message, id: `message-${getSessionEpoch()}-${String(messageSerial).padStart(6, "0")}` };
+    });
+    conversationTurn = messages.filter((message) => message.role === "user").length;
+    stage = [];
+    lastPrompt = null;
+    fastCombatLog = [];
+    ledgerDeltas = [];
+    purchaseDraft = {};
+    lodgingSelection = /* @__PURE__ */ new Set();
+    lodgingSelectionDay = null;
+    sessionCardKey = cardKeyOf(ctx);
+  }
+  function persistentPayloadHash(payload) {
+    return hashPromptPayload({ journal: payload.journal, messages: payload.messages, promptRuns: payload.promptRuns, memory: payload.memory });
+  }
+  function persistentQuickSignature() {
+    const lastMessage = messages[messages.length - 1] || null;
+    const memoryStatus = getMemoryRecords().map((record) => `${record.id}:${record.status}:${record.lifecycle || ""}`);
+    const patchStatus = getContinuityPatches().map((patch) => `${patch.id}:${patch.status}`);
+    return hashPromptPayload({
+      epoch: getSessionEpoch(),
+      eventCount: getEventCount(),
+      messageCount: messages.length,
+      lastMessage: lastMessage && { id: lastMessage.id, role: lastMessage.role, content: lastMessage.content, chips: lastMessage.chips },
+      memoryStatus,
+      patchStatus
+    });
+  }
+  async function ensureAutoPersistence(ctx, render2) {
+    const schemaHash = hashPromptPayload(getSchema());
+    const generation = ++persistenceGeneration;
+    persistenceReady = false;
+    persistenceStatus = "\uC790\uB3D9 \uC800\uC7A5\uC18C \uC5F0\uACB0 \uC911";
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    try {
+      if (!persistence || persistenceSchemaHash !== schemaHash) {
+        const previous = persistence;
+        persistence = null;
+        if (previous) try {
+          await previous.close();
+        } catch (_) {
+        }
+        persistence = await createBrowserPlaySessionPersistence();
+        persistenceSchemaHash = schemaHash;
+      }
+      const latest = await persistence.getLatest(schemaHash);
+      if (generation !== persistenceGeneration) return;
+      if (latest && latest.payload) {
+        const payload = parsePlaySessionImport(JSON.stringify(latest.payload));
+        applySessionPayload(payload, ctx);
+        lastPersistHash = persistentPayloadHash(payload);
+        lastPersistQuickSignature = persistentQuickSignature();
+        persistenceStatus = `\uC790\uB3D9 \uBCF5\uAD6C \uC644\uB8CC \xB7 ${persistence.health.backend}`;
+      } else {
+        lastPersistHash = "";
+        lastPersistQuickSignature = "";
+        persistenceStatus = `\uC790\uB3D9 \uC800\uC7A5 \uC900\uBE44\uB428 \xB7 ${persistence.health.backend}`;
+      }
+      persistenceReady = true;
+      render2();
+    } catch (error) {
+      if (generation !== persistenceGeneration) return;
+      persistenceStatus = `\uC790\uB3D9 \uC800\uC7A5 \uC900\uBE44 \uC2E4\uD328 \xB7 ${safeError(error).replace(/^요청 실패:\s*/, "")}`;
+      persistenceReady = false;
+      persistenceLoadKey = "";
+      render2();
+    }
+  }
+  function scheduleAutoSave(delay = 750) {
+    if (!persistenceReady || !persistence || busy) return;
+    if (persistTimer) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      void savePersistentSessionNow();
+    }, delay);
+  }
+  async function savePersistentSessionNow() {
+    if (!persistenceReady || !persistence || busy) return;
+    if (persistInFlight) {
+      persistQueued = true;
+      return;
+    }
+    persistInFlight = true;
+    try {
+      const quickSignature = persistentQuickSignature();
+      if (quickSignature === lastPersistQuickSignature) return;
+      const payload = exportPlaySession({ messages, savedAt: Date.now(), title: sceneLine() });
+      const contentHash = persistentPayloadHash(payload);
+      if (contentHash === lastPersistHash) {
+        lastPersistQuickSignature = quickSignature;
+        return;
+      }
+      await persistence.put({
+        id: `play:${persistenceSchemaHash}`,
+        schemaHash: persistenceSchemaHash,
+        title: payload.title,
+        updatedAt: payload.savedAt,
+        payload
+      });
+      lastPersistHash = contentHash;
+      lastPersistQuickSignature = quickSignature;
+      persistenceStatus = `\uC790\uB3D9 \uC800\uC7A5\uB428 \xB7 ${persistence.health.backend}`;
+    } catch (error) {
+      persistenceStatus = `\uC790\uB3D9 \uC800\uC7A5 \uC2E4\uD328 \xB7 ${safeError(error).replace(/^요청 실패:\s*/, "")}`;
+    } finally {
+      persistInFlight = false;
+      if (persistQueued) {
+        persistQueued = false;
+        void savePersistentSessionNow();
+      }
+    }
+  }
+  function installPersistenceListeners() {
+    if (persistenceListenersInstalled || typeof window === "undefined") return;
+    persistenceListenersInstalled = true;
+    window.addEventListener("pagehide", () => {
+      void savePersistentSessionNow();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") void savePersistentSessionNow();
+    });
   }
   function refresh() {
     if (activeRender) activeRender();
@@ -13312,12 +13683,26 @@ ${Array.from(extras).join(" ")}` : text;
       root.append(renderLayout(ctx, refresh));
       const list = root.querySelector(".play-message-list");
       if (list) list.scrollTop = list.scrollHeight;
+      if (persistenceReady && !busy) scheduleAutoSave();
     };
     activeRender = render2;
+    const autoSaveKey = hashPromptPayload(getSchema());
+    const needsPersistenceLoad = persistenceLoadKey !== autoSaveKey;
+    if (needsPersistenceLoad) {
+      persistenceReady = false;
+      if (persistTimer) {
+        clearTimeout(persistTimer);
+        persistTimer = null;
+      }
+      persistenceLoadKey = autoSaveKey;
+    }
     render2();
+    if (needsPersistenceLoad) void ensureAutoPersistence(ctx, render2);
+    installPersistenceListeners();
     return () => {
       if (activeRender === render2) activeRender = null;
       detachSheetKeyHandler();
+      void savePersistentSessionNow();
       document.body.classList.remove("sheet-open");
     };
   }
@@ -13392,7 +13777,7 @@ ${Array.from(extras).join(" ")}` : text;
     handle.addEventListener("click", closeSheet);
     close.addEventListener("click", closeSheet);
     head.append(handle, close);
-    sheet.append(head, renderLedgerSection(render2), renderSettings(ctx, render2), renderStateBox(ctx, render2), renderTokenBox(ctx));
+    sheet.append(head, renderLedgerSection(render2), renderMemorySection(render2), renderSettings(ctx, render2), renderStateBox(ctx, render2), renderTokenBox(ctx));
     overlay.append(sheet);
     detachSheetKeyHandler();
     if (mobileSheetOpen) {
@@ -14444,22 +14829,11 @@ ${entry.requests.map((request) => `${request.name} \xB7 ${request.party}\uBA85 \
       if (!file || busy) return;
       try {
         const payload = parsePlaySessionImport(await file.text());
-        importPlaySession(payload);
-        messageSerial = 0;
-        messages = payload.messages.map((message) => {
-          messageSerial += 1;
-          return message.id ? message : { ...message, id: `message-${getSessionEpoch()}-${String(messageSerial).padStart(6, "0")}` };
-        });
-        conversationTurn = messages.filter((message) => message.role === "user").length;
-        stage = [];
-        lastPrompt = null;
-        fastCombatLog = [];
-        ledgerDeltas = [];
-        purchaseDraft = {};
-        lodgingSelection = /* @__PURE__ */ new Set();
-        lodgingSelectionDay = null;
-        sessionCardKey = cardKeyOf(ctx);
+        applySessionPayload(payload, ctx);
         messages.push({ role: "ledger", chips: [{ ok: true, kind: "system", text: `\uC138\uC158 \uC774\uC5B4\uD558\uAE30 \u2014 \uB300\uD654 ${payload.messages.length}\uAC1C \xB7 \uC5D4\uC9C4 \uC0AC\uAC74 ${payload.journal.events.length}\uAC1C \uBCF5\uC6D0` }] });
+        lastPersistHash = "";
+        lastPersistQuickSignature = "";
+        scheduleAutoSave(0);
       } catch (err) {
         messages.push({ role: "ledger", chips: [{ ok: false, kind: "system", text: `\uC138\uC158 \uAC00\uC838\uC624\uAE30 \uAC70\uBD80 \u2014 ${importFailureKo(err)}` }] });
       }
@@ -14477,6 +14851,7 @@ ${entry.requests.map((request) => `${request.name} \xB7 ${request.party}\uBA85 \
       row(save, del),
       row(exportSession, importSession),
       importFile,
+      notice(persistenceStatus),
       settings.provider === "vertex" ? notice("\uC11C\uBE44\uC2A4 \uACC4\uC815 JSON\uC740 GCP \uC804\uCCB4 \uAD8C\uD55C\uC744 \uAC00\uC9C8 \uC218 \uC788\uB294 \uAC15\uB825\uD55C \uC790\uACA9\uC99D\uBA85\uC785\uB2C8\uB2E4. \uACF5\uC6A9 PC\uC5D0\uC11C \uC800\uC7A5\uD558\uC9C0 \uB9D0\uACE0 \uC0AC\uC6A9 \uD6C4 \uC0AD\uC81C\uD558\uC138\uC694.") : notice("\uD0A4\uB294 \uC774 \uBE0C\uB77C\uC6B0\uC800\uC758 localStorage\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4. \uACF5\uC6A9 PC\uC5D0\uC11C\uB294 \uC0AC\uC6A9 \uD6C4 \uBC18\uB4DC\uC2DC \uC0AD\uC81C\uD558\uC138\uC694."),
       notice("\uD50C\uB808\uC774 \uC2DC \uB300\uD654 \uB0B4\uC6A9\xB7\uBC1C\uB3D9\uD55C \uB85C\uC5B4\uBD81\xB7\uC0C1\uD0DC \uC694\uC57D\uC774 \uC120\uD0DD\uD55C LLM \uC81C\uACF5\uC790\uC5D0\uAC8C \uC804\uC1A1\uB429\uB2C8\uB2E4.")
     );

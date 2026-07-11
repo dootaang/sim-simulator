@@ -10,9 +10,11 @@
     "typecheck": "tsc -p tsconfig.json",
     "build": "node build.mjs",
     "deploy": "node build.mjs && firebase deploy --only hosting",
-    "serve": "npx esbuild src/main.js --bundle --format=iife --platform=browser --servedir=. --serve=8135"
+    "serve": "npx esbuild src/main.js --bundle --format=iife --platform=browser --servedir=. --serve=8135",
+    "preview": "node serve.mjs"
   },
   "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.53.0-build1",
     "fflate": "^0.8.3"
   },
   "devDependencies": {
