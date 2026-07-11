@@ -23,7 +23,11 @@ function runDayEnd(schema, state, rng) {
     checkouts: [],
   };
 
-  settleRevenue(schema, next, rng, report);
+  // 오늘 파동제 영업(traffic)을 하나라도 처리했다면 수익이 이미 확정됐다. 구형
+  // daily_revenue까지 다시 돌리면 숨은 세 번째 영업이 생긴다. 파동을 전혀 건드리지 않은
+  // 날은 기존 자동 정산을 유지해 구형/헤드리스 흐름과 호환한다.
+  const trafficResolved = state.traffic && state.traffic.day === state.day && Object.keys(state.traffic.resolved || {}).length > 0;
+  if (!trafficResolved) settleRevenue(schema, next, rng, report);
   deductWages(next, report);
   checkoutDue(next, report);
   runSettlement(schema, next, rng, report);
@@ -141,7 +145,7 @@ function addSale(sales, menuName, qty, price) {
 
 function deductWages(state, report) {
   repayUnpaidWages(state, report);
-  const due = (state.staff || []).reduce((sum, staff) => sum + Number(staff.dailyWage || 0), 0);
+  const due = (state.staff || []).reduce((sum, staff) => sum + Math.max(0, Number(staff.dailyWage || 0)), 0);
   const paid = Math.min(Number(state.gold || 0), due);
   state.gold -= paid;
   state.unpaidWages = Number(state.unpaidWages || 0) + (due - paid);

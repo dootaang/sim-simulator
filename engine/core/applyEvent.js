@@ -6,6 +6,7 @@ const { staffMax, tierOf, menuTrade } = require('./selectors.js');
 const { poolHeal } = require('./pools.js');
 const { resolveCheck } = require('./resolveCheck.js');
 const { rollQuestEncounter } = require('./questEncounter.js');
+const { activeQuests } = require('./quests.js');
 const { rollTrafficIncident, resolveIncidentChoice, generateLodgingQueue, resolveLodgingDecision, checkMail, openMail } = require('./traffic.js');
 const {
   clone,
@@ -68,8 +69,12 @@ function applyEvent(schema, state, event, rng) {
       return sale(schema, next, params, ok, fail);
     case 'purchase':
       return purchase(schema, next, params, ok, fail);
+    case 'purchase_batch':
+      return purchaseBatch(schema, next, params, ok, fail);
     case 'hire':
       return hire(schema, next, params, ok, fail);
+    case 'set_wage':
+      return setWage(next, params, ok, fail);
     case 'fire':
       return fire(next, params, ok, fail);
     case 'traffic_wave': {
@@ -172,7 +177,7 @@ function attemptQuest(schema, state, params, rng, ok, fail) {
   // 전투 중 의뢰 수행 금지 — 콘솔은 숨기지만 자유 텍스트·수동 트리거 경로까지 엔진이 차단(감사 지적).
   if (state.combat && state.combat.active) return fail('in_combat');
   const questId = params.questId == null ? '' : String(params.questId);
-  const quest = (schema.quests || []).find((entry) => entry && entry.id === questId);
+  const quest = activeQuests(schema, state).find((entry) => entry && entry.id === questId);
   if (!quest) return fail('unknown_quest', questId);
   if (!quest.repeatable && (state.claimedRewards || []).includes(questId)) return fail('already_claimed', questId);
   const range = schema && schema.rewards && schema.rewards.gold && schema.rewards.gold[quest.rewardTier];
@@ -396,6 +401,7 @@ function sale(schema, state, params, ok, fail) {
   if (qty <= 0 || qty > 999) return fail('invalid_qty', qty); // 상한 999 — 가격 0 아이템·consumes 없는 메뉴의 무제한 수량 악용 방지(감사 지적)
   if (Number(menu.requiresKitchenLevel || 1) > Number((state.facilities && state.facilities.kitchen) || 1)) return fail('menu_locked', params.menuName);
   const consumes = saleConsumes(menu, state);
+  if (!Object.keys(consumes).length) return fail('missing_consumption_rule', params.menuName);
   for (const [resource, amount] of Object.entries(consumes)) {
     if (Number((state.resources && state.resources[resource]) || 0) < Number(amount) * qty) {
       return fail('insufficient_stock', resource);
@@ -440,14 +446,47 @@ function purchase(schema, state, params, ok, fail) {
   return ok({ resource, qty, goldDelta: -cost });
 }
 
+function purchaseBatch(schema, state, params, ok, fail) {
+  const items = Array.isArray(params.items) ? params.items : [];
+  if (!items.length) return fail('empty_purchase_batch');
+  const normalized = [];
+  let total = 0;
+  for (const item of items) {
+    const resource = item && (item.resource || item.resourceId);
+    const qty = normalizeInt(item && item.qty, 0);
+    const def = (schema.resources || []).find((entry) => entry.id === resource);
+    if (!def || resource === 'gold') return fail('unknown_resource', resource);
+    if (qty <= 0 || qty > 999) return fail('invalid_qty', qty);
+    const cost = Number(def.basePrice || 0) * qty;
+    total += cost;
+    normalized.push({ resource, qty, cost });
+  }
+  if (Number(state.gold || 0) < total) return fail('insufficient_gold', total);
+  state.gold = Number(state.gold || 0) - total;
+  for (const item of normalized) state.resources[item.resource] = Number(state.resources[item.resource] || 0) + item.qty;
+  return ok({ items: normalized, goldDelta: -total });
+}
+
 function hire(schema, state, params, ok, fail) {
   const npcId = params.npcId;
   const wage = normalizeInt(params.dailyWage);
   if (!findById(schema, 'npc', npcId)) return fail('unknown_npc', npcId);
+  if (wage < 0) return fail('invalid_wage', wage);
   if ((state.staff || []).some((staff) => staff.npcId === npcId)) return fail('already_hired', npcId);
   if ((state.staff || []).length >= staffMax(schema, state)) return fail('staff_full', npcId);
   state.staff = (state.staff || []).concat([{ npcId, dailyWage: wage }]);
   return ok({ npcId, dailyWage: wage });
+}
+
+function setWage(state, params, ok, fail) {
+  const npcId = params.npcId;
+  const wage = normalizeInt(params.dailyWage);
+  if (wage < 0) return fail('invalid_wage', wage);
+  const staff = (state.staff || []).find((item) => item.npcId === npcId);
+  if (!staff) return fail('not_hired', npcId);
+  const before = Number(staff.dailyWage || 0);
+  staff.dailyWage = wage;
+  return ok({ npcId, before, dailyWage: wage });
 }
 
 function fire(state, params, ok, fail) {

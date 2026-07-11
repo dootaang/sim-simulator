@@ -87,6 +87,20 @@ test('parseAssistantResponse remains compatible when emotion is absent', () => {
   assert.equal(parsed.narrative, '그대로 바라본다.');
 });
 
+test('parseAssistantResponse accepts and removes terminal unfenced event JSON', () => {
+  const parsed = parseAssistantResponse('고용 계약이 성립됐다.\n{"events":[{"id":"hire","params":{"npcId":"silvia","dailyWage":10000}}],"emotion":"default"}');
+  assert.equal(parsed.narrative, '고용 계약이 성립됐다.');
+  assert.equal(parsed.events[0].id, 'hire');
+  assert.equal(parsed.emotion, 'default');
+});
+
+test('decision narration forbids invented choices and time travel', () => {
+  const prompt = buildNarrationPrompt({ schema: innSchema, state: createState(innSchema), results: ['사건 발생'], eventType: 'traffic_wave', decisionContext: '실제 선택지: 붙잡는다 / 지킨다', recentMessages: [] });
+  assert.match(prompt.system, /대응 방법을 제안·열거/);
+  assert.match(prompt.system, /날짜와 일차를 진행시키지 마라/);
+  assert.match(prompt.messages.at(-1).content, /실제 선택지: 붙잡는다 \/ 지킨다/);
+});
+
 test('buildPrompt enables all combat vocabulary after scales are promoted', () => {
   const source = {
     meta: { id: 'promoted', title: '승격 전투', schemaVersion: '0.1' }, resources: [],

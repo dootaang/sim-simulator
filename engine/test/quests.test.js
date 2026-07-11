@@ -73,3 +73,16 @@ test('failure leaves the next seeded value for the next check', () => {
   const directNext = b.int(1, 20);
   assert.equal(afterFailure, directNext);
 });
+
+test('quest board is locked by facility level, deterministic, and limited per day', () => {
+  const source = JSON.parse(JSON.stringify(schema));
+  source.questBoard = { facility: 'tavern', unlockLevel: 2, size: 2, refresh: 'daily' };
+  const locked = { ...state(), day: 1, seed: 42, facilities: { tavern: 1 } };
+  assert.equal(availableManagement(source, locked).sections.some((section) => section.type === 'quests'), false);
+  assert.equal(applyEvent(source, locked, { id: 'attempt_quest', params: { questId: 'once' } }, rng(1)).log[0].reason, 'unknown_quest');
+  const open = { ...locked, facilities: { tavern: 2 } };
+  const first = availableManagement(source, open).sections.find((section) => section.type === 'quests').items;
+  const second = availableManagement(source, JSON.parse(JSON.stringify(open))).sections.find((section) => section.type === 'quests').items;
+  assert.equal(first.length, 2);
+  assert.deepEqual(first.map((item) => item.id), second.map((item) => item.id));
+});

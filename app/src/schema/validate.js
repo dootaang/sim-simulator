@@ -32,6 +32,7 @@ function validateSchema(obj) {
   validateSkills(schema, issues);
   validateLadders(schema, issues);
   validateEntities(schema, issues);
+  synthesizeStaffing(schema, issues);
   validateFormulas(schema, issues);
   validateProcesses(schema, issues);
   validateRewards(schema, issues);
@@ -44,6 +45,7 @@ function validateSchema(obj) {
   // 합성이 검증보다 먼저 — 합성된 traffic도 반드시 validateTraffic의 클램프·정규화를 거친다.
   synthesizeTrafficModule(schema, issues);
   validateTraffic(schema, issues);
+  synthesizeQuestBoard(schema, issues);
   validateEvents(schema, issues);
 
   return { schema, issues };
@@ -88,6 +90,33 @@ function normalizeFacilityIds(schema, issues) {
       if (isObject(modifier) && renames[modifier.facility]) modifier.facility = renames[modifier.facility];
     }
   }
+  if (isObject(schema.staffing) && renames[schema.staffing.facility]) schema.staffing.facility = renames[schema.staffing.facility];
+  if (isObject(schema.questBoard) && renames[schema.questBoard.facility]) schema.questBoard.facility = renames[schema.questBoard.facility];
+}
+
+function synthesizeStaffing(schema, issues) {
+  if (isObject(schema.staffing)) return;
+  const npcs = findEntity(schema, 'npc');
+  const facilities = findEntity(schema, 'facility');
+  if (!npcs || !Array.isArray(npcs.instances) || !npcs.instances.length || !facilities || !Array.isArray(facilities.instances)) return;
+  const facility = facilities.instances.find((item) => item && /quarter|숙소|기숙/i.test(`${item.id || ''} ${item.label || ''}`));
+  if (!facility) return;
+  const max = Math.max(1, Math.trunc(Number(facility.maxLevel) || 1));
+  const legacy = schema.gates && schema.gates.staffMaxByQuartersLevel;
+  const capacityByLevel = {};
+  for (let level = 1; level <= max; level += 1) capacityByLevel[String(level)] = Math.max(1, Math.trunc(Number(legacy && legacy[String(level)]) || level));
+  schema.staffing = { facility: facility.id, capacityByLevel };
+  warn(issues, 'staffing', `직원 숙소 '${facility.id}'를 고용 정원 시설로 자동 연결했습니다.`);
+}
+
+function synthesizeQuestBoard(schema, issues) {
+  if (schema.questBoard != null || !Array.isArray(schema.quests) || !schema.quests.length || !schema.traffic) return;
+  const facilities = findEntity(schema, 'facility');
+  const list = facilities && Array.isArray(facilities.instances) ? facilities.instances : [];
+  const tavern = list.find((item) => item && /tavern|주점|홀/i.test(`${item.id || ''} ${item.label || ''}`));
+  if (!tavern) return;
+  schema.questBoard = { facility: tavern.id, unlockLevel: 2, size: 3, refresh: 'daily' };
+  warn(issues, 'questBoard', `의뢰 게시판을 '${tavern.id}' Lv.2에 해금하고 하루 3종으로 자동 구성했습니다.`);
 }
 
 // 관리형(여관형: 판매 메뉴 + 객실) 스키마인데 컴파일러가 traffic 모듈을 내지 않았다면
@@ -133,7 +162,10 @@ function synthesizeTrafficModule(schema, issues) {
   const nobleAxis = axes.find((axis) => /noble|royal|귀족|왕실/i.test(axis)) || null;
 
   const modifiers = [{ type: 'staff', perStaff: 0.08, max: 0.32 }];
-  if (repLadder && villageAxis) modifiers.unshift({ type: 'ladder_rank', ladder: 'reputation', axis: villageAxis, perRank: 0.06 });
+  if (repLadder && villageAxis) modifiers.unshift({
+    type: 'ladder_rank', ladder: 'reputation', axis: villageAxis,
+    multipliers: { E: 0.6, D: 0.75, C: 0.9, B: 1, A: 1.15, S: 1.3 },
+  });
   if (kitchen) modifiers.push({ type: 'facility_level', facility: kitchen.id, perLevel: 0.05 });
 
   const segments = [
@@ -670,6 +702,10 @@ function validateResources(schema, issues) {
     if (!isObject(resource)) return error(issues, path, 'Resource must be an object.');
     for (const key of ['id', 'unit', 'min']) requireField(resource, key, `${path}.${key}`, issues);
     duplicate(ids, resource.id, `${path}.id`, issues);
+    if (resource.label == null) {
+      const labels = { gold: '골드', food: '식자재', drink: '주류', material: '재료' };
+      if (labels[resource.id]) resource.label = labels[resource.id];
+    }
     if (resource.effect != null) {
       const effect = resource.effect;
       const validPool = isObject(effect) && ['hp', 'mp', 'sp'].includes(effect.pool);
@@ -948,7 +984,7 @@ function validateQuests(schema, issues) {
         : /채집|정보|gather|intel/i.test(label) ? 15 : 25;
       warn(issues, `${path}.encounterChance`, `Default encounter chance ${encounterChance} assigned (combat schema with encounter pool).`);
     }
-    normalized.push({ id, name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : id, check, rewardTier, repeatable: Boolean(raw.repeatable), encounterChance });
+    normalized.push({ id, name: typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : id, check, rewardTier, repeatable: Boolean(raw.repeatable), encounterChance, ...(isObject(raw.requires) ? { requires: clone(raw.requires) } : {}) });
   });
   schema.quests = normalized;
 }

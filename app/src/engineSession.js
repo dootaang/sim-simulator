@@ -15,9 +15,11 @@ export const eventTypes = [
   'checkout',
   'sale',
   'purchase',
+  'purchase_batch',
   'upgrade',
   'gain_resource',
   'hire',
+  'set_wage',
   'fire',
   'scale_delta',
   'rep_event',
@@ -103,6 +105,8 @@ export function summarizeEvent(type, entry, formatMoney) {
     ? `⚖ ${entry.name} 🎲${entry.roll}${entry.tier === 'critical_success' ? ' 크리티컬' : ''} 성공 · +${formatMoney(entry.goldDelta)}`
     : `⚖ ${entry.name} 🎲${entry.roll} 실패`;
   if (entry.ok && type === 'buy_item') return `🛒 ${entry.menuName} ×${entry.qty} · -${formatMoney(-entry.goldDelta)} (보유 ${entry.owned})`;
+  if (entry.ok && type === 'purchase_batch') return `재료 일괄 구매 ${entry.items.length}종 · -${formatMoney(-entry.goldDelta)}`;
+  if (entry.ok && type === 'set_wage') return `${entry.npcId} 일급 ${formatMoney(entry.before)}→${formatMoney(entry.dailyWage)}`;
   if (entry.ok && type === 'use_item') {
     const def = ((activeSchema && activeSchema.resources) || []).find((resource) => resource.id === entry.itemId);
     return `🧪 ${(def && def.label) || entry.itemId} · ${String(entry.pool).toUpperCase()} +${entry.amount} (남은 ${entry.remaining})`;
@@ -155,6 +159,6 @@ function eventKind(type, entry) {
   if (type === 'mail_open' && entry.type === 'reward') return 'resource';
   if ((type === 'incident_choice' || entry.awaitingChoice) && entry.goldDelta != null) return 'resource';
   if (type === 'incident_choice' || entry.awaitingChoice) return 'info';
-  if (['traffic_wave', 'lodging_accept', 'buy_item', 'reward', 'upgrade', 'gain_resource', 'gold_delta', 'resource_delta', 'sale', 'purchase'].includes(type)) return 'resource';
+  if (['traffic_wave', 'lodging_accept', 'buy_item', 'reward', 'upgrade', 'gain_resource', 'gold_delta', 'resource_delta', 'sale', 'purchase', 'purchase_batch', 'set_wage'].includes(type)) return 'resource';
   return 'info';
 }

@@ -5192,6 +5192,7 @@ select:focus { border-color: var(--amber-line); }
         const res = state2.resources || {};
         if (/주류|주점|술|drink|liquor/i.test(cat) && "drink" in res) return { drink: 1 };
         if (/요리|음식|식사|food|cuisine|dish|meal/i.test(cat) && "food" in res) return { food: 1 };
+        if (/특수|special|재료|material/i.test(cat) && "material" in res) return { material: 1 };
         return {};
       }
       function entityList(schema2, type) {
@@ -5363,14 +5364,101 @@ select:focus { border-color: var(--amber-line); }
     }
   });
 
+  // ../engine/core/rng.js
+  var require_rng = __commonJS({
+    "../engine/core/rng.js"(exports, module) {
+      "use strict";
+      function hashSeed(seed) {
+        const s = String(seed == null ? 0 : seed);
+        let h = 1779033703 ^ s.length;
+        for (let i = 0; i < s.length; i++) {
+          h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
+          h = h << 13 | h >>> 19;
+        }
+        return h >>> 0;
+      }
+      function createRng2(seed) {
+        let t = hashSeed(seed);
+        return {
+          next() {
+            t += 1831565813;
+            let x = t;
+            x = Math.imul(x ^ x >>> 15, x | 1);
+            x ^= x + Math.imul(x ^ x >>> 7, x | 61);
+            return ((x ^ x >>> 14) >>> 0) / 4294967296;
+          },
+          int(min, max) {
+            const lo = Math.ceil(Number(min));
+            const hi = Math.floor(Number(max));
+            if (hi < lo) return lo;
+            return Math.floor(this.next() * (hi - lo + 1)) + lo;
+          }
+        };
+      }
+      function deriveRng(seed, key) {
+        const value = `${seed == null ? 0 : seed}:${key}`;
+        let hash = 2166136261;
+        for (let i = 0; i < value.length; i += 1) {
+          hash ^= value.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        return createRng2(hash >>> 0);
+      }
+      module.exports = { createRng: createRng2, deriveRng };
+    }
+  });
+
+  // ../engine/core/quests.js
+  var require_quests = __commonJS({
+    "../engine/core/quests.js"(exports, module) {
+      "use strict";
+      var { deriveRng } = require_rng();
+      function questRequirementMet(schema2, state2, quest) {
+        const requires = quest && quest.requires;
+        if (!requires) return true;
+        if (requires.facility) {
+          const level = Number(state2.facilities && state2.facilities[requires.facility] || 0);
+          if (level < Number(requires.level || 1)) return false;
+        }
+        return true;
+      }
+      function activeQuests(schema2, state2) {
+        const all = (schema2.quests || []).filter((quest) => questRequirementMet(schema2, state2, quest));
+        const board = schema2.questBoard;
+        if (!board) return all;
+        const facilityLevel = Number(state2.facilities && state2.facilities[board.facility] || 0);
+        if (facilityLevel < Number(board.unlockLevel || 1)) return [];
+        const pendingId = state2.pendingQuest && state2.pendingQuest.day === state2.day ? state2.pendingQuest.questId : null;
+        const candidates = all;
+        const rng2 = deriveRng(state2.seed ?? 0, `questboard/${state2.day}/${board.facility || "none"}`);
+        const shuffled = candidates.slice();
+        for (let i = shuffled.length - 1; i > 0; i -= 1) {
+          const j = rng2.int(0, i);
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        const size = Math.max(1, Math.trunc(Number(board.size) || 3));
+        const visible = shuffled.slice(0, size);
+        if (pendingId && !visible.some((quest) => quest.id === pendingId)) {
+          const pending = all.find((quest) => quest.id === pendingId);
+          if (pending) visible.push(pending);
+        }
+        return visible;
+      }
+      module.exports = { activeQuests, questRequirementMet };
+    }
+  });
+
   // ../engine/core/selectors.js
   var require_selectors = __commonJS({
     "../engine/core/selectors.js"(exports, module) {
       "use strict";
       var { entityList, findRoom, scaleById, ladderById, rankIndex } = require_utils();
+      var { activeQuests } = require_quests();
       function staffMax3(schema2, state2) {
-        const level = String(state2.facilities && state2.facilities.quarters || 1);
-        const table = schema2.gates && schema2.gates.staffMaxByQuartersLevel;
+        const staffing = schema2.staffing;
+        const facility = staffing && staffing.facility ? staffing.facility : "quarters";
+        const level = String(state2.facilities && state2.facilities[facility] || 1);
+        const table = staffing && staffing.capacityByLevel ? staffing.capacityByLevel : schema2.gates && schema2.gates.staffMaxByQuartersLevel;
         return Number(table && table[level] || 0);
       }
       function availableMenu2(schema2, state2, category) {
@@ -5420,11 +5508,12 @@ select:focus { border-color: var(--amber-line); }
         });
         if (upgrade.length) sections.push({ type: "upgrade", items: upgrade });
         const gatherResources = Object.keys(state2 && state2.resources || {}).filter((id) => id !== "gold");
-        if (schema2.gather && gatherResources.length) sections.push({ type: "gather", resources: gatherResources, scales: ["small", "large", "bulk"].filter((id) => Array.isArray(schema2.gather[id])).map((id) => ({ id, range: schema2.gather[id].slice() })) });
-        if (Array.isArray(schema2.quests) && schema2.quests.length) {
+        if (schema2.gather && !schema2.traffic && gatherResources.length) sections.push({ type: "gather", resources: gatherResources, scales: ["small", "large", "bulk"].filter((id) => Array.isArray(schema2.gather[id])).map((id) => ({ id, range: schema2.gather[id].slice() })) });
+        const visibleQuests = activeQuests(schema2, state2);
+        if (visibleQuests.length) {
           const claimed = state2.claimedRewards || [];
           const rewards = schema2.rewards && schema2.rewards.gold;
-          const items = schema2.quests.map((quest) => ({
+          const items = visibleQuests.map((quest) => ({
             id: quest.id,
             name: quest.name || quest.id,
             chance: questChance(quest.check, state2),
@@ -5507,7 +5596,8 @@ select:focus { border-color: var(--amber-line); }
         const types = new Set((schema2.entities || []).map((entry) => entry.type));
         const innLike = types.has("menuItem") && types.has("room");
         if (innLike) {
-          lines.push(`[\uC5EC\uAD00] ${state2.day}\uC77C\uCC28 \xB7 \uACE8\uB4DC ${formatNumber(state2.gold)}\uC6D0 \xB7 \uC2DD\uC790\uC7AC ${resources.food || 0}\uC778\uBD84 \xB7 \uC8FC\uB958 ${resources.drink || 0}\uC794 \xB7 \uC2DC\uC124 \uC8FC\uC810${facilities.tavern || 0}/\uC8FC\uBC29${facilities.kitchen || 0}/\uAC1D\uC2E4${facilities.room || 0}/\uC219\uC18C${facilities.quarters || 0}`);
+          const staffFacility = schema2.staffing && schema2.staffing.facility || "quarters";
+          lines.push(`[\uC5EC\uAD00] ${state2.day}\uC77C\uCC28 \xB7 \uACE8\uB4DC ${formatNumber(state2.gold)}\uC6D0 \xB7 \uC2DD\uC790\uC7AC ${resources.food || 0}\uC778\uBD84 \xB7 \uC8FC\uB958 ${resources.drink || 0}\uC794 \xB7 \uC2DC\uC124 \uC8FC\uC810${facilities.tavern || 0}/\uC8FC\uBC29${facilities.kitchen || 0}/\uAC1D\uC2E4${facilities.room || 0}/\uC219\uC18C${facilities[staffFacility] || 0}`);
           const staff = (state2.staff || []).map((item) => {
             const npc = entityList(schema2, "npc").find((entry) => entry.id === item.npcId);
             return `${npc && npc.nameKo || item.npcId}(\uC77C\uAE09 ${formatNumber(item.dailyWage)})`;
@@ -5608,7 +5698,8 @@ select:focus { border-color: var(--amber-line); }
           unpaidWagesAfter: Number(state2.unpaidWages || 0),
           checkouts: []
         };
-        settleRevenue(schema2, next, rng2, report);
+        const trafficResolved = state2.traffic && state2.traffic.day === state2.day && Object.keys(state2.traffic.resolved || {}).length > 0;
+        if (!trafficResolved) settleRevenue(schema2, next, rng2, report);
         deductWages(next, report);
         checkoutDue(next, report);
         runSettlement(schema2, next, rng2, report);
@@ -5713,7 +5804,7 @@ select:focus { border-color: var(--amber-line); }
       }
       function deductWages(state2, report) {
         repayUnpaidWages(state2, report);
-        const due = (state2.staff || []).reduce((sum, staff) => sum + Number(staff.dailyWage || 0), 0);
+        const due = (state2.staff || []).reduce((sum, staff) => sum + Math.max(0, Number(staff.dailyWage || 0)), 0);
         const paid = Math.min(Number(state2.gold || 0), due);
         state2.gold -= paid;
         state2.unpaidWages = Number(state2.unpaidWages || 0) + (due - paid);
@@ -6050,50 +6141,6 @@ select:focus { border-color: var(--amber-line); }
     }
   });
 
-  // ../engine/core/rng.js
-  var require_rng = __commonJS({
-    "../engine/core/rng.js"(exports, module) {
-      "use strict";
-      function hashSeed(seed) {
-        const s = String(seed == null ? 0 : seed);
-        let h = 1779033703 ^ s.length;
-        for (let i = 0; i < s.length; i++) {
-          h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
-          h = h << 13 | h >>> 19;
-        }
-        return h >>> 0;
-      }
-      function createRng2(seed) {
-        let t = hashSeed(seed);
-        return {
-          next() {
-            t += 1831565813;
-            let x = t;
-            x = Math.imul(x ^ x >>> 15, x | 1);
-            x ^= x + Math.imul(x ^ x >>> 7, x | 61);
-            return ((x ^ x >>> 14) >>> 0) / 4294967296;
-          },
-          int(min, max) {
-            const lo = Math.ceil(Number(min));
-            const hi = Math.floor(Number(max));
-            if (hi < lo) return lo;
-            return Math.floor(this.next() * (hi - lo + 1)) + lo;
-          }
-        };
-      }
-      function deriveRng(seed, key) {
-        const value = `${seed == null ? 0 : seed}:${key}`;
-        let hash = 2166136261;
-        for (let i = 0; i < value.length; i += 1) {
-          hash ^= value.charCodeAt(i);
-          hash = Math.imul(hash, 16777619);
-        }
-        return createRng2(hash >>> 0);
-      }
-      module.exports = { createRng: createRng2, deriveRng };
-    }
-  });
-
   // ../engine/core/questEncounter.js
   var require_questEncounter = __commonJS({
     "../engine/core/questEncounter.js"(exports, module) {
@@ -6177,7 +6224,8 @@ select:focus { border-color: var(--amber-line); }
         for (const modifier of traffic.modifiers || []) {
           if (modifier.type === "ladder_rank") {
             const rank = state2.reputation && state2.reputation[modifier.axis] && state2.reputation[modifier.axis].rank;
-            multiplier *= 1 + Number(modifier.perRank || 0) * Math.max(0, ["E", "D", "C", "B", "A", "S"].indexOf(rank));
+            const explicit = modifier.multipliers && Number(modifier.multipliers[rank]);
+            multiplier *= Number.isFinite(explicit) ? explicit : 1 + Number(modifier.perRank || 0) * Math.max(0, ["E", "D", "C", "B", "A", "S"].indexOf(rank));
           } else if (modifier.type === "staff") {
             multiplier *= 1 + Math.min(Number(modifier.perStaff || 0) * (Array.isArray(state2.staff) ? state2.staff.length : 0), Number(modifier.max || 0));
           } else if (modifier.type === "facility_level") {
@@ -6196,7 +6244,10 @@ select:focus { border-color: var(--amber-line); }
         const entity = sellsEntityType ? (schema2.entities || []).find((entry) => entry.type === sellsEntityType) : null;
         const instances = entity && entity.instances || [];
         const kitchenLevel = Number(state2.facilities && state2.facilities[traffic.kitchenFacility || "kitchen"] || 1);
-        const canSell = (item) => Number(item.requiresKitchenLevel || 1) <= kitchenLevel && Object.entries(saleConsumes(item, state2)).every(([id, qty]) => Number(state2.resources && state2.resources[id] || 0) >= Number(qty));
+        const canSell = (item) => {
+          const consumes = saleConsumes(item, state2);
+          return Number(item.requiresKitchenLevel || 1) <= kitchenLevel && Object.keys(consumes).length > 0 && Object.entries(consumes).every(([id, qty]) => Number(state2.resources && state2.resources[id] || 0) >= Number(qty));
+        };
         const weightOf = (item) => {
           const price = Number(item.price);
           return price > 0 ? 1 / Math.sqrt(price) : 1;
@@ -6371,11 +6422,22 @@ select:focus { border-color: var(--amber-line); }
         const lodging = schema2.traffic && schema2.traffic.lodging;
         const entity = lodging && (schema2.entities || []).find((item) => item.type === lodging.roomsEntity);
         const roomLevel = Number(state2.facilities && state2.facilities[lodging && lodging.roomFacility || "room"] || 1);
+        const fitScore = (room2) => {
+          const kind = String(room2.kind || "");
+          if (request.party === 1 && /1인|single/i.test(kind)) return 0;
+          if (request.party === 2 && /2인|double|twin/i.test(kind)) return 0;
+          if (request.party >= 3 && /다인|dorm|multi/i.test(kind)) return 0;
+          return 1;
+        };
         const candidates = (entity && entity.instances || []).map((room2, index) => ({ room: room2, index })).filter(({ room: room2 }) => {
           if (Number(room2.requiresRoomLevel || 1) > roomLevel) return false;
           const occupied = (state2.rooms && state2.rooms[String(room2.no)] || []).length;
           return room2.capacity == null || Number(room2.capacity) - occupied >= request.party;
-        }).sort((a, b) => Number(a.room.pricePerNight || 0) - Number(b.room.pricePerNight || 0) || a.index - b.index);
+        }).sort((a, b) => {
+          const occupiedA = (state2.rooms && state2.rooms[String(a.room.no)] || []).length;
+          const occupiedB = (state2.rooms && state2.rooms[String(b.room.no)] || []).length;
+          return fitScore(a.room) - fitScore(b.room) || Number(occupiedA > 0) - Number(occupiedB > 0) || Number(a.room.pricePerNight || 0) - Number(b.room.pricePerNight || 0) || a.index - b.index;
+        });
         if (!candidates.length) return { ok: false, reason: "no_room_available" };
         const room = candidates[0].room;
         const roomNo = String(room.no);
@@ -6444,6 +6506,7 @@ select:focus { border-color: var(--amber-line); }
       var { poolHeal } = require_pools();
       var { resolveCheck } = require_resolveCheck();
       var { rollQuestEncounter } = require_questEncounter();
+      var { activeQuests } = require_quests();
       var { rollTrafficIncident, resolveIncidentChoice, generateLodgingQueue, resolveLodgingDecision, checkMail, openMail } = require_traffic();
       var {
         clone,
@@ -6503,8 +6566,12 @@ select:focus { border-color: var(--amber-line); }
             return sale(schema2, next, params, ok, fail);
           case "purchase":
             return purchase(schema2, next, params, ok, fail);
+          case "purchase_batch":
+            return purchaseBatch(schema2, next, params, ok, fail);
           case "hire":
             return hire(schema2, next, params, ok, fail);
+          case "set_wage":
+            return setWage(next, params, ok, fail);
           case "fire":
             return fire(next, params, ok, fail);
           case "traffic_wave": {
@@ -6599,7 +6666,7 @@ select:focus { border-color: var(--amber-line); }
         if (["amount", "gold", "goldDelta", "roll", "tier"].some((key) => key in params)) return fail("quest_number_not_allowed");
         if (state2.combat && state2.combat.active) return fail("in_combat");
         const questId = params.questId == null ? "" : String(params.questId);
-        const quest = (schema2.quests || []).find((entry) => entry && entry.id === questId);
+        const quest = activeQuests(schema2, state2).find((entry) => entry && entry.id === questId);
         if (!quest) return fail("unknown_quest", questId);
         if (!quest.repeatable && (state2.claimedRewards || []).includes(questId)) return fail("already_claimed", questId);
         const range = schema2 && schema2.rewards && schema2.rewards.gold && schema2.rewards.gold[quest.rewardTier];
@@ -6799,6 +6866,7 @@ select:focus { border-color: var(--amber-line); }
         if (qty <= 0 || qty > 999) return fail("invalid_qty", qty);
         if (Number(menu.requiresKitchenLevel || 1) > Number(state2.facilities && state2.facilities.kitchen || 1)) return fail("menu_locked", params.menuName);
         const consumes = saleConsumes(menu, state2);
+        if (!Object.keys(consumes).length) return fail("missing_consumption_rule", params.menuName);
         for (const [resource, amount] of Object.entries(consumes)) {
           if (Number(state2.resources && state2.resources[resource] || 0) < Number(amount) * qty) {
             return fail("insufficient_stock", resource);
@@ -6840,14 +6908,45 @@ select:focus { border-color: var(--amber-line); }
         state2.resources[resource] = Number(state2.resources[resource] || 0) + qty;
         return ok({ resource, qty, goldDelta: -cost });
       }
+      function purchaseBatch(schema2, state2, params, ok, fail) {
+        const items = Array.isArray(params.items) ? params.items : [];
+        if (!items.length) return fail("empty_purchase_batch");
+        const normalized = [];
+        let total = 0;
+        for (const item of items) {
+          const resource = item && (item.resource || item.resourceId);
+          const qty = normalizeInt(item && item.qty, 0);
+          const def = (schema2.resources || []).find((entry) => entry.id === resource);
+          if (!def || resource === "gold") return fail("unknown_resource", resource);
+          if (qty <= 0 || qty > 999) return fail("invalid_qty", qty);
+          const cost = Number(def.basePrice || 0) * qty;
+          total += cost;
+          normalized.push({ resource, qty, cost });
+        }
+        if (Number(state2.gold || 0) < total) return fail("insufficient_gold", total);
+        state2.gold = Number(state2.gold || 0) - total;
+        for (const item of normalized) state2.resources[item.resource] = Number(state2.resources[item.resource] || 0) + item.qty;
+        return ok({ items: normalized, goldDelta: -total });
+      }
       function hire(schema2, state2, params, ok, fail) {
         const npcId = params.npcId;
         const wage = normalizeInt(params.dailyWage);
         if (!findById(schema2, "npc", npcId)) return fail("unknown_npc", npcId);
+        if (wage < 0) return fail("invalid_wage", wage);
         if ((state2.staff || []).some((staff) => staff.npcId === npcId)) return fail("already_hired", npcId);
         if ((state2.staff || []).length >= staffMax3(schema2, state2)) return fail("staff_full", npcId);
         state2.staff = (state2.staff || []).concat([{ npcId, dailyWage: wage }]);
         return ok({ npcId, dailyWage: wage });
+      }
+      function setWage(state2, params, ok, fail) {
+        const npcId = params.npcId;
+        const wage = normalizeInt(params.dailyWage);
+        if (wage < 0) return fail("invalid_wage", wage);
+        const staff = (state2.staff || []).find((item) => item.npcId === npcId);
+        if (!staff) return fail("not_hired", npcId);
+        const before = Number(staff.dailyWage || 0);
+        staff.dailyWage = wage;
+        return ok({ npcId, before, dailyWage: wage });
       }
       function fire(state2, params, ok, fail) {
         const npcId = params.npcId;
@@ -6970,10 +7069,10 @@ select:focus { border-color: var(--amber-line); }
         sale: `- sale {menuName, qty} \u2014 \uBA54\uB274 \uD310\uB9E4 \uC644\uACB0 \uC2DC. (\uC5D4\uC9C4: \uB9E4\uCD9C \uAC00\uC0B0 + \uC2DD\uC790\uC7AC \uCC28\uAC10)`,
         purchase: `- purchase {resource:"food"|"drink", qty} \u2014 \uC7AC\uB8CC \uAD6C\uB9E4. (\uC5D4\uC9C4: \uC6D0\uAC00 \uCC28\uAC10 + \uC7AC\uACE0 \uAC00\uC0B0. \uC720\uC800\uAC00 \uC0B0 \uADF8 \uD55C \uAC74\uB9CC, gold \uBCC0\uB3D9\uC744 \uB530\uB85C \uB123\uC9C0 \uB9C8\uB77C)`,
         buyItem: `- buy_item {menuName, qty} \u2014 \uC0C1\uC810 \uD488\uBAA9 \uAD6C\uB9E4 \uC644\uACB0 \uC2DC. menuName\uC740 [\uBA54\uB274 \uBAA9\uB85D] \uADF8\uB300\uB85C. \uAD6C\uB9E4\uB294 buy_item, \uD310\uB9E4\uB294 sale\uC774\uB2E4 \u2014 \uBC29\uD5A5\uC744 \uD63C\uB3D9\uD558\uC9C0 \uB9C8\uB77C. \uCC44\uC9D1(gain_resource)\uC740 [\uC0C1\uD0DC]\uC758 \uC790\uC6D0(res \uB4F1)\uC5D0\uB9CC \uC4F4\uB2E4. (\uC5D4\uC9C4: \uB300\uAE08 \uCC28\uAC10 + \uC18C\uC9C0\uD488 \uAC00\uC0B0. \uAC00\uACA9\xB7\uACE8\uB4DC\uB97C \uC4F0\uC9C0 \uB9C8\uB77C)`,
-        upgrade: `- upgrade {facility} \u2014 \uC2DC\uC124 \uD655\uC7A5. facility\uB294 \uC0C1\uD0DC\uC758 \uC2DC\uC124 id(tavern/kitchen/room/quarters). (\uC5D4\uC9C4: \uBE44\uC6A9 \uCC28\uAC10 + \uB808\uBCA8 \uC0C1\uC2B9. \uBE44\uC6A9\xB7\uACE8\uB4DC\xB7\uB808\uBCA8\uC740 \uC4F0\uC9C0 \uB9C8\uB77C)`,
+        upgrade: `- upgrade {facility} \u2014 \uC2DC\uC124 \uD655\uC7A5. facility\uB294 [\uC2DC\uC124 \uBAA9\uB85D]\uC758 id \uADF8\uB300\uB85C. (\uC5D4\uC9C4: \uBE44\uC6A9 \uCC28\uAC10 + \uB808\uBCA8 \uC0C1\uC2B9. \uBE44\uC6A9\xB7\uACE8\uB4DC\xB7\uB808\uBCA8\uC740 \uC4F0\uC9C0 \uB9C8\uB77C)`,
         gather: `- gain_resource {resource:"food"|"drink", scale:"small"|"large"|"bulk", reason} \u2014 \uC0AC\uB0E5\xB7\uCC44\uC9D1\xB7\uBD80\uC0B0\uBB3C\uB85C \uC7AC\uB8CC\uB97C \uC5BB\uC744 \uB54C. (\uC5D4\uC9C4: \uADDC\uBAA8 \uD45C\uC5D0\uC11C \uC218\uB7C9 \uACB0\uC815. qty\xB7amount\xB7gold\uB294 \uC4F0\uC9C0 \uB9C8\uB77C)`,
         room: `- checkin {roomNo, guestName, stayDays} / checkout {roomNo, guestName} \u2014 roomNo\uB294 [\uAC1D\uC2E4 \uBAA9\uB85D]\uC758 \uC2E4\uC81C \uD638\uC218(\uC608: 101). (\uC5D4\uC9C4: \uC219\uBC15\uBE44 \uC120\uBD88 \uAC00\uC0B0)`,
-        npc: `- hire {npcId, dailyWage} \u2014 \uC784\uAE08 \uD569\uC758\uAC00 \uB300\uD654\uB85C \uC644\uB8CC\uB41C \uACBD\uC6B0\uB9CC. dailyWage\uB294 \uB300\uD654\uC5D0\uC11C \uD569\uC758\uB41C \uAC12 / fire {npcId}`,
+        npc: `- hire {npcId, dailyWage} \u2014 \uC2E0\uADDC \uACE0\uC6A9 \uD569\uC758\uAC00 \uC644\uB8CC\uB41C \uACBD\uC6B0\uB9CC / set_wage {npcId, dailyWage} \u2014 \uC774\uBBF8 \uACE0\uC6A9\uB41C \uC9C1\uC6D0\uACFC \uC0C8 \uC77C\uAE09\uC5D0 \uD569\uC758\uD55C \uACBD\uC6B0 / fire {npcId}. dailyWage\uB294 \uD569\uC758\uB41C 0 \uC774\uC0C1\uC758 \uAC12\uC774\uB2E4.`,
         scale: `- scale_delta {scale:"affinity", target:npcId, direction:"+"|"-", size:"S"|"M"|"L"|"XL", reason} \u2014 \uD06C\uAE30\uB9CC \uBD84\uB958. S=\uC0AC\uC18C\uD55C \uBC30\uB824, M=\uAC70\uB9AC \uC881\uD798, L=\uAE4A\uC740 \uC720\uB300, XL=\uAD00\uACC4 \uC804\uD658\uC810. \uD55C NPC\uB2F9 \uD558\uB8E8 1\uD68C.`,
         reputation: `- rep_event {axis, category, reason} \u2014 \uD3C9\uD310 \uBCC0\uB3D9. axis\xB7category\uB294 [\uD3C9\uD310 \uCE74\uD14C\uACE0\uB9AC] \uBAA9\uB85D\uC5D0\uC11C\uB9CC. (\uC5D4\uC9C4\uC774 \uBCC0\uB3D9\uAC12 \uACB0\uC815)`,
         experience: `- exp_gain {category, reason} \u2014 \uC758\uBBF8 \uC788\uB294 \uD589\uB3D9\uC5D0\uB9CC, \uB9E4 \uD134 \uAE08\uC9C0. category\uB294 [\uACBD\uD5D8\uCE58 \uCE74\uD14C\uACE0\uB9AC] \uBAA9\uB85D\uC5D0\uC11C\uB9CC(\uBAA9\uB85D\uC5D0 \uC5C6\uC73C\uBA74 \uB0B4\uC9C0 \uB9C8\uB77C). (\uC5D4\uC9C4\uC774 \uAC12 \uACB0\uC815)`,
@@ -7012,11 +7111,11 @@ select:focus { border-color: var(--amber-line); }
 - [\uC804\uD22C] \uC0C1\uD0DC\uAC00 \uC774\uBBF8 \uD45C\uC2DC\uB418\uC5B4 \uC788\uC73C\uBA74 start_encounter\uB97C \uC808\uB300 \uB2E4\uC2DC \uB0B4\uC9C0 \uB9C8\uB77C(\uC5D4\uC9C4\uC774 \uAC70\uBD80\uD55C\uB2E4).
 - \uC801 \uCC98\uCE58\xB7\uC804\uD22C \uC885\uB8CC\xB7\uC2B9\uB9AC\uB97C \uC11C\uC0AC\uB85C \uB2E8\uC815\uD558\uC9C0 \uB9C8\uB77C. \uC801\uC758 \uC0DD\uC0AC\uB294 [\uC804\uD22C] \uC0C1\uD0DC\uC640 \uC5D4\uC9C4 \uD310\uC815\uB9CC\uC774 \uACB0\uC815\uD55C\uB2E4. \uBAA8\uB4E0 \uC801\uC774 "\uC804\uD22C\uBD88\uB2A5"\uC73C\uB85C \uD45C\uC2DC\uB41C \uB2E4\uC74C\uC5D0\uC57C end_encounter\uB97C \uB0B4\uB77C.
 - \uC804\uD22C \uC911 \uD50C\uB808\uC774\uC5B4\uAC00 \uACF5\uACA9\xB7\uC2A4\uD0AC\xB7\uBC29\uC5B4\xB7\uB3C4\uC8FC\uB97C \uC2DC\uB3C4\uD558\uBA74 \uBC18\uB4DC\uC2DC combat_action \uC0AC\uAC74\uC744 \uB0B4\uB77C. \uC0AC\uAC74 \uC5C6\uB294 \uC804\uD22C \uD589\uB3D9\uC740 \uC77C\uC5B4\uB098\uC9C0 \uC54A\uC740 \uAC83\uC774\uB2E4.`;
-      function buildSystemPrompt(schema2 = {}) {
+      function buildSystemPrompt(schema2 = {}, state2) {
         const title = schema2.meta && schema2.meta.title || "\uC2DC\uBBAC\uB808\uC774\uC158";
         const identity = isInnLike(schema2) ? `\uB2F9\uC2E0\uC740 \uD310\uD0C0\uC9C0 \uC5EC\uAD00 \uACBD\uC601 RP "${title}"\uC758 \uB0B4\uB808\uC774\uD130\uB2E4. \uD50C\uB808\uC774\uC5B4({{user}})\uB294 \uC5EC\uAD00 \uC8FC\uC778\uC774\uB2E4.` : `\uB2F9\uC2E0\uC740 "${title}"\uC758 \uB0B4\uB808\uC774\uD130\uB2E4. \uD50C\uB808\uC774\uC5B4({{user}})\uC758 \uD589\uB3D9\uC744 \uB300\uC2E0 \uACB0\uC815\uD558\uC9C0 \uC54A\uACE0 \uC138\uACC4\uC640 \uC778\uBB3C\uC758 \uBC18\uC751\uC744 \uBB18\uC0AC\uD55C\uB2E4.`;
         const sections = [identity, COMMON_PROMPT];
-        const events = eventSections(schema2);
+        const events = eventSections(schema2, state2);
         if (events.length) {
           if (hasSaleCapability(schema2)) sections.push(SALE_JSON_EXAMPLE);
           sections.push(EVENT_PROMPT_HEADER + "\n" + events.join("\n"));
@@ -7027,7 +7126,7 @@ select:focus { border-color: var(--amber-line); }
         return sections.join("\n\n");
       }
       var SYSTEM_PROMPT = buildSystemPrompt({});
-      function eventSections(schema2) {
+      function eventSections(schema2, state2) {
         const types = new Set((schema2.entities || []).map((entry) => entry.type));
         const ladders = schema2.ladders || [];
         const sections = [];
@@ -7043,7 +7142,8 @@ select:focus { border-color: var(--amber-line); }
         if (ladders.some((ladder) => ladder.id === "player_level" && ladder.sources)) sections.push(EVENT_PROMPTS.experience);
         if ((schema2.processes || []).some((process) => process.trigger === "dayEnd") || Array.isArray(schema2.settlement) && schema2.settlement.length) sections.push(EVENT_PROMPTS.dayEnd);
         if (hasConsumables(schema2)) sections.push(EVENT_PROMPTS.item);
-        if (Array.isArray(schema2.quests) && schema2.quests.length) sections.push(EVENT_PROMPTS.quest);
+        const questVisible = schema2.questBoard && state2 ? require_quests().activeQuests(schema2, state2).length > 0 : Array.isArray(schema2.quests) && schema2.quests.length;
+        if (questVisible) sections.push(EVENT_PROMPTS.quest);
         return sections;
       }
       function hasConsumables(schema2) {
@@ -7091,6 +7191,7 @@ ${lines.join("\n")}`;
         const npcList = npcListText(schema2);
         const menuList = menuListText(schema2, state2);
         const roomList = roomListText(schema2);
+        const facilityList = facilityListText(schema2);
         const skillList = combatCapable ? skillListText(schema2) : "";
         const itemList = consumableListText(schema2, state2);
         const questList = questListText(schema2, state2);
@@ -7111,6 +7212,7 @@ ${lines.join("\n")}`;
           npcList ? "[NPC \uBAA9\uB85D]\n" + npcList + "\n" : "",
           menuList ? "[\uBA54\uB274 \uBAA9\uB85D]\n" + menuList + "\n" : "",
           roomList ? "[\uAC1D\uC2E4 \uBAA9\uB85D]\n" + roomList + "\n" : "",
+          facilityList ? "[\uC2DC\uC124 \uBAA9\uB85D]\n" + facilityList + "\n" : "",
           combatCapable && skillList ? "[\uC2A4\uD0AC \uBAA9\uB85D]\n" + skillList + "\n" : "",
           itemList ? "[\uC18C\uBAA8\uD488 \uBAA9\uB85D]\n" + itemList + "\n" : "",
           questList ? "[\uC758\uB8B0 \uBAA9\uB85D]\n" + questList + "\n" : "",
@@ -7130,6 +7232,7 @@ ${lines.join("\n")}`;
           npcList: estimateTokens2(npcList),
           menuList: estimateTokens2(menuList),
           roomList: estimateTokens2(roomList),
+          facilityList: estimateTokens2(facilityList),
           items: estimateTokens2(itemList),
           lore: estimateTokens2(loreText || "")
         };
@@ -7138,7 +7241,7 @@ ${lines.join("\n")}`;
         if (combatCapable) injectedParts.skills = estimateTokens2(skillList);
         const injectedTokens = Object.values(injectedParts).reduce((sum, value) => sum + value, 0);
         return {
-          system: buildSystemPrompt(schema2),
+          system: buildSystemPrompt(schema2, state2),
           messages: messages2,
           injectedTokens,
           injectedParts,
@@ -7146,11 +7249,13 @@ ${lines.join("\n")}`;
           injectedText: { state: stateText, verdicts: verdictText, npc: npcText, repCats, npcList, items: itemList, ...questList ? { quests: questList } : {}, lore: loreText }
         };
       }
-      function buildNarrationPrompt2({ schema: schema2, state: state2, results, flavorText, recentMessages, emotions: emotions2, recentChanges }) {
+      function buildNarrationPrompt2({ schema: schema2, state: state2, results, flavorText, recentMessages, emotions: emotions2, recentChanges, decisionContext, eventType }) {
         const stateText = summarize3(schema2, state2);
         const combatActive = !!(state2.combat && state2.combat.active);
         const combatLine = stateText.split("\n").find((line) => line.startsWith("[\uC804\uD22C]")) || "[\uC804\uD22C] \uC885\uB8CC\uB428";
-        const managementLines = stateText.split("\n").filter((line) => /^\[(자원|여관|소지품)\]/.test(line)).slice(0, 2).join("\n") || "\uC0C1\uD0DC \uBCC0\uD654 \uC5C6\uC74C";
+        const managementLines = stateText.split("\n").filter((line) => /^\[(자원|여관|직원|객실|소지품)\]/.test(line)).slice(0, 5).join("\n") || "\uC0C1\uD0DC \uBCC0\uD654 \uC5C6\uC74C";
+        const narrationNpcIds = (state2.staff || []).map((item) => item.npcId);
+        const narrationNpcText = narrationNpcIds.map((id) => npcSummary3(schema2, state2, id)).filter(Boolean).join("\n");
         const resultText = (results || []).map((result) => typeof result === "string" ? result : String(result && result.text || "")).filter(Boolean).join("\n");
         const changesText = formatRecentChanges(recentChanges);
         const context = [
@@ -7160,7 +7265,10 @@ ${lines.join("\n")}`;
           "",
           changesText,
           changesText ? "" : "",
+          decisionContext || "",
           combatActive ? combatLine : managementLines,
+          narrationNpcText ? `[\uC9C1\uC6D0 \uAD00\uACC4 \uC0C1\uD0DC]
+${narrationNpcText}` : "",
           flavorText ? `\uD50C\uB808\uC774\uC5B4\uC758 \uC5F0\uCD9C \uC758\uB3C4: ${flavorText}` : "",
           Array.isArray(emotions2) && emotions2.length ? `\uC11C\uC0AC \uB4A4\uC5D0 \`\`\`json {"emotion":"\uAC12"} \`\`\` \uBE14\uB85D\uC744 \uB367\uBD99\uC5EC\uB3C4 \uB41C\uB2E4. \uAC12\uC740 \uBC18\uB4DC\uC2DC \uB2E4\uC74C \uC911 \uD558\uB098: ${emotions2.join(", ")}` : ""
         ].filter(Boolean).join("\n");
@@ -7168,14 +7276,16 @@ ${lines.join("\n")}`;
         const injectedState = combatActive ? combatLine : managementLines;
         const injectedParts = { state: estimateTokens2(injectedState), results: estimateTokens2(resultText), flavor: estimateTokens2(flavorText || "") };
         return {
-          system: buildSystemPrompt(schema2).split("\n\n[\uC808\uB300 \uADDC\uCE59]")[0] + `
+          system: buildSystemPrompt(schema2, state2).split("\n\n[\uC808\uB300 \uADDC\uCE59]")[0] + `
 
-\uC544\uB798 [\uD655\uC815\uB41C${combatActive ? " \uC804\uD22C" : ""} \uACB0\uACFC]\uB294 \uC5D4\uC9C4\uC774 \uC774\uBBF8 \uACC4\uC0B0\xB7\uBC18\uC601\uD55C \uC0AC\uC2E4\uC774\uB2E4. \uC774 \uC218\uCE58${combatActive ? "\xB7\uC0DD\uC0AC" : ""}\uB97C \uADF8\uB300\uB85C \uB530\uB77C \uD55C\uAD6D\uC5B4\uB85C \uC9E7\uAC8C(250\uC790 \uB0B4\uC678) \uC11C\uC0AC\uD654\uD558\uB77C. \uACB0\uACFC\uB97C \uBC14\uAFB8\uAC70\uB098 \uC0C8 \uC0AC\uAC74 JSON\uC744 \uB0B4\uC9C0 \uB9C8\uB77C.`,
+\uC544\uB798 [\uD655\uC815\uB41C${combatActive ? " \uC804\uD22C" : ""} \uACB0\uACFC]\uB294 \uC5D4\uC9C4\uC774 \uC774\uBBF8 \uACC4\uC0B0\xB7\uBC18\uC601\uD55C \uC0AC\uC2E4\uC774\uB2E4. \uC774 \uC218\uCE58${combatActive ? "\xB7\uC0DD\uC0AC" : ""}\uB97C \uADF8\uB300\uB85C \uB530\uB77C \uD55C\uAD6D\uC5B4\uB85C \uC9E7\uAC8C(250\uC790 \uB0B4\uC678) \uC11C\uC0AC\uD654\uD558\uB77C. \uACB0\uACFC\uB97C \uBC14\uAFB8\uAC70\uB098 \uC0C8 \uC0AC\uAC74 JSON\uC744 \uB0B4\uC9C0 \uB9C8\uB77C. \uC5D4\uC9C4 \uACB0\uACFC\uC5D0 \uC5C6\uB294 \uB0A0\uC9DC\xB7\uC2DC\uAC04 \uACBD\uACFC, \uAC70\uB798, \uC7AC\uACE0 \uBCC0\uD654, \uD30C\uACAC \uACFC\uC815, \uC9C1\uC6D0 \uC2E0\uBD84\uC744 \uCC3D\uC791\uD558\uC9C0 \uB9C8\uB77C.${eventType === "day_end" ? "" : " \uB0A0\uC9DC\uC640 \uC77C\uCC28\uB97C \uC9C4\uD589\uC2DC\uD0A4\uC9C0 \uB9C8\uB77C."}${decisionContext ? " \uD654\uBA74\uC758 \uACB0\uC815 \uCE74\uB4DC\uAC00 \uC120\uD0DD\uC9C0\uB97C \uB2F4\uB2F9\uD55C\uB2E4. \uBCF8\uBB38\uC5D0 \uB300\uC751 \uBC29\uBC95\uC744 \uC81C\uC548\xB7\uC5F4\uAC70\uD558\uAC70\uB098 \uC0AC\uC6A9\uC790\uC5D0\uAC8C \uBB34\uC5C7\uC744 \uC120\uD0DD\uD560\uC9C0 \uBB3B\uC9C0 \uB9C8\uB77C." : ""}`,
           messages: messages2,
           injectedTokens: Object.values(injectedParts).reduce((sum, value) => sum + value, 0),
           injectedParts,
-          relatedNpcIds: [],
-          injectedText: { state: injectedState, results: resultText, flavorText: flavorText || "" }
+          relatedNpcIds: narrationNpcIds,
+          injectedText: { state: injectedState, results: resultText, flavorText: flavorText || "" },
+          timeoutMs: 3e4,
+          retries429: 1
         };
       }
       function formatRecentChanges(recentChanges) {
@@ -7200,8 +7310,10 @@ ${lines.join("\n")}`;
         let events = [];
         let emotion;
         let jsonBlock = null;
+        let removeBlock = null;
         if (blocks.length) {
           jsonBlock = blocks[blocks.length - 1][1].trim();
+          removeBlock = blocks[blocks.length - 1][0];
           try {
             const parsed = JSON.parse(jsonBlock);
             events = Array.isArray(parsed.events) ? parsed.events : [];
@@ -7209,11 +7321,32 @@ ${lines.join("\n")}`;
           } catch (_) {
             events = [];
           }
+        } else {
+          const terminal = terminalJson(source);
+          if (terminal) {
+            jsonBlock = terminal.json;
+            removeBlock = terminal.raw;
+            events = Array.isArray(terminal.parsed.events) ? terminal.parsed.events : [];
+            if (typeof terminal.parsed.emotion === "string") emotion = terminal.parsed.emotion;
+          }
         }
         const validEvents = events.filter((event) => event && typeof event.id === "string" && event.id.trim());
         const dropped = events.length - validEvents.length;
-        const rawNarrative = jsonBlock ? source.replace(blocks[blocks.length - 1][0], "").trim() : source.trim();
+        const rawNarrative = jsonBlock ? source.slice(0, source.lastIndexOf(removeBlock)).trim() : source.trim();
         return { narrative: stripRisuTags(rawNarrative), events: validEvents, dropped, ...emotion !== void 0 ? { emotion } : {} };
+      }
+      function terminalJson(source) {
+        const starts = [];
+        for (let i = 0; i < source.length; i += 1) if (source[i] === "{" && (i === 0 || source[i - 1] === "\n")) starts.push(i);
+        for (let i = starts.length - 1; i >= 0; i -= 1) {
+          const raw = source.slice(starts[i]).trim();
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === "object" && (Array.isArray(parsed.events) || typeof parsed.emotion === "string")) return { raw, json: raw, parsed };
+          } catch (_) {
+          }
+        }
+        return null;
       }
       function stripRisuTags(text) {
         return String(text || "").replace(/\[[^\]\n]*::[^\]\n]*\]/g, "").replace(/<img\b[^>]*>/gi, "").replace(/\{\{[^}]*\}\}/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
@@ -7264,6 +7397,10 @@ ${lines.join("\n")}`;
         const block = (schema2.entities || []).find((entry) => entry.type === "room");
         const rooms = block && Array.isArray(block.instances) ? block.instances : [];
         return rooms.map((r) => `${r.no}\uD638${r.kind ? ` (${r.kind})` : ""}${r.pricePerNight != null ? ` ${Number(r.pricePerNight).toLocaleString("ko-KR")}\uC6D0/\uBC15` : ""}`).join("\n");
+      }
+      function facilityListText(schema2) {
+        const block = (schema2.entities || []).find((entry) => entry.type === "facility");
+        return (block && block.instances || []).map((facility) => `${facility.id}: ${facility.label || facility.id}`).join("\n");
       }
       function skillListText(schema2) {
         return Object.entries(schema2.skills || {}).map(([id, skill]) => `${id}: ${skill.name || id} (${skill.pool || "mp"} ${skill.cost || 0}, \uC704\uB825 ${skill.power || 0})`).join("\n");
@@ -7460,17 +7597,17 @@ ${row3.entry.content}`).join("\n\n");
         if (def.kind === "vertex") return callVertex(def, cfg, prompt);
         const req = buildRequest(def, cfg, prompt);
         const bodyText = await requestWithRetry(req, async (request) => {
-          const response = await fetch(request.url, {
+          const response = await fetchWithTimeout(request.url, {
             method: request.method,
             headers: request.headers,
             body: request.body
-          });
+          }, prompt.timeoutMs);
           return {
             status: response.status,
             bodyText: await response.text(),
             retryAfterMs: retryAfterMs(response.headers.get("retry-after"))
           };
-        }, { retryNetwork: false });
+        }, { retryNetwork: false, retries429: prompt.retries429 });
         return parseResponse(req.kind, JSON.parse(bodyText), prompt.allowTruncated);
       }
       async function callVertex(def, cfg, prompt) {
@@ -7491,28 +7628,28 @@ ${row3.entry.content}`).join("\n\n");
         };
         let refreshed = false;
         const bodyText = await requestWithRetry(req, async (request) => {
-          let response = await fetch(request.url, {
+          let response = await fetchWithTimeout(request.url, {
             method: request.method,
             headers: request.headers,
             body: request.body
-          });
+          }, prompt.timeoutMs);
           if (response.status === 401 && !refreshed) {
             refreshed = true;
             invalidateVertexAccessToken(cfg.apiKey);
             const fresh = await getVertexAccessToken(cfg.apiKey);
             request.headers.Authorization = `Bearer ${fresh.accessToken}`;
-            response = await fetch(request.url, {
+            response = await fetchWithTimeout(request.url, {
               method: request.method,
               headers: request.headers,
               body: request.body
-            });
+            }, prompt.timeoutMs);
           }
           return {
             status: response.status,
             bodyText: await response.text(),
             retryAfterMs: retryAfterMs(response.headers.get("retry-after"))
           };
-        }, { retryNetwork: false });
+        }, { retryNetwork: false, retries429: prompt.retries429 });
         return parseVertexResponse(JSON.parse(bodyText), prompt.allowTruncated);
       }
       function buildVertexBody(prompt) {
@@ -7623,6 +7760,23 @@ ${row3.entry.content}`).join("\n\n");
             continue;
           }
           throw new Error(errorText(result.status, result.bodyText));
+        }
+      }
+      async function fetchWithTimeout(url, init, timeoutMs) {
+        const ms = Math.max(1e3, Number(timeoutMs) || 45e3);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        try {
+          return await fetch(url, { ...init, signal: controller.signal });
+        } catch (err) {
+          if (err && err.name === "AbortError") {
+            const timeout = new Error(`\uC11C\uC0AC \uC0DD\uC131\uC774 ${Math.round(ms / 1e3)}\uCD08\uB97C \uB118\uC5B4 \uC911\uB2E8\uB410\uC2B5\uB2C8\uB2E4. \uC5D4\uC9C4 \uACB0\uACFC\uB294 \uC720\uC9C0\uB429\uB2C8\uB2E4.`);
+            timeout.simbotSafe = true;
+            throw timeout;
+          }
+          throw err;
+        } finally {
+          clearTimeout(timer);
         }
       }
       function errorText(status, bodyText) {
@@ -8552,6 +8706,7 @@ ${row3.content}`;
         validateSkills(schema2, issues);
         validateLadders(schema2, issues);
         validateEntities(schema2, issues);
+        synthesizeStaffing(schema2, issues);
         validateFormulas(schema2, issues);
         validateProcesses(schema2, issues);
         validateRewards(schema2, issues);
@@ -8562,6 +8717,7 @@ ${row3.content}`;
         validateSettlement(schema2, issues);
         synthesizeTrafficModule(schema2, issues);
         validateTraffic(schema2, issues);
+        synthesizeQuestBoard(schema2, issues);
         validateEvents(schema2, issues);
         return { schema: schema2, issues };
       }
@@ -8604,6 +8760,31 @@ ${row3.content}`;
             if (isObject(modifier) && renames[modifier.facility]) modifier.facility = renames[modifier.facility];
           }
         }
+        if (isObject(schema2.staffing) && renames[schema2.staffing.facility]) schema2.staffing.facility = renames[schema2.staffing.facility];
+        if (isObject(schema2.questBoard) && renames[schema2.questBoard.facility]) schema2.questBoard.facility = renames[schema2.questBoard.facility];
+      }
+      function synthesizeStaffing(schema2, issues) {
+        if (isObject(schema2.staffing)) return;
+        const npcs2 = findEntity(schema2, "npc");
+        const facilities = findEntity(schema2, "facility");
+        if (!npcs2 || !Array.isArray(npcs2.instances) || !npcs2.instances.length || !facilities || !Array.isArray(facilities.instances)) return;
+        const facility = facilities.instances.find((item) => item && /quarter|숙소|기숙/i.test(`${item.id || ""} ${item.label || ""}`));
+        if (!facility) return;
+        const max = Math.max(1, Math.trunc(Number(facility.maxLevel) || 1));
+        const legacy = schema2.gates && schema2.gates.staffMaxByQuartersLevel;
+        const capacityByLevel = {};
+        for (let level = 1; level <= max; level += 1) capacityByLevel[String(level)] = Math.max(1, Math.trunc(Number(legacy && legacy[String(level)]) || level));
+        schema2.staffing = { facility: facility.id, capacityByLevel };
+        warn(issues, "staffing", `\uC9C1\uC6D0 \uC219\uC18C '${facility.id}'\uB97C \uACE0\uC6A9 \uC815\uC6D0 \uC2DC\uC124\uB85C \uC790\uB3D9 \uC5F0\uACB0\uD588\uC2B5\uB2C8\uB2E4.`);
+      }
+      function synthesizeQuestBoard(schema2, issues) {
+        if (schema2.questBoard != null || !Array.isArray(schema2.quests) || !schema2.quests.length || !schema2.traffic) return;
+        const facilities = findEntity(schema2, "facility");
+        const list = facilities && Array.isArray(facilities.instances) ? facilities.instances : [];
+        const tavern = list.find((item) => item && /tavern|주점|홀/i.test(`${item.id || ""} ${item.label || ""}`));
+        if (!tavern) return;
+        schema2.questBoard = { facility: tavern.id, unlockLevel: 2, size: 3, refresh: "daily" };
+        warn(issues, "questBoard", `\uC758\uB8B0 \uAC8C\uC2DC\uD310\uC744 '${tavern.id}' Lv.2\uC5D0 \uD574\uAE08\uD558\uACE0 \uD558\uB8E8 3\uC885\uC73C\uB85C \uC790\uB3D9 \uAD6C\uC131\uD588\uC2B5\uB2C8\uB2E4.`);
       }
       function synthesizeTrafficModule(schema2, issues) {
         if (schema2.traffic != null) return;
@@ -8643,7 +8824,12 @@ ${row3.content}`;
         const villageAxis = axes.find((axis) => /village|마을/i.test(axis)) || axes[0] || null;
         const nobleAxis = axes.find((axis) => /noble|royal|귀족|왕실/i.test(axis)) || null;
         const modifiers = [{ type: "staff", perStaff: 0.08, max: 0.32 }];
-        if (repLadder && villageAxis) modifiers.unshift({ type: "ladder_rank", ladder: "reputation", axis: villageAxis, perRank: 0.06 });
+        if (repLadder && villageAxis) modifiers.unshift({
+          type: "ladder_rank",
+          ladder: "reputation",
+          axis: villageAxis,
+          multipliers: { E: 0.6, D: 0.75, C: 0.9, B: 1, A: 1.15, S: 1.3 }
+        });
         if (kitchen) modifiers.push({ type: "facility_level", facility: kitchen.id, perLevel: 0.05 });
         const segments = [
           { id: "traveler", label: "\uC5EC\uD589\uC790", weight: 4, party: [1, 2], stay: { "1": 0.6, "2": 0.3, "3": 0.1 } },
@@ -9165,6 +9351,10 @@ ${row3.content}`;
           if (!isObject(resource)) return error(issues, path, "Resource must be an object.");
           for (const key of ["id", "unit", "min"]) requireField(resource, key, `${path}.${key}`, issues);
           duplicate(ids, resource.id, `${path}.id`, issues);
+          if (resource.label == null) {
+            const labels = { gold: "\uACE8\uB4DC", food: "\uC2DD\uC790\uC7AC", drink: "\uC8FC\uB958", material: "\uC7AC\uB8CC" };
+            if (labels[resource.id]) resource.label = labels[resource.id];
+          }
           if (resource.effect != null) {
             const effect = resource.effect;
             const validPool = isObject(effect) && ["hp", "mp", "sp"].includes(effect.pool);
@@ -9417,7 +9607,7 @@ ${row3.content}`;
             encounterChance = /던전|토벌|현상|호위|구출|dungeon|bounty|subjugat|escort|rescue/i.test(label) ? 35 : /채집|정보|gather|intel/i.test(label) ? 15 : 25;
             warn(issues, `${path}.encounterChance`, `Default encounter chance ${encounterChance} assigned (combat schema with encounter pool).`);
           }
-          normalized.push({ id, name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : id, check, rewardTier, repeatable: Boolean(raw.repeatable), encounterChance });
+          normalized.push({ id, name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : id, check, rewardTier, repeatable: Boolean(raw.repeatable), encounterChance, ...isObject(raw.requires) ? { requires: clone(raw.requires) } : {} });
         });
         schema2.quests = normalized;
       }
@@ -10290,9 +10480,11 @@ ${Array.from(extras).join(" ")}` : text;
     "checkout",
     "sale",
     "purchase",
+    "purchase_batch",
     "upgrade",
     "gain_resource",
     "hire",
+    "set_wage",
     "fire",
     "scale_delta",
     "rep_event",
@@ -10365,6 +10557,8 @@ ${Array.from(extras).join(" ")}` : text;
     if (entry.ok && type === "traffic_wave" && entry.text) return entry.text;
     if (entry.ok && type === "attempt_quest") return entry.success ? `\u2696 ${entry.name} \u{1F3B2}${entry.roll}${entry.tier === "critical_success" ? " \uD06C\uB9AC\uD2F0\uCEEC" : ""} \uC131\uACF5 \xB7 +${formatMoney3(entry.goldDelta)}` : `\u2696 ${entry.name} \u{1F3B2}${entry.roll} \uC2E4\uD328`;
     if (entry.ok && type === "buy_item") return `\u{1F6D2} ${entry.menuName} \xD7${entry.qty} \xB7 -${formatMoney3(-entry.goldDelta)} (\uBCF4\uC720 ${entry.owned})`;
+    if (entry.ok && type === "purchase_batch") return `\uC7AC\uB8CC \uC77C\uAD04 \uAD6C\uB9E4 ${entry.items.length}\uC885 \xB7 -${formatMoney3(-entry.goldDelta)}`;
+    if (entry.ok && type === "set_wage") return `${entry.npcId} \uC77C\uAE09 ${formatMoney3(entry.before)}\u2192${formatMoney3(entry.dailyWage)}`;
     if (entry.ok && type === "use_item") {
       const def = (activeSchema && activeSchema.resources || []).find((resource) => resource.id === entry.itemId);
       return `\u{1F9EA} ${def && def.label || entry.itemId} \xB7 ${String(entry.pool).toUpperCase()} +${entry.amount} (\uB0A8\uC740 ${entry.remaining})`;
@@ -10414,7 +10608,7 @@ ${Array.from(extras).join(" ")}` : text;
     if (type === "mail_open" && entry.type === "reward") return "resource";
     if ((type === "incident_choice" || entry.awaitingChoice) && entry.goldDelta != null) return "resource";
     if (type === "incident_choice" || entry.awaitingChoice) return "info";
-    if (["traffic_wave", "lodging_accept", "buy_item", "reward", "upgrade", "gain_resource", "gold_delta", "resource_delta", "sale", "purchase"].includes(type)) return "resource";
+    if (["traffic_wave", "lodging_accept", "buy_item", "reward", "upgrade", "gain_resource", "gold_delta", "resource_delta", "sale", "purchase", "purchase_batch", "set_wage"].includes(type)) return "resource";
     return "info";
   }
 
@@ -10915,6 +11109,7 @@ ${Array.from(extras).join(" ")}` : text;
   var lodgingSelection = /* @__PURE__ */ new Set();
   var lodgingSelectionDay = null;
   var ledgerDeltas = [];
+  var purchaseDraft = {};
   function primaryCharacter(parsed, lore, groups = buildNpcClusters(parsed, lore).groups) {
     const name = String(parsed && parsed.name || "\uC2DC\uBBAC\uBD07");
     const exact = groups.find((group2) => group2.charId.toLowerCase() === name.toLowerCase());
@@ -10969,6 +11164,7 @@ ${Array.from(extras).join(" ")}` : text;
       lodgingSelection = /* @__PURE__ */ new Set();
       lodgingSelectionDay = null;
       ledgerDeltas = [];
+      purchaseDraft = {};
       detachSheetKeyHandler();
       npcGroups = buildNpcClusters(ctx.parsed, ctx.lore).groups;
       character = primaryCharacter(ctx.parsed, ctx.lore, npcGroups);
@@ -11224,7 +11420,10 @@ ${Array.from(extras).join(" ")}` : text;
     const actions = el2("div", "play-decision-actions");
     const accept = button2("\uC120\uD0DD\uD55C \uBB38\uC758 \uBC1B\uAE30", "primary-btn");
     accept.disabled = busy || !pending.some((request) => lodgingSelection.has(request.id));
-    accept.addEventListener("click", () => runManagementBatch(pending.filter((request) => lodgingSelection.has(request.id)).map((request) => ({ event: { id: "lodging_accept", params: { requestId: request.id } }, requestName: request.name })), input2, ctx, render2));
+    accept.addEventListener("click", () => runManagementBatch(pending.map((request) => ({
+      event: { id: lodgingSelection.has(request.id) ? "lodging_accept" : "lodging_reject", params: { requestId: request.id } },
+      requestName: request.name
+    })), input2, ctx, render2));
     const reject = button2("\uC804\uCCB4 \uAC70\uC808", "secondary-btn");
     reject.disabled = busy;
     reject.addEventListener("click", () => runManagementBatch(pending.map((request) => ({ event: { id: "lodging_reject", params: { requestId: request.id } }, requestName: request.name })), input2, ctx, render2));
@@ -11630,9 +11829,9 @@ ${Array.from(extras).join(" ")}` : text;
       if (section.type === "traffic" && section.mail) for (const letter of section.mail.letters.filter((item) => item.type === "reward")) {
         addButton(`\u{1F4E8} ${letter.axis} \uAC10\uC0AC \uC120\uBB3C \uAC1C\uBD09`, { id: "mail_open", params: { mailId: letter.id } });
       }
-      if (section.type === "sell" || section.type === "buy") for (const item of section.items) {
+      if (section.type === "buy") for (const item of section.items) {
         const owned = section.type === "buy" && item.owned ? ` \xB7 \uBCF4\uC720 ${item.owned}` : "";
-        addButton(`${section.type === "sell" ? "\uD310\uB9E4" : "\uAD6C\uB9E4"} \xB7 ${item.name} (${formatMoney2(item.price)})${owned}`, { id: section.type === "buy" ? "buy_item" : "sale", params: { menuName: item.name, qty: 1 } }, section.type === "buy" && !item.affordable);
+        addButton(`\uAD6C\uB9E4 \xB7 ${item.name} (${formatMoney2(item.price)})${owned}`, { id: "buy_item", params: { menuName: item.name, qty: 1 } }, !item.affordable);
       }
       if (section.type === "purchase") for (const item of section.items) {
         const line = el2("div", "purchase-stepper");
@@ -11645,12 +11844,13 @@ ${Array.from(extras).join(" ")}` : text;
         qty.max = "999";
         qty.value = "1";
         const plus = button2("+", "secondary-btn");
-        const control = button2("", "secondary-btn");
+        const subtotal = el2("span", "purchase-subtotal");
         const readQty = () => Math.max(1, Math.min(999, Math.round(Number(qty.value) || 1)));
+        qty.value = String(purchaseDraft[item.id] || 1);
         const update = () => {
           const value = readQty();
-          control.textContent = `\uAD6C\uB9E4 (\uD569\uACC4 ${formatMoney2(Number(item.basePrice || 0) * value)})`;
-          control.disabled = busy || Number(getEngineState().gold || 0) < Number(item.basePrice || 0) * value;
+          purchaseDraft[item.id] = value;
+          subtotal.textContent = formatMoney2(Number(item.basePrice || 0) * value);
           return value;
         };
         const clamp = () => {
@@ -11664,17 +11864,29 @@ ${Array.from(extras).join(" ")}` : text;
         minus.addEventListener("click", () => {
           qty.value = String(readQty() - 1);
           clamp();
+          render2();
         });
         plus.addEventListener("click", () => {
           qty.value = String(readQty() + 1);
           clamp();
+          render2();
         });
         qty.addEventListener("input", update);
-        qty.addEventListener("change", clamp);
-        control.addEventListener("click", () => runLedgerAction({ id: "purchase", params: { resource: item.id, qty: clamp() } }, render2));
+        qty.addEventListener("change", () => {
+          clamp();
+          render2();
+        });
         clamp();
-        line.append(name, minus, qty, plus, control);
+        line.append(name, minus, qty, plus, subtotal);
         sectionNode.append(line);
+      }
+      if (section.type === "purchase") {
+        const items = section.items.map((item) => ({ resource: item.id, qty: Math.max(1, Math.min(999, Number(purchaseDraft[item.id]) || 1)) }));
+        const total = items.reduce((sum, item) => {
+          const def = section.items.find((row3) => row3.id === item.resource);
+          return sum + Number(def && def.basePrice || 0) * item.qty;
+        }, 0);
+        addButton(`\uC120\uD0DD \uC218\uB7C9 \uC77C\uAD04 \uAD6C\uB9E4 \xB7 ${formatMoney2(total)}`, { id: "purchase_batch", params: { items } }, Number(getEngineState().gold || 0) < total);
       }
       if (section.type === "upgrade") for (const item of section.items) {
         addButton(item.maxed ? `${item.label} Lv.${item.level} (\uCD5C\uB300)` : `${item.label} Lv.${item.level}\u2192${item.level + 1} (${formatMoney2(item.nextCost)})`, { id: "upgrade", params: { facility: item.id } }, item.maxed || !item.affordable);
@@ -11720,8 +11932,9 @@ ${Array.from(extras).join(" ")}` : text;
     appendEventChips(event.id, result.entries, chips, resultTexts);
     const pending = { role: "assistant", content: "", chips };
     try {
-      const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), recentChanges });
+      const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), recentChanges, eventType: event.id, decisionContext: decisionContextFor(event.id, result.entries) });
       lastPrompt = prompt;
+      pending.npcIds = promptNpcIds(prompt);
       const parsed = parseAssistantResponse(await callProvider(providerConfig(settings), prompt));
       applyEmotion(parsed.emotion);
       const ignored = parsed.events.length + parsed.dropped;
@@ -11759,8 +11972,9 @@ ${Array.from(extras).join(" ")}` : text;
     }
     const pending = { role: "assistant", content: "", chips };
     try {
-      const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), recentChanges });
+      const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), recentChanges, eventType: "lodging_batch" });
       lastPrompt = prompt;
+      pending.npcIds = promptNpcIds(prompt);
       const parsed = parseAssistantResponse(await callProvider(providerConfig(settings), prompt));
       applyEmotion(parsed.emotion);
       const ignored = parsed.events.length + parsed.dropped;
@@ -11775,6 +11989,20 @@ ${Array.from(extras).join(" ")}` : text;
       busy = false;
       render2();
     }
+  }
+  function decisionContextFor(type, entries) {
+    if (type === "traffic_wave") {
+      const entry = (entries || []).find((item) => item.awaitingChoice && item.incident);
+      if (entry) return `[\uD654\uBA74\uC758 \uC2E4\uC81C \uACB0\uC815 \uCE74\uB4DC]
+\uC0AC\uAC74: ${entry.incident.label} \u2014 ${entry.incident.desc || ""}
+\uC2E4\uC81C \uC120\uD0DD\uC9C0: ${(entry.choices || []).map((choice) => choice.label).join(" / ")}`;
+    }
+    if (type === "lodging_review") {
+      const entry = (entries || [])[0];
+      if (entry && Array.isArray(entry.requests)) return `[\uD654\uBA74\uC758 \uC2E4\uC81C \uC219\uBC15 \uBB38\uC758]
+${entry.requests.map((request) => `${request.name} \xB7 ${request.party}\uBA85 \xB7 ${request.stayDays}\uBC15`).join("\n")}`;
+    }
+    return "";
   }
   function renderSettings(render2) {
     const details = el2("details", "play-settings");

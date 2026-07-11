@@ -42,7 +42,7 @@ test('buy_item is schema-priced, inventory-backed, guarded, and consumes no rng'
   assert.equal(rngCalls, 0);
   state = bought.state;
   assert.match(summarize(shop, state), /\[소지품\] 서약반지 ×2/);
-  assert.deepEqual(availableManagement(shop, state).sections.map((section) => section.type), ['traffic', 'sell', 'buy', 'purchase', 'upgrade', 'gather', 'day_end']);
+  assert.deepEqual(availableManagement(shop, state).sections.map((section) => section.type), ['traffic', 'sell', 'buy', 'purchase', 'upgrade', 'day_end']);
   state.combat = { active: true };
   assert.deepEqual(availableManagement(shop, state), { sections: [] });
 });
@@ -73,6 +73,30 @@ test('staffMax blocks hire beyond quarters capacity', () => {
   assert.equal(result.log[0].ok, false);
   assert.equal(result.log[0].reason, 'staff_full');
   assert.equal(result.state.staff.length, 1);
+});
+
+test('staffing binding supports compiled quarter id, wage changes, and rejects negative wages', () => {
+  const source = JSON.parse(JSON.stringify(schema));
+  source.staffing = { facility: 'quarter', capacityByLevel: { 1: 1, 2: 2 } };
+  const state = createState(source); state.facilities.quarter = 1;
+  assert.equal(staffMax(source, state), 1);
+  const hired = applyEvent(source, state, { id: 'hire', params: { npcId: 'silvia', dailyWage: 10000 } }, { int: () => 1 });
+  assert.equal(hired.log[0].ok, true);
+  const changed = applyEvent(source, hired.state, { id: 'set_wage', params: { npcId: 'silvia', dailyWage: 15000 } }, { int: () => 1 });
+  assert.equal(changed.state.staff[0].dailyWage, 15000);
+  assert.equal(applyEvent(source, changed.state, { id: 'set_wage', params: { npcId: 'silvia', dailyWage: -1 } }, { int: () => 1 }).log[0].reason, 'invalid_wage');
+});
+
+test('purchase_batch is atomic and purchases every requested resource', () => {
+  const state = createState(schema);
+  const bought = applyEvent(schema, state, { id: 'purchase_batch', params: { items: [{ resource: 'food', qty: 20 }, { resource: 'drink', qty: 20 }] } }, { int: () => 1 });
+  assert.equal(bought.state.resources.food, 40);
+  assert.equal(bought.state.resources.drink, 40);
+  assert.equal(bought.state.gold, state.gold - 160000);
+  const poor = { ...state, gold: 1 };
+  const rejected = applyEvent(schema, poor, { id: 'purchase_batch', params: { items: [{ resource: 'food', qty: 20 }, { resource: 'drink', qty: 20 }] } }, { int: () => 1 });
+  assert.equal(rejected.log[0].reason, 'insufficient_gold');
+  assert.equal(rejected.state, poor);
 });
 
 test('purchase and resource_delta clamp resources and gold', () => {

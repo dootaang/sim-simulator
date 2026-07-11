@@ -268,9 +268,11 @@ test('lodging accept prepays per guest and occupies the selected room', () => {
   const request = reviewed.state.lodging.requests[0];
   const before = reviewed.state.gold;
   const accepted = lodging(reviewed.state, 'lodging_accept', { requestId: request.id });
-  assert.equal(accepted.log[0].goldDelta, 30000 * request.stayDays * request.party);
+  const roomNo = accepted.log[0].roomNo;
+  const room = schema.entities.find((item) => item.type === 'room').instances.find((item) => String(item.no) === roomNo);
+  assert.equal(accepted.log[0].goldDelta, room.pricePerNight * request.stayDays * request.party);
   assert.equal(accepted.state.gold - before, accepted.log[0].goldDelta);
-  assert.equal(accepted.state.rooms['101'].length, request.party);
+  assert.equal(accepted.state.rooms[roomNo].length, request.party);
 });
 
 test('lodging accept keeps request pending when no room is available', () => {
@@ -297,7 +299,26 @@ test('accepted lodging guests follow day-end nightsLeft decrement', () => {
   request.stayDays = 2;
   const accepted = lodging(reviewed.state, 'lodging_accept', { requestId: request.id });
   const ended = applyEvent(schema, accepted.state, { id: 'day_end', params: {} }, createRng(1));
-  assert.ok(ended.state.rooms['101'].every((guest) => guest.nightsLeft === 1));
+  assert.ok(ended.state.rooms[accepted.log[0].roomNo].every((guest) => guest.nightsLeft === 1));
+});
+
+test('lodging prefers party-sized room kinds over the cheapest dorm', () => {
+  const reviewed = lodging(createState(schema, 42));
+  const request = reviewed.state.lodging.requests[0];
+  request.party = 1;
+  const accepted = lodging(reviewed.state, 'lodging_accept', { requestId: request.id });
+  const room = schema.entities.find((item) => item.type === 'room').instances.find((item) => String(item.no) === accepted.log[0].roomNo);
+  assert.match(room.kind, /1인/);
+});
+
+test('day end does not run legacy automatic revenue after a traffic wave', () => {
+  const source = JSON.parse(JSON.stringify(legacySchema));
+  const ran = run(createState(source, 42), 'lunch', source);
+  const before = { gold: ran.state.gold, resources: JSON.parse(JSON.stringify(ran.state.resources)) };
+  const ended = applyEvent(source, ran.state, { id: 'day_end', params: {} }, createRng(42));
+  assert.equal(ended.log[0].report.grossGold, 0);
+  assert.equal(ended.state.gold, before.gold);
+  assert.deepEqual(ended.state.resources, before.resources);
 });
 
 function mail(state, id = 'mail_check', params = {}, source = schema) {

@@ -1,10 +1,15 @@
 'use strict';
 
 const { entityList, findRoom, scaleById, ladderById, rankIndex } = require('./utils.js');
+const { activeQuests } = require('./quests.js');
 
 function staffMax(schema, state) {
-  const level = String((state.facilities && state.facilities.quarters) || 1);
-  const table = schema.gates && schema.gates.staffMaxByQuartersLevel;
+  const staffing = schema.staffing;
+  const facility = staffing && staffing.facility ? staffing.facility : 'quarters';
+  const level = String((state.facilities && state.facilities[facility]) || 1);
+  const table = staffing && staffing.capacityByLevel
+    ? staffing.capacityByLevel
+    : schema.gates && schema.gates.staffMaxByQuartersLevel;
   return Number((table && table[level]) || 0);
 }
 
@@ -58,11 +63,12 @@ function availableManagement(schema, state) {
   });
   if (upgrade.length) sections.push({ type: 'upgrade', items: upgrade });
   const gatherResources = Object.keys((state && state.resources) || {}).filter((id) => id !== 'gold'); // state null 가드(감사 지적)
-  if (schema.gather && gatherResources.length) sections.push({ type: 'gather', resources: gatherResources, scales: ['small', 'large', 'bulk'].filter((id) => Array.isArray(schema.gather[id])).map((id) => ({ id, range: schema.gather[id].slice() })) });
-  if (Array.isArray(schema.quests) && schema.quests.length) {
+  if (schema.gather && !schema.traffic && gatherResources.length) sections.push({ type: 'gather', resources: gatherResources, scales: ['small', 'large', 'bulk'].filter((id) => Array.isArray(schema.gather[id])).map((id) => ({ id, range: schema.gather[id].slice() })) });
+  const visibleQuests = activeQuests(schema, state);
+  if (visibleQuests.length) {
     const claimed = state.claimedRewards || [];
     const rewards = schema.rewards && schema.rewards.gold;
-    const items = schema.quests.map((quest) => ({
+    const items = visibleQuests.map((quest) => ({
       id: quest.id,
       name: quest.name || quest.id,
       chance: questChance(quest.check, state),
@@ -155,7 +161,8 @@ function summarize(schema, state) {
   const types = new Set((schema.entities || []).map((entry) => entry.type));
   const innLike = types.has('menuItem') && types.has('room');
   if (innLike) {
-    lines.push(`[여관] ${state.day}일차 · 골드 ${formatNumber(state.gold)}원 · 식자재 ${resources.food || 0}인분 · 주류 ${resources.drink || 0}잔 · 시설 주점${facilities.tavern || 0}/주방${facilities.kitchen || 0}/객실${facilities.room || 0}/숙소${facilities.quarters || 0}`);
+    const staffFacility = schema.staffing && schema.staffing.facility || 'quarters';
+    lines.push(`[여관] ${state.day}일차 · 골드 ${formatNumber(state.gold)}원 · 식자재 ${resources.food || 0}인분 · 주류 ${resources.drink || 0}잔 · 시설 주점${facilities.tavern || 0}/주방${facilities.kitchen || 0}/객실${facilities.room || 0}/숙소${facilities[staffFacility] || 0}`);
 
     const staff = (state.staff || []).map((item) => {
       const npc = entityList(schema, 'npc').find((entry) => entry.id === item.npcId);

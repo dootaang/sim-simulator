@@ -17,10 +17,10 @@ const EVENT_PROMPTS = {
   sale: `- sale {menuName, qty} — 메뉴 판매 완결 시. (엔진: 매출 가산 + 식자재 차감)`,
   purchase: `- purchase {resource:"food"|"drink", qty} — 재료 구매. (엔진: 원가 차감 + 재고 가산. 유저가 산 그 한 건만, gold 변동을 따로 넣지 마라)`,
   buyItem: `- buy_item {menuName, qty} — 상점 품목 구매 완결 시. menuName은 [메뉴 목록] 그대로. 구매는 buy_item, 판매는 sale이다 — 방향을 혼동하지 마라. 채집(gain_resource)은 [상태]의 자원(res 등)에만 쓴다. (엔진: 대금 차감 + 소지품 가산. 가격·골드를 쓰지 마라)`,
-  upgrade: `- upgrade {facility} — 시설 확장. facility는 상태의 시설 id(tavern/kitchen/room/quarters). (엔진: 비용 차감 + 레벨 상승. 비용·골드·레벨은 쓰지 마라)`,
+  upgrade: `- upgrade {facility} — 시설 확장. facility는 [시설 목록]의 id 그대로. (엔진: 비용 차감 + 레벨 상승. 비용·골드·레벨은 쓰지 마라)`,
   gather: `- gain_resource {resource:"food"|"drink", scale:"small"|"large"|"bulk", reason} — 사냥·채집·부산물로 재료를 얻을 때. (엔진: 규모 표에서 수량 결정. qty·amount·gold는 쓰지 마라)`,
   room: `- checkin {roomNo, guestName, stayDays} / checkout {roomNo, guestName} — roomNo는 [객실 목록]의 실제 호수(예: 101). (엔진: 숙박비 선불 가산)`,
-  npc: `- hire {npcId, dailyWage} — 임금 합의가 대화로 완료된 경우만. dailyWage는 대화에서 합의된 값 / fire {npcId}`,
+  npc: `- hire {npcId, dailyWage} — 신규 고용 합의가 완료된 경우만 / set_wage {npcId, dailyWage} — 이미 고용된 직원과 새 일급에 합의한 경우 / fire {npcId}. dailyWage는 합의된 0 이상의 값이다.`,
   scale: `- scale_delta {scale:"affinity", target:npcId, direction:"+"|"-", size:"S"|"M"|"L"|"XL", reason} — 크기만 분류. S=사소한 배려, M=거리 좁힘, L=깊은 유대, XL=관계 전환점. 한 NPC당 하루 1회.`,
   reputation: `- rep_event {axis, category, reason} — 평판 변동. axis·category는 [평판 카테고리] 목록에서만. (엔진이 변동값 결정)`,
   experience: `- exp_gain {category, reason} — 의미 있는 행동에만, 매 턴 금지. category는 [경험치 카테고리] 목록에서만(목록에 없으면 내지 마라). (엔진이 값 결정)`,
@@ -63,13 +63,13 @@ const COMBAT_PROMPT_APPENDIX = `
 - 적 처치·전투 종료·승리를 서사로 단정하지 마라. 적의 생사는 [전투] 상태와 엔진 판정만이 결정한다. 모든 적이 "전투불능"으로 표시된 다음에야 end_encounter를 내라.
 - 전투 중 플레이어가 공격·스킬·방어·도주를 시도하면 반드시 combat_action 사건을 내라. 사건 없는 전투 행동은 일어나지 않은 것이다.`;
 
-function buildSystemPrompt(schema = {}) {
+function buildSystemPrompt(schema = {}, state) {
   const title = (schema.meta && schema.meta.title) || '시뮬레이션';
   const identity = isInnLike(schema)
     ? `당신은 판타지 여관 경영 RP "${title}"의 내레이터다. 플레이어({{user}})는 여관 주인이다.`
     : `당신은 "${title}"의 내레이터다. 플레이어({{user}})의 행동을 대신 결정하지 않고 세계와 인물의 반응을 묘사한다.`;
   const sections = [identity, COMMON_PROMPT];
-  const events = eventSections(schema);
+  const events = eventSections(schema, state);
   if (events.length) {
     if (hasSaleCapability(schema)) sections.push(SALE_JSON_EXAMPLE);
     sections.push(EVENT_PROMPT_HEADER + '\n' + events.join('\n'));
@@ -83,7 +83,7 @@ function buildSystemPrompt(schema = {}) {
 // 이전 export를 유지하되, 런타임은 활성 스키마를 받는 buildSystemPrompt를 사용한다.
 const SYSTEM_PROMPT = buildSystemPrompt({});
 
-function eventSections(schema) {
+function eventSections(schema, state) {
   const types = new Set((schema.entities || []).map((entry) => entry.type));
   const ladders = schema.ladders || [];
   const sections = [];
@@ -99,7 +99,10 @@ function eventSections(schema) {
   if (ladders.some((ladder) => ladder.id === 'player_level' && ladder.sources)) sections.push(EVENT_PROMPTS.experience);
   if ((schema.processes || []).some((process) => process.trigger === 'dayEnd') || (Array.isArray(schema.settlement) && schema.settlement.length)) sections.push(EVENT_PROMPTS.dayEnd);
   if (hasConsumables(schema)) sections.push(EVENT_PROMPTS.item);
-  if (Array.isArray(schema.quests) && schema.quests.length) sections.push(EVENT_PROMPTS.quest);
+  const questVisible = schema.questBoard && state
+    ? require('../../../engine/core/quests.js').activeQuests(schema, state).length > 0
+    : Array.isArray(schema.quests) && schema.quests.length;
+  if (questVisible) sections.push(EVENT_PROMPTS.quest);
   return sections;
 }
 
@@ -153,6 +156,7 @@ function buildPrompt({ schema, state, lore, recentMessages, userInput, lastVerdi
   const npcList = npcListText(schema);
   const menuList = menuListText(schema, state);
   const roomList = roomListText(schema);
+  const facilityList = facilityListText(schema);
   const skillList = combatCapable ? skillListText(schema) : '';
   const itemList = consumableListText(schema, state);
   const questList = questListText(schema, state);
@@ -174,6 +178,7 @@ function buildPrompt({ schema, state, lore, recentMessages, userInput, lastVerdi
     npcList ? '[NPC 목록]\n' + npcList + '\n' : '',
     menuList ? '[메뉴 목록]\n' + menuList + '\n' : '',
     roomList ? '[객실 목록]\n' + roomList + '\n' : '',
+    facilityList ? '[시설 목록]\n' + facilityList + '\n' : '',
     combatCapable && skillList ? '[스킬 목록]\n' + skillList + '\n' : '',
     itemList ? '[소모품 목록]\n' + itemList + '\n' : '',
     questList ? '[의뢰 목록]\n' + questList + '\n' : '',
@@ -196,6 +201,7 @@ function buildPrompt({ schema, state, lore, recentMessages, userInput, lastVerdi
     npcList: estimateTokens(npcList),
     menuList: estimateTokens(menuList),
     roomList: estimateTokens(roomList),
+    facilityList: estimateTokens(facilityList),
     items: estimateTokens(itemList),
     lore: estimateTokens(loreText || ''),
   };
@@ -205,7 +211,7 @@ function buildPrompt({ schema, state, lore, recentMessages, userInput, lastVerdi
   const injectedTokens = Object.values(injectedParts).reduce((sum, value) => sum + value, 0);
 
   return {
-    system: buildSystemPrompt(schema),
+    system: buildSystemPrompt(schema, state),
     messages,
     injectedTokens,
     injectedParts,
@@ -214,11 +220,13 @@ function buildPrompt({ schema, state, lore, recentMessages, userInput, lastVerdi
   };
 }
 
-function buildNarrationPrompt({ schema, state, results, flavorText, recentMessages, emotions, recentChanges }) {
+function buildNarrationPrompt({ schema, state, results, flavorText, recentMessages, emotions, recentChanges, decisionContext, eventType }) {
   const stateText = summarize(schema, state);
   const combatActive = !!(state.combat && state.combat.active);
   const combatLine = stateText.split('\n').find((line) => line.startsWith('[전투]')) || '[전투] 종료됨';
-  const managementLines = stateText.split('\n').filter((line) => /^\[(자원|여관|소지품)\]/.test(line)).slice(0, 2).join('\n') || '상태 변화 없음';
+  const managementLines = stateText.split('\n').filter((line) => /^\[(자원|여관|직원|객실|소지품)\]/.test(line)).slice(0, 5).join('\n') || '상태 변화 없음';
+  const narrationNpcIds = (state.staff || []).map((item) => item.npcId);
+  const narrationNpcText = narrationNpcIds.map((id) => npcSummary(schema, state, id)).filter(Boolean).join('\n');
   const resultText = (results || []).map((result) => typeof result === 'string' ? result : String((result && result.text) || '')).filter(Boolean).join('\n');
   const changesText = formatRecentChanges(recentChanges);
   const context = [
@@ -228,7 +236,9 @@ function buildNarrationPrompt({ schema, state, results, flavorText, recentMessag
     '',
     changesText,
     changesText ? '' : '',
+    decisionContext || '',
     combatActive ? combatLine : managementLines,
+    narrationNpcText ? `[직원 관계 상태]\n${narrationNpcText}` : '',
     flavorText ? `플레이어의 연출 의도: ${flavorText}` : '',
     Array.isArray(emotions) && emotions.length ? `서사 뒤에 \`\`\`json {"emotion":"값"} \`\`\` 블록을 덧붙여도 된다. 값은 반드시 다음 중 하나: ${emotions.join(', ')}` : '',
   ].filter(Boolean).join('\n');
@@ -236,12 +246,14 @@ function buildNarrationPrompt({ schema, state, results, flavorText, recentMessag
   const injectedState = combatActive ? combatLine : managementLines;
   const injectedParts = { state: estimateTokens(injectedState), results: estimateTokens(resultText), flavor: estimateTokens(flavorText || '') };
   return {
-    system: buildSystemPrompt(schema).split('\n\n[절대 규칙]')[0] + `\n\n아래 [확정된${combatActive ? ' 전투' : ''} 결과]는 엔진이 이미 계산·반영한 사실이다. 이 수치${combatActive ? '·생사' : ''}를 그대로 따라 한국어로 짧게(250자 내외) 서사화하라. 결과를 바꾸거나 새 사건 JSON을 내지 마라.`,
+    system: buildSystemPrompt(schema, state).split('\n\n[절대 규칙]')[0] + `\n\n아래 [확정된${combatActive ? ' 전투' : ''} 결과]는 엔진이 이미 계산·반영한 사실이다. 이 수치${combatActive ? '·생사' : ''}를 그대로 따라 한국어로 짧게(250자 내외) 서사화하라. 결과를 바꾸거나 새 사건 JSON을 내지 마라. 엔진 결과에 없는 날짜·시간 경과, 거래, 재고 변화, 파견 과정, 직원 신분을 창작하지 마라.${eventType === 'day_end' ? '' : ' 날짜와 일차를 진행시키지 마라.'}${decisionContext ? ' 화면의 결정 카드가 선택지를 담당한다. 본문에 대응 방법을 제안·열거하거나 사용자에게 무엇을 선택할지 묻지 마라.' : ''}`,
     messages,
     injectedTokens: Object.values(injectedParts).reduce((sum, value) => sum + value, 0),
     injectedParts,
-    relatedNpcIds: [],
+    relatedNpcIds: narrationNpcIds,
     injectedText: { state: injectedState, results: resultText, flavorText: flavorText || '' },
+    timeoutMs: 30000,
+    retries429: 1,
   };
 }
 
@@ -273,8 +285,10 @@ function parseAssistantResponse(text) {
   let events = [];
   let emotion;
   let jsonBlock = null;
+  let removeBlock = null;
   if (blocks.length) {
     jsonBlock = blocks[blocks.length - 1][1].trim();
+    removeBlock = blocks[blocks.length - 1][0];
     try {
       const parsed = JSON.parse(jsonBlock);
       events = Array.isArray(parsed.events) ? parsed.events : [];
@@ -282,13 +296,34 @@ function parseAssistantResponse(text) {
     } catch (_) {
       events = [];
     }
+  } else {
+    const terminal = terminalJson(source);
+    if (terminal) {
+      jsonBlock = terminal.json;
+      removeBlock = terminal.raw;
+      events = Array.isArray(terminal.parsed.events) ? terminal.parsed.events : [];
+      if (typeof terminal.parsed.emotion === 'string') emotion = terminal.parsed.emotion;
+    }
   }
   const validEvents = events.filter((event) => event && typeof event.id === 'string' && event.id.trim());
   const dropped = events.length - validEvents.length;
   const rawNarrative = jsonBlock
-    ? source.replace(blocks[blocks.length - 1][0], '').trim()
+    ? source.slice(0, source.lastIndexOf(removeBlock)).trim()
     : source.trim();
   return { narrative: stripRisuTags(rawNarrative), events: validEvents, dropped, ...(emotion !== undefined ? { emotion } : {}) };
+}
+
+function terminalJson(source) {
+  const starts = [];
+  for (let i = 0; i < source.length; i += 1) if (source[i] === '{' && (i === 0 || source[i - 1] === '\n')) starts.push(i);
+  for (let i = starts.length - 1; i >= 0; i -= 1) {
+    const raw = source.slice(starts[i]).trim();
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && (Array.isArray(parsed.events) || typeof parsed.emotion === 'string')) return { raw, json: raw, parsed };
+    } catch (_) {}
+  }
+  return null;
 }
 
 // 카드 DNA에 밴 리스식 태그를 서사 표시에서 제거한다(우리 엔진의 상태 기제는 JSON
@@ -364,6 +399,11 @@ function roomListText(schema) {
   return rooms
     .map((r) => `${r.no}호${r.kind ? ` (${r.kind})` : ''}${r.pricePerNight != null ? ` ${Number(r.pricePerNight).toLocaleString('ko-KR')}원/박` : ''}`)
     .join('\n');
+}
+
+function facilityListText(schema) {
+  const block = (schema.entities || []).find((entry) => entry.type === 'facility');
+  return ((block && block.instances) || []).map((facility) => `${facility.id}: ${facility.label || facility.id}`).join('\n');
 }
 
 function skillListText(schema) {

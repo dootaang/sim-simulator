@@ -35,7 +35,10 @@ function resolveTrafficWave(schema, state, waveId, waveMultiplier = 1, skip = fa
   for (const modifier of traffic.modifiers || []) {
     if (modifier.type === 'ladder_rank') {
       const rank = state.reputation && state.reputation[modifier.axis] && state.reputation[modifier.axis].rank;
-      multiplier *= 1 + Number(modifier.perRank || 0) * Math.max(0, ['E', 'D', 'C', 'B', 'A', 'S'].indexOf(rank));
+      const explicit = modifier.multipliers && Number(modifier.multipliers[rank]);
+      multiplier *= Number.isFinite(explicit)
+        ? explicit
+        : 1 + Number(modifier.perRank || 0) * Math.max(0, ['E', 'D', 'C', 'B', 'A', 'S'].indexOf(rank));
     } else if (modifier.type === 'staff') {
       multiplier *= 1 + Math.min(Number(modifier.perStaff || 0) * (Array.isArray(state.staff) ? state.staff.length : 0), Number(modifier.max || 0));
     } else if (modifier.type === 'facility_level') {
@@ -57,8 +60,12 @@ function resolveTrafficWave(schema, state, waveId, waveMultiplier = 1, skip = fa
   // 주방 게이트 시설은 스키마가 바인딩 가능(traffic.kitchenFacility) — 컴파일 카드의 임의 시설명 대응. 기본 'kitchen'.
   const kitchenLevel = Number((state.facilities && state.facilities[traffic.kitchenFacility || 'kitchen']) || 1);
   // sale 이벤트와 동일한 소비 규칙(saleConsumes) — consumes 없는 메뉴도 카테고리 최소 원가 강제(공짜 돈 방지).
-  const canSell = (item) => Number(item.requiresKitchenLevel || 1) <= kitchenLevel
-    && Object.entries(saleConsumes(item, state)).every(([id, qty]) => Number((state.resources && state.resources[id]) || 0) >= Number(qty));
+  const canSell = (item) => {
+    const consumes = saleConsumes(item, state);
+    return Number(item.requiresKitchenLevel || 1) <= kitchenLevel
+      && Object.keys(consumes).length > 0
+      && Object.entries(consumes).every(([id, qty]) => Number((state.resources && state.resources[id]) || 0) >= Number(qty));
+  };
   // 가격 0 이하/비수치는 가중치 1로 고정 — 1/sqrt가 Infinity/NaN이 되어 롤이 붕괴하는 것 방지.
   const weightOf = (item) => { const price = Number(item.price); return price > 0 ? 1 / Math.sqrt(price) : 1; };
   for (; served < accepted; served += 1) {
@@ -240,11 +247,25 @@ function resolveLodgingDecision(schema, state, requestId, decision) {
   const lodging = schema.traffic && schema.traffic.lodging;
   const entity = lodging && (schema.entities || []).find((item) => item.type === lodging.roomsEntity);
   const roomLevel = Number((state.facilities && state.facilities[(lodging && lodging.roomFacility) || 'room']) || 1);
+  const fitScore = (room) => {
+    const kind = String(room.kind || '');
+    if (request.party === 1 && /1인|single/i.test(kind)) return 0;
+    if (request.party === 2 && /2인|double|twin/i.test(kind)) return 0;
+    if (request.party >= 3 && /다인|dorm|multi/i.test(kind)) return 0;
+    return 1;
+  };
   const candidates = ((entity && entity.instances) || []).map((room, index) => ({ room, index })).filter(({ room }) => {
     if (Number(room.requiresRoomLevel || 1) > roomLevel) return false;
     const occupied = (state.rooms && state.rooms[String(room.no)] || []).length;
     return room.capacity == null || Number(room.capacity) - occupied >= request.party;
-  }).sort((a, b) => Number(a.room.pricePerNight || 0) - Number(b.room.pricePerNight || 0) || a.index - b.index);
+  }).sort((a, b) => {
+    const occupiedA = (state.rooms && state.rooms[String(a.room.no)] || []).length;
+    const occupiedB = (state.rooms && state.rooms[String(b.room.no)] || []).length;
+    return fitScore(a.room) - fitScore(b.room)
+      || Number(occupiedA > 0) - Number(occupiedB > 0)
+      || Number(a.room.pricePerNight || 0) - Number(b.room.pricePerNight || 0)
+      || a.index - b.index;
+  });
   if (!candidates.length) return { ok: false, reason: 'no_room_available' };
   const room = candidates[0].room;
   const roomNo = String(room.no);

@@ -20,17 +20,17 @@ async function callProvider(cfg, prompt) {
   if (def.kind === 'vertex') return callVertex(def, cfg, prompt);
   const req = buildRequest(def, cfg, prompt);
   const bodyText = await requestWithRetry(req, async (request) => {
-    const response = await fetch(request.url, {
+    const response = await fetchWithTimeout(request.url, {
       method: request.method,
       headers: request.headers,
       body: request.body,
-    });
+    }, prompt.timeoutMs);
     return {
       status: response.status,
       bodyText: await response.text(),
       retryAfterMs: retryAfterMs(response.headers.get('retry-after')),
     };
-  }, { retryNetwork: false });
+  }, { retryNetwork: false, retries429: prompt.retries429 });
   return parseResponse(req.kind, JSON.parse(bodyText), prompt.allowTruncated);
 }
 
@@ -54,28 +54,28 @@ async function callVertex(def, cfg, prompt) {
   };
   let refreshed = false;
   const bodyText = await requestWithRetry(req, async (request) => {
-    let response = await fetch(request.url, {
+    let response = await fetchWithTimeout(request.url, {
       method: request.method,
       headers: request.headers,
       body: request.body,
-    });
+    }, prompt.timeoutMs);
     if (response.status === 401 && !refreshed) {
       refreshed = true;
       invalidateVertexAccessToken(cfg.apiKey);
       const fresh = await getVertexAccessToken(cfg.apiKey);
       request.headers.Authorization = `Bearer ${fresh.accessToken}`;
-      response = await fetch(request.url, {
+      response = await fetchWithTimeout(request.url, {
         method: request.method,
         headers: request.headers,
         body: request.body,
-      });
+      }, prompt.timeoutMs);
     }
     return {
       status: response.status,
       bodyText: await response.text(),
       retryAfterMs: retryAfterMs(response.headers.get('retry-after')),
     };
-  }, { retryNetwork: false });
+  }, { retryNetwork: false, retries429: prompt.retries429 });
   return parseVertexResponse(JSON.parse(bodyText), prompt.allowTruncated);
 }
 
@@ -195,6 +195,24 @@ async function requestWithRetry(req, doFetch, opts = {}) {
       continue;
     }
     throw new Error(errorText(result.status, result.bodyText));
+  }
+}
+
+async function fetchWithTimeout(url, init, timeoutMs) {
+  const ms = Math.max(1000, Number(timeoutMs) || 45000);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      const timeout = new Error(`서사 생성이 ${Math.round(ms / 1000)}초를 넘어 중단됐습니다. 엔진 결과는 유지됩니다.`);
+      timeout.simbotSafe = true;
+      throw timeout;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

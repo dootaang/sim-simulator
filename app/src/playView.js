@@ -24,6 +24,7 @@ let mgmtConsoleOpen = false;
 let lodgingSelection = new Set();
 let lodgingSelectionDay = null;
 let ledgerDeltas = [];
+let purchaseDraft = {};
 
 export function primaryCharacter(parsed, lore, groups = buildNpcClusters(parsed, lore).groups) {
   const name = String((parsed && parsed.name) || '시뮬봇');
@@ -65,6 +66,7 @@ export function renderPlayView(container, ctx) {
     lodgingSelection = new Set();
     lodgingSelectionDay = null;
     ledgerDeltas = [];
+    purchaseDraft = {};
     detachSheetKeyHandler();
     npcGroups = buildNpcClusters(ctx.parsed, ctx.lore).groups;
     character = primaryCharacter(ctx.parsed, ctx.lore, npcGroups);
@@ -277,7 +279,10 @@ function renderDecisionCard(input, ctx, render) {
   const actions = el('div', 'play-decision-actions');
   const accept = button('선택한 문의 받기', 'primary-btn');
   accept.disabled = busy || !pending.some((request) => lodgingSelection.has(request.id));
-  accept.addEventListener('click', () => runManagementBatch(pending.filter((request) => lodgingSelection.has(request.id)).map((request) => ({ event: { id: 'lodging_accept', params: { requestId: request.id } }, requestName: request.name })), input, ctx, render));
+  accept.addEventListener('click', () => runManagementBatch(pending.map((request) => ({
+    event: { id: lodgingSelection.has(request.id) ? 'lodging_accept' : 'lodging_reject', params: { requestId: request.id } },
+    requestName: request.name,
+  })), input, ctx, render));
   const reject = button('전체 거절', 'secondary-btn'); reject.disabled = busy;
   reject.addEventListener('click', () => runManagementBatch(pending.map((request) => ({ event: { id: 'lodging_reject', params: { requestId: request.id } }, requestName: request.name })), input, ctx, render));
   actions.append(accept, reject); card.append(title, requests, actions);
@@ -641,9 +646,9 @@ function renderLedgerSection(render) {
     if (section.type === 'traffic' && section.mail) for (const letter of section.mail.letters.filter((item) => item.type === 'reward')) {
       addButton(`📨 ${letter.axis} 감사 선물 개봉`, { id: 'mail_open', params: { mailId: letter.id } });
     }
-    if (section.type === 'sell' || section.type === 'buy') for (const item of section.items) {
+    if (section.type === 'buy') for (const item of section.items) {
       const owned = section.type === 'buy' && item.owned ? ` · 보유 ${item.owned}` : '';
-      addButton(`${section.type === 'sell' ? '판매' : '구매'} · ${item.name} (${formatMoney(item.price)})${owned}`, { id: section.type === 'buy' ? 'buy_item' : 'sale', params: { menuName: item.name, qty: 1 } }, section.type === 'buy' && !item.affordable);
+      addButton(`구매 · ${item.name} (${formatMoney(item.price)})${owned}`, { id: 'buy_item', params: { menuName: item.name, qty: 1 } }, !item.affordable);
     }
     if (section.type === 'purchase') for (const item of section.items) {
       const line = el('div', 'purchase-stepper');
@@ -651,16 +656,24 @@ function renderLedgerSection(render) {
       const minus = button('−', 'secondary-btn');
       const qty = el('input', 'purchase-qty'); qty.type = 'number'; qty.min = '1'; qty.max = '999'; qty.value = '1';
       const plus = button('+', 'secondary-btn');
-      const control = button('', 'secondary-btn');
+      const subtotal = el('span', 'purchase-subtotal');
       const readQty = () => Math.max(1, Math.min(999, Math.round(Number(qty.value) || 1)));
-      const update = () => { const value = readQty(); control.textContent = `구매 (합계 ${formatMoney(Number(item.basePrice || 0) * value)})`; control.disabled = busy || Number(getEngineState().gold || 0) < Number(item.basePrice || 0) * value; return value; };
+      qty.value = String(purchaseDraft[item.id] || 1);
+      const update = () => { const value = readQty(); purchaseDraft[item.id] = value; subtotal.textContent = formatMoney(Number(item.basePrice || 0) * value); return value; };
       const clamp = () => { const value = update(); qty.value = String(value); return value; };
       minus.disabled = busy; plus.disabled = busy; qty.disabled = busy;
-      minus.addEventListener('click', () => { qty.value = String(readQty() - 1); clamp(); });
-      plus.addEventListener('click', () => { qty.value = String(readQty() + 1); clamp(); });
-      qty.addEventListener('input', update); qty.addEventListener('change', clamp);
-      control.addEventListener('click', () => runLedgerAction({ id: 'purchase', params: { resource: item.id, qty: clamp() } }, render));
-      clamp(); line.append(name, minus, qty, plus, control); sectionNode.append(line);
+      minus.addEventListener('click', () => { qty.value = String(readQty() - 1); clamp(); render(); });
+      plus.addEventListener('click', () => { qty.value = String(readQty() + 1); clamp(); render(); });
+      qty.addEventListener('input', update); qty.addEventListener('change', () => { clamp(); render(); });
+      clamp(); line.append(name, minus, qty, plus, subtotal); sectionNode.append(line);
+    }
+    if (section.type === 'purchase') {
+      const items = section.items.map((item) => ({ resource: item.id, qty: Math.max(1, Math.min(999, Number(purchaseDraft[item.id]) || 1)) }));
+      const total = items.reduce((sum, item) => {
+        const def = section.items.find((row) => row.id === item.resource);
+        return sum + Number(def && def.basePrice || 0) * item.qty;
+      }, 0);
+      addButton(`선택 수량 일괄 구매 · ${formatMoney(total)}`, { id: 'purchase_batch', params: { items } }, Number(getEngineState().gold || 0) < total);
     }
     if (section.type === 'upgrade') for (const item of section.items) {
       addButton(item.maxed ? `${item.label} Lv.${item.level} (최대)` : `${item.label} Lv.${item.level}→${item.level + 1} (${formatMoney(item.nextCost)})`, { id: 'upgrade', params: { facility: item.id } }, item.maxed || !item.affordable);
@@ -711,8 +724,9 @@ async function runManagementTurn(event, input, ctx, render) {
   appendEventChips(event.id, result.entries, chips, resultTexts);
   const pending = { role: 'assistant', content: '', chips };
   try {
-    const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), recentChanges });
+    const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), recentChanges, eventType: event.id, decisionContext: decisionContextFor(event.id, result.entries) });
     lastPrompt = prompt;
+    pending.npcIds = promptNpcIds(prompt);
     const parsed = parseAssistantResponse(await callProvider(providerConfig(settings), prompt));
     applyEmotion(parsed.emotion);
     const ignored = parsed.events.length + parsed.dropped;
@@ -750,8 +764,9 @@ async function runManagementBatch(items, input, ctx, render) {
   }
   const pending = { role: 'assistant', content: '', chips };
   try {
-    const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), recentChanges });
+    const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), recentChanges, eventType: 'lodging_batch' });
     lastPrompt = prompt;
+    pending.npcIds = promptNpcIds(prompt);
     const parsed = parseAssistantResponse(await callProvider(providerConfig(settings), prompt));
     applyEmotion(parsed.emotion);
     const ignored = parsed.events.length + parsed.dropped;
@@ -766,6 +781,18 @@ async function runManagementBatch(items, input, ctx, render) {
     busy = false;
     render();
   }
+}
+
+function decisionContextFor(type, entries) {
+  if (type === 'traffic_wave') {
+    const entry = (entries || []).find((item) => item.awaitingChoice && item.incident);
+    if (entry) return `[화면의 실제 결정 카드]\n사건: ${entry.incident.label} — ${entry.incident.desc || ''}\n실제 선택지: ${(entry.choices || []).map((choice) => choice.label).join(' / ')}`;
+  }
+  if (type === 'lodging_review') {
+    const entry = (entries || [])[0];
+    if (entry && Array.isArray(entry.requests)) return `[화면의 실제 숙박 문의]\n${entry.requests.map((request) => `${request.name} · ${request.party}명 · ${request.stayDays}박`).join('\n')}`;
+  }
+  return '';
 }
 
 function renderSettings(render) {

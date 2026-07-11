@@ -19,6 +19,7 @@ function saleConsumes(menu, state) {
   const res = state.resources || {};
   if (/주류|주점|술|drink|liquor/i.test(cat) && 'drink' in res) return { drink: 1 };
   if (/요리|음식|식사|food|cuisine|dish|meal/i.test(cat) && 'food' in res) return { food: 1 };
+  if (/특수|special|재료|material/i.test(cat) && 'material' in res) return { material: 1 };
   return {};
 }
 

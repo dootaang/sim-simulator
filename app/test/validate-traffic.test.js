@@ -101,3 +101,18 @@ test('quests in combat schemas get default encounter chance by name heuristic', 
   assert.equal(byId.FIXED, 5); // 명시 값은 존중
   assert.ok(schema.encounters && schema.encounters.pool.length >= 3); // 기본 풀 합성 선행 확인
 });
+
+test('compiled inn synthesizes quarter staffing, Korean resource labels, and tavern level 2 quest board', () => {
+  const input = compiledInnLike();
+  input.resources.push({ id: 'material', unit: '개', min: 0, basePrice: 5000 });
+  input.entities.push({ type: 'npc', fields: ['id', 'nameKo', 'nameEn', 'class', 'group'], instances: [{ id: 'silvia', nameKo: '실비아', nameEn: 'silvia', class: '레인저', group: 'inn' }] });
+  input.entities.find((entry) => entry.type === 'facility').instances.push({ id: 'lv_quarter', label: '직원 숙소', maxLevel: 4 });
+  input.initialState.facilities.lv_quarter = 1;
+  input.rewards = { gold: { E: [1, 2] } };
+  input.quests = [{ id: 'q1', name: '첫 의뢰', check: { mode: 'rate', rate: 90 }, rewardTier: 'E' }];
+  const { schema } = validateSchema(input);
+  assert.deepEqual(schema.staffing, { facility: 'quarter', capacityByLevel: { 1: 1, 2: 2, 3: 3, 4: 4 } });
+  assert.deepEqual(schema.questBoard, { facility: 'tavern', unlockLevel: 2, size: 3, refresh: 'daily' });
+  assert.equal(schema.resources.find((item) => item.id === 'food').label, '식자재');
+  assert.equal(schema.resources.find((item) => item.id === 'material').label, '재료');
+});
