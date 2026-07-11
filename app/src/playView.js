@@ -20,6 +20,8 @@ let activeRender = null;
 let sessionCardKey = null;
 let character = null;
 let mgmtConsoleOpen = false;
+let lodgingSelection = new Set();
+let lodgingSelectionDay = null;
 
 export function primaryCharacter(parsed, lore) {
   const name = String((parsed && parsed.name) || '시뮬봇');
@@ -59,6 +61,8 @@ export function renderPlayView(container, ctx) {
     mobileSheetOpen = false;
     sheetWasOpen = false;
     mgmtConsoleOpen = false;
+    lodgingSelection = new Set();
+    lodgingSelectionDay = null;
     detachSheetKeyHandler();
     character = primaryCharacter(ctx.parsed, ctx.lore);
     // 말풍선 아바타는 기본 표정으로 고정한다 — 감정 스왑은 히어로 헤더에만 반영.
@@ -201,9 +205,11 @@ function renderChat(ctx, render) {
     thinking.textContent = '생각 중...';
     list.append(thinking);
   }
-
   const form = el('form', 'play-input-row');
   const input = el('textarea', 'play-input');
+  const decisionCard = renderDecisionCard(input, ctx, render);
+  if (decisionCard) list.append(decisionCard);
+
   input.name = 'message';
   input.placeholder = '예: 고기 스튜 하나 팔자';
   input.disabled = busy;
@@ -226,6 +232,52 @@ function renderChat(ctx, render) {
 
   panel.append(header, list, renderCombatConsole(input, ctx, render), renderManagementConsole(input, ctx, render), form);
   return panel;
+}
+
+function renderDecisionCard(input, ctx, render) {
+  const state = getEngineState();
+  const descriptor = availableManagement(getSchema(), state);
+  const traffic = descriptor.sections.find((section) => section.type === 'traffic');
+  if (!traffic) return null;
+  if (traffic.pendingIncident) {
+    const incident = traffic.pendingIncident;
+    const card = el('section', 'play-decision-card incident');
+    const title = el('strong', 'play-decision-title'); title.textContent = `⚠ ${incident.label}`;
+    const body = el('p'); body.textContent = incident.desc;
+    const actions = el('div', 'play-decision-actions');
+    for (const choice of incident.choices) {
+      const control = button(choice.label, 'secondary-btn');
+      control.disabled = busy;
+      control.addEventListener('click', () => runManagementTurn({ id: 'incident_choice', params: { choice: choice.id } }, input, ctx, render));
+      actions.append(control);
+    }
+    card.append(title, body, actions);
+    return card;
+  }
+  const pending = traffic.lodging && traffic.lodging.pending || [];
+  if (!pending.length) return null;
+  const day = Number(state.day);
+  if (lodgingSelectionDay !== day) { lodgingSelection = new Set(); lodgingSelectionDay = day; }
+  const validIds = new Set(pending.map((request) => request.id));
+  lodgingSelection = new Set(Array.from(lodgingSelection).filter((id) => validIds.has(id)));
+  const card = el('section', 'play-decision-card lodging');
+  const title = el('strong', 'play-decision-title'); title.textContent = `🛎 숙박 문의 ${pending.length}건`;
+  const requests = el('div', 'play-decision-requests');
+  for (const request of pending) {
+    const rowNode = el('label', 'play-decision-request');
+    const check = el('input'); check.type = 'checkbox'; check.checked = lodgingSelection.has(request.id); check.disabled = busy;
+    check.addEventListener('change', () => { if (check.checked) lodgingSelection.add(request.id); else lodgingSelection.delete(request.id); render(); });
+    const text = el('span'); text.textContent = `${request.name} · ${request.party}명 · ${request.stayDays}박`;
+    rowNode.append(check, text); requests.append(rowNode);
+  }
+  const actions = el('div', 'play-decision-actions');
+  const accept = button('선택한 문의 받기', 'primary-btn');
+  accept.disabled = busy || !pending.some((request) => lodgingSelection.has(request.id));
+  accept.addEventListener('click', () => runManagementBatch(pending.filter((request) => lodgingSelection.has(request.id)).map((request) => ({ event: { id: 'lodging_accept', params: { requestId: request.id } }, requestName: request.name })), input, ctx, render));
+  const reject = button('전체 거절', 'secondary-btn'); reject.disabled = busy;
+  reject.addEventListener('click', () => runManagementBatch(pending.map((request) => ({ event: { id: 'lodging_reject', params: { requestId: request.id } }, requestName: request.name })), input, ctx, render));
+  actions.append(accept, reject); card.append(title, requests, actions);
+  return card;
 }
 
 function renderMessage(message, ctx, showIdentity) {
@@ -431,36 +483,12 @@ function renderManagementConsole(input, ctx, render) {
         }
       }
     }
-    if (section.type === 'traffic' && section.pendingIncident) {
-      const warning = el('span', 'combat-command-label');
-      warning.textContent = `⚠ ${section.pendingIncident.label}`;
-      group.append(warning);
-      for (const choice of section.pendingIncident.choices) {
-        const control = button(choice.label, 'secondary-btn');
-        control.disabled = busy;
-        control.addEventListener('click', () => runManagementTurn({ id: 'incident_choice', params: { choice: choice.id } }, input, ctx, render));
-        group.append(control);
-      }
-    }
     if (section.type === 'traffic' && section.lodging) {
       if (!section.lodging.reviewed) {
         const review = button('숙박 문의 확인', 'secondary-btn');
         review.disabled = busy;
         review.addEventListener('click', () => runManagementTurn({ id: 'lodging_review', params: {} }, input, ctx, render));
         group.append(review);
-      }
-      for (const request of section.lodging.pending) {
-        const line = el('div', 'mgmt-row');
-        const text = el('span');
-        text.textContent = `${request.name} · ${request.party}명 · ${request.stayDays}박`;
-        const accept = button('받기', 'secondary-btn');
-        const reject = button('거절', 'secondary-btn');
-        accept.disabled = busy;
-        reject.disabled = busy;
-        accept.addEventListener('click', () => runManagementTurn({ id: 'lodging_accept', params: { requestId: request.id } }, input, ctx, render));
-        reject.addEventListener('click', () => runManagementTurn({ id: 'lodging_reject', params: { requestId: request.id } }, input, ctx, render));
-        line.append(text, accept, reject);
-        group.append(line);
       }
     }
     if (section.type === 'traffic' && section.mail) {
@@ -570,6 +598,43 @@ async function runManagementTurn(event, input, ctx, render) {
     pending.content = '관리 결과가 반영되었습니다.';
   } finally {
     messages.push(pending); // 서사와 칩·상태가 함께 나타난다
+    busy = false;
+    render();
+  }
+}
+
+async function runManagementBatch(items, input, ctx, render) {
+  if (busy || !items.length) return;
+  busy = true;
+  const flavorText = input.value.trim();
+  const chips = [];
+  const resultTexts = [];
+  const recentForNarration = messages.slice(-4);
+  if (flavorText) messages.push({ role: 'user', content: flavorText });
+  input.value = '';
+  render();
+  for (const item of items) {
+    const result = runEvent(item.event);
+    const entries = result.entries || [];
+    if (item.event.id === 'lodging_accept' && entries.some((entry) => !entry.ok && entry.reason === 'no_room_available')) {
+      const text = `방이 없어 ${item.requestName} 문의는 받지 못함`;
+      chips.push({ ok: false, kind: 'system', text }); resultTexts.push(text);
+    } else appendEventChips(item.event.id, entries, chips, resultTexts);
+  }
+  const pending = { role: 'assistant', content: '', chips };
+  try {
+    const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions() });
+    lastPrompt = prompt;
+    const parsed = parseAssistantResponse(await callProvider(providerConfig(settings), prompt));
+    applyEmotion(parsed.emotion);
+    const ignored = parsed.events.length + parsed.dropped;
+    if (ignored) chips.push({ ok: false, kind: 'system', text: `서사화 사건 ${ignored}개 무시됨` });
+    pending.content = parsed.narrative || '관리 결과가 반영되었습니다.';
+  } catch (_) {
+    chips.push({ ok: false, kind: 'system', text: '서사화 API 오류 · 엔진 결과 유지' });
+    pending.content = '관리 결과가 반영되었습니다.';
+  } finally {
+    messages.push(pending);
     busy = false;
     render();
   }

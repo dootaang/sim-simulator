@@ -801,6 +801,16 @@ select:focus { border-color: var(--amber-line); }
 }
 .play-empty { align-self: center; justify-self: center; color: var(--ink-dim); font-family: var(--font-mono); font-size: 13px; }
 
+.play-decision-card { width: min(760px, 100%); justify-self: start; display: grid; gap: 10px; padding: 14px; border: 1px solid var(--amber-line); border-radius: var(--r); background: var(--amber-wash); box-shadow: var(--glow); }
+.play-decision-card.incident { border-color: var(--warn); background: var(--warn-wash); }
+.play-decision-title { color: var(--amber-bright); font-family: var(--font-mono); }
+.play-decision-card.incident .play-decision-title { color: var(--warn); }
+.play-decision-card p { margin: 0; color: var(--ink-mid); line-height: 1.55; }
+.play-decision-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.play-decision-requests { display: grid; gap: 6px; }
+.play-decision-request { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink-mid); cursor: pointer; }
+.play-decision-request input { accent-color: var(--amber); }
+
 .play-message {
   max-width: min(760px, 92%);
   border: 1px solid var(--line);
@@ -10757,6 +10767,8 @@ ${Array.from(extras).join(" ")}` : text;
   var sessionCardKey = null;
   var character = null;
   var mgmtConsoleOpen = false;
+  var lodgingSelection = /* @__PURE__ */ new Set();
+  var lodgingSelectionDay = null;
   function primaryCharacter(parsed, lore) {
     const name = String(parsed && parsed.name || "\uC2DC\uBBAC\uBD07");
     const groups = buildNpcClusters(parsed, lore).groups;
@@ -10809,6 +10821,8 @@ ${Array.from(extras).join(" ")}` : text;
       mobileSheetOpen = false;
       sheetWasOpen = false;
       mgmtConsoleOpen = false;
+      lodgingSelection = /* @__PURE__ */ new Set();
+      lodgingSelectionDay = null;
       detachSheetKeyHandler();
       character = primaryCharacter(ctx.parsed, ctx.lore);
       character.baseAsset = character.asset;
@@ -10984,6 +10998,8 @@ ${Array.from(extras).join(" ")}` : text;
     }
     const form = el2("form", "play-input-row");
     const input2 = el2("textarea", "play-input");
+    const decisionCard = renderDecisionCard(input2, ctx, render2);
+    if (decisionCard) list.append(decisionCard);
     input2.name = "message";
     input2.placeholder = "\uC608: \uACE0\uAE30 \uC2A4\uD29C \uD558\uB098 \uD314\uC790";
     input2.disabled = busy;
@@ -11005,6 +11021,68 @@ ${Array.from(extras).join(" ")}` : text;
     });
     panel.append(header, list, renderCombatConsole(input2, ctx, render2), renderManagementConsole(input2, ctx, render2), form);
     return panel;
+  }
+  function renderDecisionCard(input2, ctx, render2) {
+    const state2 = getEngineState();
+    const descriptor = availableManagement(getSchema(), state2);
+    const traffic = descriptor.sections.find((section) => section.type === "traffic");
+    if (!traffic) return null;
+    if (traffic.pendingIncident) {
+      const incident = traffic.pendingIncident;
+      const card2 = el2("section", "play-decision-card incident");
+      const title2 = el2("strong", "play-decision-title");
+      title2.textContent = `\u26A0 ${incident.label}`;
+      const body = el2("p");
+      body.textContent = incident.desc;
+      const actions2 = el2("div", "play-decision-actions");
+      for (const choice of incident.choices) {
+        const control = button2(choice.label, "secondary-btn");
+        control.disabled = busy;
+        control.addEventListener("click", () => runManagementTurn({ id: "incident_choice", params: { choice: choice.id } }, input2, ctx, render2));
+        actions2.append(control);
+      }
+      card2.append(title2, body, actions2);
+      return card2;
+    }
+    const pending = traffic.lodging && traffic.lodging.pending || [];
+    if (!pending.length) return null;
+    const day = Number(state2.day);
+    if (lodgingSelectionDay !== day) {
+      lodgingSelection = /* @__PURE__ */ new Set();
+      lodgingSelectionDay = day;
+    }
+    const validIds = new Set(pending.map((request) => request.id));
+    lodgingSelection = new Set(Array.from(lodgingSelection).filter((id) => validIds.has(id)));
+    const card = el2("section", "play-decision-card lodging");
+    const title = el2("strong", "play-decision-title");
+    title.textContent = `\u{1F6CE} \uC219\uBC15 \uBB38\uC758 ${pending.length}\uAC74`;
+    const requests = el2("div", "play-decision-requests");
+    for (const request of pending) {
+      const rowNode = el2("label", "play-decision-request");
+      const check = el2("input");
+      check.type = "checkbox";
+      check.checked = lodgingSelection.has(request.id);
+      check.disabled = busy;
+      check.addEventListener("change", () => {
+        if (check.checked) lodgingSelection.add(request.id);
+        else lodgingSelection.delete(request.id);
+        render2();
+      });
+      const text = el2("span");
+      text.textContent = `${request.name} \xB7 ${request.party}\uBA85 \xB7 ${request.stayDays}\uBC15`;
+      rowNode.append(check, text);
+      requests.append(rowNode);
+    }
+    const actions = el2("div", "play-decision-actions");
+    const accept = button2("\uC120\uD0DD\uD55C \uBB38\uC758 \uBC1B\uAE30", "primary-btn");
+    accept.disabled = busy || !pending.some((request) => lodgingSelection.has(request.id));
+    accept.addEventListener("click", () => runManagementBatch(pending.filter((request) => lodgingSelection.has(request.id)).map((request) => ({ event: { id: "lodging_accept", params: { requestId: request.id } }, requestName: request.name })), input2, ctx, render2));
+    const reject = button2("\uC804\uCCB4 \uAC70\uC808", "secondary-btn");
+    reject.disabled = busy;
+    reject.addEventListener("click", () => runManagementBatch(pending.map((request) => ({ event: { id: "lodging_reject", params: { requestId: request.id } }, requestName: request.name })), input2, ctx, render2));
+    actions.append(accept, reject);
+    card.append(title, requests, actions);
+    return card;
   }
   function renderMessage(message, ctx, showIdentity) {
     const wrap = el2("article", `play-message ${message.role}`);
@@ -11232,36 +11310,12 @@ ${Array.from(extras).join(" ")}` : text;
           }
         }
       }
-      if (section.type === "traffic" && section.pendingIncident) {
-        const warning = el2("span", "combat-command-label");
-        warning.textContent = `\u26A0 ${section.pendingIncident.label}`;
-        group.append(warning);
-        for (const choice of section.pendingIncident.choices) {
-          const control = button2(choice.label, "secondary-btn");
-          control.disabled = busy;
-          control.addEventListener("click", () => runManagementTurn({ id: "incident_choice", params: { choice: choice.id } }, input2, ctx, render2));
-          group.append(control);
-        }
-      }
       if (section.type === "traffic" && section.lodging) {
         if (!section.lodging.reviewed) {
           const review = button2("\uC219\uBC15 \uBB38\uC758 \uD655\uC778", "secondary-btn");
           review.disabled = busy;
           review.addEventListener("click", () => runManagementTurn({ id: "lodging_review", params: {} }, input2, ctx, render2));
           group.append(review);
-        }
-        for (const request of section.lodging.pending) {
-          const line = el2("div", "mgmt-row");
-          const text = el2("span");
-          text.textContent = `${request.name} \xB7 ${request.party}\uBA85 \xB7 ${request.stayDays}\uBC15`;
-          const accept = button2("\uBC1B\uAE30", "secondary-btn");
-          const reject = button2("\uAC70\uC808", "secondary-btn");
-          accept.disabled = busy;
-          reject.disabled = busy;
-          accept.addEventListener("click", () => runManagementTurn({ id: "lodging_accept", params: { requestId: request.id } }, input2, ctx, render2));
-          reject.addEventListener("click", () => runManagementTurn({ id: "lodging_reject", params: { requestId: request.id } }, input2, ctx, render2));
-          line.append(text, accept, reject);
-          group.append(line);
         }
       }
       if (section.type === "traffic" && section.mail) {
@@ -11368,6 +11422,43 @@ ${Array.from(extras).join(" ")}` : text;
     render2();
     const result = runEvent(event);
     appendEventChips(event.id, result.entries, chips, resultTexts);
+    const pending = { role: "assistant", content: "", chips };
+    try {
+      const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions() });
+      lastPrompt = prompt;
+      const parsed = parseAssistantResponse(await callProvider(providerConfig(settings), prompt));
+      applyEmotion(parsed.emotion);
+      const ignored = parsed.events.length + parsed.dropped;
+      if (ignored) chips.push({ ok: false, kind: "system", text: `\uC11C\uC0AC\uD654 \uC0AC\uAC74 ${ignored}\uAC1C \uBB34\uC2DC\uB428` });
+      pending.content = parsed.narrative || "\uAD00\uB9AC \uACB0\uACFC\uAC00 \uBC18\uC601\uB418\uC5C8\uC2B5\uB2C8\uB2E4.";
+    } catch (_) {
+      chips.push({ ok: false, kind: "system", text: "\uC11C\uC0AC\uD654 API \uC624\uB958 \xB7 \uC5D4\uC9C4 \uACB0\uACFC \uC720\uC9C0" });
+      pending.content = "\uAD00\uB9AC \uACB0\uACFC\uAC00 \uBC18\uC601\uB418\uC5C8\uC2B5\uB2C8\uB2E4.";
+    } finally {
+      messages.push(pending);
+      busy = false;
+      render2();
+    }
+  }
+  async function runManagementBatch(items, input2, ctx, render2) {
+    if (busy || !items.length) return;
+    busy = true;
+    const flavorText = input2.value.trim();
+    const chips = [];
+    const resultTexts = [];
+    const recentForNarration = messages.slice(-4);
+    if (flavorText) messages.push({ role: "user", content: flavorText });
+    input2.value = "";
+    render2();
+    for (const item of items) {
+      const result = runEvent(item.event);
+      const entries = result.entries || [];
+      if (item.event.id === "lodging_accept" && entries.some((entry) => !entry.ok && entry.reason === "no_room_available")) {
+        const text = `\uBC29\uC774 \uC5C6\uC5B4 ${item.requestName} \uBB38\uC758\uB294 \uBC1B\uC9C0 \uBABB\uD568`;
+        chips.push({ ok: false, kind: "system", text });
+        resultTexts.push(text);
+      } else appendEventChips(item.event.id, entries, chips, resultTexts);
+    }
     const pending = { role: "assistant", content: "", chips };
     try {
       const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions() });
