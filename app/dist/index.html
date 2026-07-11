@@ -930,6 +930,23 @@ select:focus { border-color: var(--amber-line); }
 .import-metric strong { font-size: 18px; }
 .import-issue-list,
 .import-editor-list { display: grid; gap: 8px; }
+.import-check-card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  line-height: 1.5;
+}
+.import-check-auto { border-color: var(--amber-line); background: var(--amber-wash); color: var(--amber); }
+.import-check-review { border-color: var(--warn); background: var(--warn-wash); color: var(--warn); }
+.import-check-error { border-color: var(--bad); background: var(--bad-wash); color: var(--bad); }
+.import-advanced {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px;
+}
+.import-advanced > summary { cursor: pointer; color: var(--ink-mid); font-weight: 700; }
+.import-advanced > .import-editor-list { margin-top: 14px; }
 .import-issue { font-family: var(--font-mono); }
 .import-warn {
   border-color: var(--warn);
@@ -10966,6 +10983,10 @@ ${Array.from(extras).join(" ")}` : text;
   var stateByCard = /* @__PURE__ */ new Map();
   var busy2 = false;
   var settings2 = loadSettings2();
+  var activeImportRender = null;
+  function refreshImport() {
+    if (activeImportRender) activeImportRender();
+  }
   function renderImportView(container, ctx) {
     registerCustomOrigin2(settings2);
     const root = el3("div", "import-view");
@@ -10974,8 +10995,10 @@ ${Array.from(extras).join(" ")}` : text;
       root.replaceChildren();
       root.append(renderHeader2(ctx, render2), renderLayout2(ctx, render2));
     };
+    activeImportRender = render2;
     render2();
     return () => {
+      if (activeImportRender === render2) activeImportRender = null;
     };
   }
   async function compileSchemaForImport(ctx, config) {
@@ -11017,7 +11040,7 @@ ${Array.from(extras).join(" ")}` : text;
     const h2 = el3("h2");
     h2.textContent = "\uC784\uD3EC\uD2B8 \uCEF4\uD30C\uC77C\uB7EC";
     const p = el3("p");
-    p.textContent = "\uCE74\uB4DC\uC758 \uB8F0\uBD81(\uADDC\uCE59 \uC124\uBA85\uAE00)\uC744 \uAC8C\uC784 \uC2A4\uD0A4\uB9C8\uB85C \uCEF4\uD30C\uC77C\uD569\uB2C8\uB2E4. LLM \uCD9C\uB825\uC740 \uAC80\uC99D\uC744 \uD1B5\uACFC\uD558\uACE0 \uC0AC\uC6A9\uC790\uAC00 \uC2B9\uC778\uD558\uAE30 \uC804\uAE4C\uC9C0\uB294 \uC81C\uC548\uC77C \uBFD0\uC785\uB2C8\uB2E4.";
+    p.textContent = "\uCE74\uB4DC\uB97C \uAC8C\uC784 \uADDC\uCE59\uC73C\uB85C \uBCC0\uD658\uD569\uB2C8\uB2E4.";
     title.append(h2, p);
     const buttonRow = el3("div", "engine-header-controls");
     const compile = button3(busy2 ? "\uCEF4\uD30C\uC77C \uC911..." : "\uCEF4\uD30C\uC77C", "primary-btn");
@@ -11037,7 +11060,7 @@ ${Array.from(extras).join(" ")}` : text;
     combatSchema.addEventListener("click", () => {
       setActiveSchema(require_hunters_combat_v0());
       addLog(ctx, "\uB0B4\uC7A5 \uC804\uD22C \uC2A4\uD0A4\uB9C8 \uC801\uC6A9\uB428 \xB7 \uD50C\uB808\uC774 \uD0ED\uC5D0\uC11C \uC804\uD22C\uB97C \uD14C\uC2A4\uD2B8\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4");
-      render2();
+      ctx.goToPlay();
     });
     buttonRow.append(compile, revert, combatSchema);
     header.append(title, buttonRow);
@@ -11165,9 +11188,9 @@ ${Array.from(extras).join(" ")}` : text;
       panel.append(empty);
       return panel;
     }
-    panel.append(renderCopyBar(result), renderIssueSummary(result), renderPatches(result), renderSchemaSummary(result.schema));
+    panel.append(renderCopyBar(result), renderSchemaSummary(result.schema), renderIssueSummary(result));
     if (result.schema) {
-      panel.append(renderAssumptions(result.schema), renderSectionEditors(ctx, result, render2), renderFullJson(result.schema));
+      panel.append(renderAssumptions(result.schema), renderAdvancedEditor(ctx, result, render2));
     }
     panel.append(renderApproval(ctx, result, render2));
     return panel;
@@ -11199,38 +11222,25 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
     return bar;
   }
   function renderIssueSummary(result) {
-    const section = titled2("\uAC80\uC99D");
-    const counts = issueCounts(result.issues);
-    const row3 = el3("div", "import-metric-row");
-    row3.append(metric2("\uC5D0\uB7EC", counts.error), metric2("\uACBD\uACE0", counts.warn));
-    section.append(row3);
+    const section = titled2("\uC810\uAC80 \uC0AC\uD56D");
     const list = el3("div", "import-issue-list");
-    if (!result.issues.length) {
+    const patches = result.patches || [];
+    if (!result.issues.length && !patches.length) {
       const ok = el3("p", "badge engine-ok import-status-badge");
-      ok.textContent = "\uAC80\uC99D \uBB38\uC81C \uC5C6\uC74C";
+      ok.textContent = "\u2705 \uC790\uB3D9 \uC810\uAC80 \uD1B5\uACFC";
       list.append(ok);
     } else {
-      for (const issue of result.issues) {
-        const item = el3("div", `engine-list-row import-issue ${issue.level === "error" ? "engine-fail" : "import-warn"}`);
-        item.textContent = `${issue.level.toUpperCase()} ${issue.path}: ${issue.msg}`;
+      for (const patch of patches) {
+        const item = el3("div", "import-check-card import-check-auto");
+        item.textContent = `\u{1F527} \uC790\uB3D9\uC73C\uB85C \uBCF4\uC815\uD588\uC5B4\uC694 \xB7 ${patch.path}: ${fmtPatchVal(patch.from)} \u2192 ${fmtPatchVal(patch.to)}`;
         list.append(item);
       }
-    }
-    section.append(list);
-    return section;
-  }
-  function renderPatches(result) {
-    const patches = result && result.patches;
-    if (!patches || !patches.length) return el3("div", "play-hidden");
-    const section = titled2("\uCC44\uAD74\uAC12 \uAC15\uC81C \uC801\uC6A9 (\uCE74\uB4DC Lua \uC2E4\uAC12\uC73C\uB85C \uAD50\uC815)");
-    const p = el3("p", "muted-line");
-    p.textContent = "\uC544\uB798 \uC22B\uC790\uB294 LLM \uCD9C\uB825\uC774 \uC544\uB2C8\uB77C \uCE74\uB4DC Lua\uC5D0\uC11C \uC9C1\uC811 \uCC44\uAD74\uD55C \uAC12\uC73C\uB85C \uB36E\uC5B4\uC4F4 \uAC83\uC785\uB2C8\uB2E4.";
-    section.append(p);
-    const list = el3("div", "import-issue-list");
-    for (const patch of patches) {
-      const item = el3("div", "engine-list-row import-issue import-warn");
-      item.textContent = `${patch.path}: ${fmtPatchVal(patch.from)} \u2192 ${fmtPatchVal(patch.to)}`;
-      list.append(item);
+      for (const issue of result.issues) {
+        const isError = issue.level === "error";
+        const item = el3("div", `import-check-card ${isError ? "import-check-error" : "import-check-review"}`);
+        item.textContent = `${isError ? "\u26D4" : "\u26A0\uFE0F"} \uD655\uC778\uC774 \uD544\uC694\uD574\uC694 \xB7 ${issue.path}: ${issue.msg}`;
+        list.append(item);
+      }
     }
     section.append(list);
     return section;
@@ -11240,7 +11250,7 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
     return JSON.stringify(value);
   }
   function renderSchemaSummary(schema2) {
-    const section = titled2("\uC139\uC158");
+    const section = titled2("\uACB0\uACFC \uC694\uC57D");
     if (!schema2) {
       const p = el3("p", "engine-warning");
       p.textContent = "\uCEF4\uD30C\uC77C\uB7EC \uCD9C\uB825\uC744 JSON\uC73C\uB85C \uD30C\uC2F1\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.";
@@ -11249,13 +11259,11 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
     }
     const grid = el3("div", "import-section-grid");
     for (const [label, value] of [
-      ["resources", count(schema2.resources)],
-      ["scales", count(schema2.scales)],
-      ["ladders", count(schema2.ladders)],
-      ["entities", count(schema2.entities)],
-      ["formulas", count(schema2.formulas)],
-      ["processes", count(schema2.processes)],
-      ["events", count(schema2.events)]
+      ["\uC790\uC6D0", `${count(schema2.resources)}\uC885`],
+      ["\uC2DC\uC124", `${entityCount(schema2, "facility")}\uAC1C`],
+      ["\uC0AC\uAC74", `${count(schema2.events)}\uC885`],
+      ["\uC758\uB8B0", `${count(schema2.quests)}\uAC1C`],
+      ["NPC", `${entityCount(schema2, "npc")}\uBA85`]
     ]) {
       grid.append(metric2(label, value));
     }
@@ -11281,16 +11289,24 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
     return section;
   }
   function renderSectionEditors(ctx, result, render2) {
-    const section = titled2("\uC139\uC158 \uD3B8\uC9D1\uAE30");
     const wrap = el3("div", "import-editor-list");
+    result.drafts = result.drafts || {};
+    result.openSections = result.openSections || {};
     for (const key of SECTION_KEYS) {
       if (!result.schema || !(key in result.schema)) continue;
       const details = el3("details", "import-editor");
+      details.open = !!result.openSections[key];
+      details.addEventListener("toggle", () => {
+        result.openSections[key] = details.open;
+      });
       const summary = el3("summary");
       summary.textContent = key;
       const textarea = el3("textarea", "import-json-input");
       textarea.name = key;
-      textarea.value = JSON.stringify(result.schema[key], null, 2);
+      textarea.value = key in result.drafts ? result.drafts[key] : JSON.stringify(result.schema[key], null, 2);
+      textarea.addEventListener("input", () => {
+        result.drafts[key] = textarea.value;
+      });
       const validate = button3("\uC139\uC158 \uC7AC\uAC80\uC99D", "secondary-btn");
       validate.addEventListener("click", () => {
         revalidateSection(ctx, key, textarea.value);
@@ -11299,8 +11315,18 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
       details.append(summary, textarea, validate);
       wrap.append(details);
     }
-    section.append(wrap);
-    return section;
+    return wrap;
+  }
+  function renderAdvancedEditor(ctx, result, render2) {
+    const details = el3("details", "import-advanced");
+    details.open = !!result.advancedOpen;
+    details.addEventListener("toggle", () => {
+      result.advancedOpen = details.open;
+    });
+    const summary = el3("summary");
+    summary.textContent = "\uACE0\uAE09: \uADDC\uCE59 \uC6D0\uBB38(JSON) \uC9C1\uC811 \uD3B8\uC9D1";
+    details.append(summary, renderSectionEditors(ctx, result, render2), renderFullJson(result.schema));
+    return details;
   }
   function renderFullJson(schema2) {
     const details = el3("details", "import-full-json");
@@ -11313,7 +11339,7 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
   }
   function renderApproval(ctx, result, render2) {
     const section = el3("section", "import-approval");
-    const approve = button3("\uC2B9\uC778 \uD6C4 \uC5D4\uC9C4\uC5D0 \uBC18\uC601", "primary-btn");
+    const approve = button3("\uC774 \uADDC\uCE59\uC73C\uB85C \uD50C\uB808\uC774 \uC2DC\uC791", "primary-btn");
     const counts = issueCounts(result.issues);
     approve.disabled = !result.schema || counts.error > 0 || busy2;
     approve.addEventListener("click", () => {
@@ -11322,10 +11348,11 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
       setActiveSchema(current.schema);
       current.approved = true;
       addLog(ctx, "\uC2A4\uD0A4\uB9C8 \uC2B9\uC778\uB428 \xB7 \uC5D4\uC9C4 \uC138\uC158\uC774 \uC7AC\uC124\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
-      render2();
+      ctx.goToPlay();
     });
     const note = el3("p", "muted-line");
-    note.textContent = counts.error > 0 ? "\uC2B9\uC778 \uC804\uC5D0 \uAC80\uC99D \uC5D0\uB7EC\uB97C \uD574\uACB0\uD558\uC138\uC694. LLM \uC6D0\uCD9C\uB825\uC740 \uC808\uB300 \uADF8\uB300\uB85C \uBC18\uC601\uB418\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4." : "\uC2B9\uC778\uD558\uBA74 \uD65C\uC131 \uC5D4\uC9C4 \uC138\uC158\uC774 \uC774 \uC815\uADDC\uD654\uB41C \uC2A4\uD0A4\uB9C8\uB85C \uC7AC\uC124\uC815\uB429\uB2C8\uB2E4.";
+    const hasJsonError = (result.issues || []).some((issue) => issue.source === "advanced-json");
+    note.textContent = hasJsonError ? "\uACE0\uAE09 \uD3B8\uC9D1\uC758 JSON\uC5D0 \uC624\uB958\uAC00 \uC788\uC5B4\uC694 \u2014 \uB418\uB3CC\uB9AC\uB824\uBA74 \uB2E4\uC2DC \uCEF4\uD30C\uC77C" : counts.error > 0 ? "\uD50C\uB808\uC774\uB97C \uC2DC\uC791\uD558\uB824\uBA74 \uD655\uC778\uC774 \uD544\uC694\uD55C \uC624\uB958\uB97C \uD574\uACB0\uD574 \uC8FC\uC138\uC694." : "\uC2B9\uC778\uD558\uBA74 \uD65C\uC131 \uC5D4\uC9C4 \uC138\uC158\uC774 \uC774 \uC815\uADDC\uD654\uB41C \uC2A4\uD0A4\uB9C8\uB85C \uC7AC\uC124\uC815\uB429\uB2C8\uB2E4.";
     section.append(approve, note);
     return section;
   }
@@ -11358,7 +11385,7 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
       addLog(ctx, `\uCEF4\uD30C\uC77C \uC2E4\uD328: ${safeError2(err)}`);
     } finally {
       busy2 = false;
-      render2();
+      refreshImport();
     }
   }
   function formatMineLog(mined) {
@@ -11379,12 +11406,14 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
       schema2[key] = JSON.parse(value);
       const checked = validateSchema(schema2);
       result.schema = checked.schema;
-      result.issues = checked.issues;
+      const pendingJsonErrors = (result.issues || []).filter((issue) => issue.source === "advanced-json" && issue.path !== key);
+      result.issues = [...pendingJsonErrors, ...checked.issues];
       result.approved = false;
-      addLog(ctx, `\uC139\uC158 ${key} \uC7AC\uAC80\uC99D: \uC5D0\uB7EC ${issueCounts(checked.issues).error}\uAC1C.`);
+      if (result.drafts) delete result.drafts[key];
+      addLog(ctx, `\uC139\uC158 ${key} \uC7AC\uAC80\uC99D: \uC5D0\uB7EC ${issueCounts(result.issues).error}\uAC1C.`);
     } catch (err) {
-      result.issues = result.issues.filter((issue) => issue.path !== key);
-      result.issues.unshift({ level: "error", path: key, msg: safeError2(err) });
+      result.issues = (result.issues || []).filter((issue) => issue.path !== key);
+      result.issues.unshift({ level: "error", path: key, msg: safeError2(err), source: "advanced-json" });
       result.approved = false;
       addLog(ctx, `\uC139\uC158 ${key} JSON \uD30C\uC2F1 \uC2E4\uD328.`);
     }
@@ -11427,6 +11456,10 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
   function count(value) {
     return Array.isArray(value) ? value.length : value && typeof value === "object" ? Object.keys(value).length : 0;
   }
+  function entityCount(schema2, type) {
+    const entity = Array.isArray(schema2 && schema2.entities) ? schema2.entities.find((entry) => entry && entry.type === type) : null;
+    return entity && Array.isArray(entity.instances) ? entity.instances.length : 0;
+  }
   function safeError2(err) {
     const message = err && err.message ? err.message : String(err || "Error");
     return message.replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]").replace(/https?:\/\/\S+/g, "[url]").slice(0, 360);
@@ -11449,6 +11482,7 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
   }
 
   // src/main.js
+  var schemaActivated = false;
   var tabs = [
     { id: "overview", label: "\uAC1C\uC694" },
     { id: "npc", label: "NPC \uAC24\uB7EC\uB9AC" },
@@ -11528,6 +11562,8 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
     headerActions.append(status);
     if (state.shellMode === "player" && state.parsed) {
       headerActions.append(shellButton("\uC81C\uC791\uC790 \uB3C4\uAD6C", () => enterCreator()), shellButton("\uCE74\uB4DC \uAD50\uCCB4", () => inputNode.click()));
+    } else if (state.shellMode === "player" && schemaActivated) {
+      headerActions.append(shellButton("\uC81C\uC791\uC790 \uB3C4\uAD6C", () => enterCreator()));
     } else if (state.shellMode === "creator") {
       headerActions.prepend(shellButton("\u2190 \uD50C\uB808\uC774\uB85C \uB3CC\uC544\uAC00\uAE30", () => enterPlayer()));
     }
@@ -11567,7 +11603,7 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
     const panel = document.createElement("section");
     panel.className = "panel";
     panel.id = "panel";
-    if (state.shellMode === "player" && !state.parsed) {
+    if (state.shellMode === "player" && !state.parsed && !schemaActivated) {
       const landing = document.createElement("section");
       landing.className = "landing-hero";
       const heroTitle = document.createElement("h2");
@@ -11750,7 +11786,11 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
       file: state.file,
       objectUrlFor,
       revokeViewUrls,
-      formatBytes
+      formatBytes,
+      goToPlay: () => {
+        schemaActivated = true;
+        enterPlayer();
+      }
     };
   }
   function renderEmptyOverview() {

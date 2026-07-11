@@ -9,6 +9,10 @@ import { renderEngineView } from './engineView.js';
 import { renderPlayView, primaryCharacter } from './playView.js';
 import { applyCardTheme } from './theme/cardTheme.js';
 import { renderImportView } from './importView.js';
+// 주의: engineSession.getSchema()는 기본 내장 스키마를 항상 반환하므로(절대 null 아님)
+// "플레이할 것이 있는가" 판정에 쓰면 안 된다. 사용자가 명시적으로 스키마를 활성화해
+// 플레이로 직행한 경우만 아래 플래그로 추적한다.
+let schemaActivated = false;
 
 const tabs = [
   { id: 'overview', label: '개요' },
@@ -95,6 +99,9 @@ function renderShell() {
   headerActions.append(status);
   if (state.shellMode === 'player' && state.parsed) {
     headerActions.append(shellButton('제작자 도구', () => enterCreator()), shellButton('카드 교체', () => inputNode.click()));
+  } else if (state.shellMode === 'player' && schemaActivated) {
+    // 카드 없이 내장/승인 스키마로 플레이 중 — 제작자 도구 복귀 경로는 남긴다.
+    headerActions.append(shellButton('제작자 도구', () => enterCreator()));
   } else if (state.shellMode === 'creator') {
     headerActions.prepend(shellButton('← 플레이로 돌아가기', () => enterPlayer()));
   }
@@ -136,7 +143,8 @@ function renderShell() {
   const panel = document.createElement('section');
   panel.className = 'panel';
   panel.id = 'panel';
-  if (state.shellMode === 'player' && !state.parsed) {
+  // 카드가 없어도 사용자가 스키마를 명시 활성화했으면 플레이 화면을 연다 — 랜딩 데드엔드 방지.
+  if (state.shellMode === 'player' && !state.parsed && !schemaActivated) {
     const landing = document.createElement('section');
     landing.className = 'landing-hero';
     const heroTitle = document.createElement('h2');
@@ -318,6 +326,7 @@ function createContext() {
     objectUrlFor,
     revokeViewUrls,
     formatBytes,
+    goToPlay: () => { schemaActivated = true; enterPlayer(); },
   };
 }
 

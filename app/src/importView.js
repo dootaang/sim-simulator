@@ -12,6 +12,13 @@ const stateByCard = new Map();
 
 let busy = false;
 let settings = loadSettings();
+let activeImportRender = null;
+
+// 비동기 컴파일 완료 콜백이 언마운트된 옛 인스턴스의 render를 잡고 있지 않도록,
+// 항상 현재 마운트의 render만 실행한다 (탭 이탈 후 복귀 시 '컴파일 중' 락인 방지).
+function refreshImport() {
+  if (activeImportRender) activeImportRender();
+}
 
 export function renderImportView(container, ctx) {
   registerCustomOrigin(settings);
@@ -21,8 +28,9 @@ export function renderImportView(container, ctx) {
     root.replaceChildren();
     root.append(renderHeader(ctx, render), renderLayout(ctx, render));
   };
+  activeImportRender = render;
   render();
-  return () => {};
+  return () => { if (activeImportRender === render) activeImportRender = null; };
 }
 
 export async function compileSchemaForImport(ctx, config) {
@@ -71,7 +79,7 @@ function renderHeader(ctx, render) {
   const h2 = el('h2');
   h2.textContent = '임포트 컴파일러';
   const p = el('p');
-  p.textContent = '카드의 룰북(규칙 설명글)을 게임 스키마로 컴파일합니다. LLM 출력은 검증을 통과하고 사용자가 승인하기 전까지는 제안일 뿐입니다.';
+  p.textContent = '카드를 게임 규칙으로 변환합니다.';
   title.append(h2, p);
 
   const buttonRow = el('div', 'engine-header-controls');
@@ -92,7 +100,7 @@ function renderHeader(ctx, render) {
   combatSchema.addEventListener('click', () => {
     setActiveSchema(require('../../schema/hunters-combat.v0.json'));
     addLog(ctx, '내장 전투 스키마 적용됨 · 플레이 탭에서 전투를 테스트할 수 있습니다');
-    render();
+    ctx.goToPlay();
   });
   buttonRow.append(compile, revert, combatSchema);
   header.append(title, buttonRow);
@@ -249,9 +257,9 @@ function renderReviewPanel(ctx, render) {
     return panel;
   }
 
-  panel.append(renderCopyBar(result), renderIssueSummary(result), renderPatches(result), renderSchemaSummary(result.schema));
+  panel.append(renderCopyBar(result), renderSchemaSummary(result.schema), renderIssueSummary(result));
   if (result.schema) {
-    panel.append(renderAssumptions(result.schema), renderSectionEditors(ctx, result, render), renderFullJson(result.schema));
+    panel.append(renderAssumptions(result.schema), renderAdvancedEditor(ctx, result, render));
   }
   panel.append(renderApproval(ctx, result, render));
   return panel;
@@ -274,21 +282,23 @@ function renderCopyBar(result) {
 }
 
 function renderIssueSummary(result) {
-  const section = titled('검증');
-  const counts = issueCounts(result.issues);
-  const row = el('div', 'import-metric-row');
-  row.append(metric('에러', counts.error), metric('경고', counts.warn));
-  section.append(row);
-
+  const section = titled('점검 사항');
   const list = el('div', 'import-issue-list');
-  if (!result.issues.length) {
+  const patches = result.patches || [];
+  if (!result.issues.length && !patches.length) {
     const ok = el('p', 'badge engine-ok import-status-badge');
-    ok.textContent = '검증 문제 없음';
+    ok.textContent = '✅ 자동 점검 통과';
     list.append(ok);
   } else {
+    for (const patch of patches) {
+      const item = el('div', 'import-check-card import-check-auto');
+      item.textContent = `🔧 자동으로 보정했어요 · ${patch.path}: ${fmtPatchVal(patch.from)} → ${fmtPatchVal(patch.to)}`;
+      list.append(item);
+    }
     for (const issue of result.issues) {
-      const item = el('div', `engine-list-row import-issue ${issue.level === 'error' ? 'engine-fail' : 'import-warn'}`);
-      item.textContent = `${issue.level.toUpperCase()} ${issue.path}: ${issue.msg}`;
+      const isError = issue.level === 'error';
+      const item = el('div', `import-check-card ${isError ? 'import-check-error' : 'import-check-review'}`);
+      item.textContent = `${isError ? '⛔' : '⚠️'} 확인이 필요해요 · ${issue.path}: ${issue.msg}`;
       list.append(item);
     }
   }
@@ -320,7 +330,7 @@ function fmtPatchVal(value) {
 }
 
 function renderSchemaSummary(schema) {
-  const section = titled('섹션');
+  const section = titled('결과 요약');
   if (!schema) {
     const p = el('p', 'engine-warning');
     p.textContent = '컴파일러 출력을 JSON으로 파싱할 수 없습니다.';
@@ -329,13 +339,11 @@ function renderSchemaSummary(schema) {
   }
   const grid = el('div', 'import-section-grid');
   for (const [label, value] of [
-    ['resources', count(schema.resources)],
-    ['scales', count(schema.scales)],
-    ['ladders', count(schema.ladders)],
-    ['entities', count(schema.entities)],
-    ['formulas', count(schema.formulas)],
-    ['processes', count(schema.processes)],
-    ['events', count(schema.events)],
+    ['자원', `${count(schema.resources)}종`],
+    ['시설', `${entityCount(schema, 'facility')}개`],
+    ['사건', `${count(schema.events)}종`],
+    ['의뢰', `${count(schema.quests)}개`],
+    ['NPC', `${entityCount(schema, 'npc')}명`],
   ]) {
     grid.append(metric(label, value));
   }
@@ -365,16 +373,22 @@ function renderAssumptions(schema) {
 }
 
 function renderSectionEditors(ctx, result, render) {
-  const section = titled('섹션 편집기');
   const wrap = el('div', 'import-editor-list');
+  result.drafts = result.drafts || {};
+  result.openSections = result.openSections || {};
   for (const key of SECTION_KEYS) {
     if (!result.schema || !(key in result.schema)) continue;
     const details = el('details', 'import-editor');
+    // 재렌더에도 펼침 상태 유지.
+    details.open = !!result.openSections[key];
+    details.addEventListener('toggle', () => { result.openSections[key] = details.open; });
     const summary = el('summary');
     summary.textContent = key;
     const textarea = el('textarea', 'import-json-input');
     textarea.name = key;
-    textarea.value = JSON.stringify(result.schema[key], null, 2);
+    // 검증 실패 등으로 재렌더돼도 편집 중이던 텍스트를 날리지 않는다.
+    textarea.value = key in result.drafts ? result.drafts[key] : JSON.stringify(result.schema[key], null, 2);
+    textarea.addEventListener('input', () => { result.drafts[key] = textarea.value; });
     const validate = button('섹션 재검증', 'secondary-btn');
     validate.addEventListener('click', () => {
       revalidateSection(ctx, key, textarea.value);
@@ -383,8 +397,17 @@ function renderSectionEditors(ctx, result, render) {
     details.append(summary, textarea, validate);
     wrap.append(details);
   }
-  section.append(wrap);
-  return section;
+  return wrap;
+}
+
+function renderAdvancedEditor(ctx, result, render) {
+  const details = el('details', 'import-advanced');
+  details.open = !!result.advancedOpen;
+  details.addEventListener('toggle', () => { result.advancedOpen = details.open; });
+  const summary = el('summary');
+  summary.textContent = '고급: 규칙 원문(JSON) 직접 편집';
+  details.append(summary, renderSectionEditors(ctx, result, render), renderFullJson(result.schema));
+  return details;
 }
 
 function renderFullJson(schema) {
@@ -399,7 +422,7 @@ function renderFullJson(schema) {
 
 function renderApproval(ctx, result, render) {
   const section = el('section', 'import-approval');
-  const approve = button('승인 후 엔진에 반영', 'primary-btn');
+  const approve = button('이 규칙으로 플레이 시작', 'primary-btn');
   const counts = issueCounts(result.issues);
   approve.disabled = !result.schema || counts.error > 0 || busy;
   approve.addEventListener('click', () => {
@@ -408,11 +431,14 @@ function renderApproval(ctx, result, render) {
     setActiveSchema(current.schema);
     current.approved = true;
     addLog(ctx, '스키마 승인됨 · 엔진 세션이 재설정되었습니다.');
-    render();
+    ctx.goToPlay();
   });
   const note = el('p', 'muted-line');
-  note.textContent = counts.error > 0
-    ? '승인 전에 검증 에러를 해결하세요. LLM 원출력은 절대 그대로 반영되지 않습니다.'
+  const hasJsonError = (result.issues || []).some((issue) => issue.source === 'advanced-json');
+  note.textContent = hasJsonError
+    ? '고급 편집의 JSON에 오류가 있어요 — 되돌리려면 다시 컴파일'
+    : counts.error > 0
+      ? '플레이를 시작하려면 확인이 필요한 오류를 해결해 주세요.'
     : '승인하면 활성 엔진 세션이 이 정규화된 스키마로 재설정됩니다.';
   section.append(approve, note);
   return section;
@@ -447,7 +473,7 @@ async function runCompile(ctx, render) {
     addLog(ctx, `컴파일 실패: ${safeError(err)}`);
   } finally {
     busy = false;
-    render();
+    refreshImport();
   }
 }
 
@@ -470,12 +496,16 @@ function revalidateSection(ctx, key, value) {
     schema[key] = JSON.parse(value);
     const checked = validateSchema(schema);
     result.schema = checked.schema;
-    result.issues = checked.issues;
+    // 다른 섹션의 미해결 JSON 문법 오류는 유지한다 — 멀쩡한 섹션 재검증이
+    // 깨진 섹션의 에러를 지우고 승인 잠금을 풀어버리는 것 방지.
+    const pendingJsonErrors = (result.issues || []).filter((issue) => issue.source === 'advanced-json' && issue.path !== key);
+    result.issues = [...pendingJsonErrors, ...checked.issues];
     result.approved = false;
-    addLog(ctx, `섹션 ${key} 재검증: 에러 ${issueCounts(checked.issues).error}개.`);
+    if (result.drafts) delete result.drafts[key]; // 성공 → 정규화된 값으로 갱신
+    addLog(ctx, `섹션 ${key} 재검증: 에러 ${issueCounts(result.issues).error}개.`);
   } catch (err) {
-    result.issues = result.issues.filter((issue) => issue.path !== key);
-    result.issues.unshift({ level: 'error', path: key, msg: safeError(err) });
+    result.issues = (result.issues || []).filter((issue) => issue.path !== key);
+    result.issues.unshift({ level: 'error', path: key, msg: safeError(err), source: 'advanced-json' });
     result.approved = false;
     addLog(ctx, `섹션 ${key} JSON 파싱 실패.`);
   }
@@ -525,6 +555,13 @@ function issueCounts(issues) {
 
 function count(value) {
   return Array.isArray(value) ? value.length : value && typeof value === 'object' ? Object.keys(value).length : 0;
+}
+
+function entityCount(schema, type) {
+  const entity = Array.isArray(schema && schema.entities)
+    ? schema.entities.find((entry) => entry && entry.type === type)
+    : null;
+  return entity && Array.isArray(entity.instances) ? entity.instances.length : 0;
 }
 
 function safeError(err) {

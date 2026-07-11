@@ -922,6 +922,23 @@ select:focus { border-color: var(--amber-line); }
 .import-metric strong { font-size: 18px; }
 .import-issue-list,
 .import-editor-list { display: grid; gap: 8px; }
+.import-check-card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  line-height: 1.5;
+}
+.import-check-auto { border-color: var(--amber-line); background: var(--amber-wash); color: var(--amber); }
+.import-check-review { border-color: var(--warn); background: var(--warn-wash); color: var(--warn); }
+.import-check-error { border-color: var(--bad); background: var(--bad-wash); color: var(--bad); }
+.import-advanced {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px;
+}
+.import-advanced > summary { cursor: pointer; color: var(--ink-mid); font-weight: 700; }
+.import-advanced > .import-editor-list { margin-top: 14px; }
 .import-issue { font-family: var(--font-mono); }
 .import-warn {
   border-color: var(--warn);
