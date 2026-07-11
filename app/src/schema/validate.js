@@ -37,9 +37,73 @@ function validateSchema(obj) {
   validateQuests(schema, issues);
   validateGather(schema, issues);
   validateSettlement(schema, issues);
+  validateTraffic(schema, issues);
   validateEvents(schema, issues);
 
   return { schema, issues };
+}
+
+function validateTraffic(schema, issues) {
+  if (schema.traffic == null) return;
+  if (!isObject(schema.traffic)) {
+    warn(issues, 'traffic', 'traffic must be an object; removed.');
+    delete schema.traffic;
+    return;
+  }
+  const traffic = schema.traffic;
+  const facilities = asArray(findEntity(schema, 'facility') && findEntity(schema, 'facility').instances);
+  if (!facilities.some((facility) => facility && facility.id === traffic.capacityFacility)) {
+    warn(issues, 'traffic.capacityFacility', 'Unknown capacity facility; traffic module removed.');
+    delete schema.traffic;
+    return;
+  }
+  const sellsEntity = isObject(traffic.sells) ? traffic.sells.entity : null;
+  if (!sellsEntity || !findEntity(schema, sellsEntity)) {
+    warn(issues, 'traffic.sells', 'Missing or unknown sells entity; traffic module removed.');
+    delete schema.traffic;
+    return;
+  }
+  if (!Array.isArray(traffic.base) || !traffic.base.length || !Array.isArray(traffic.capacity) || !traffic.capacity.length) {
+    warn(issues, 'traffic', 'base and capacity must be non-empty arrays; traffic module removed.');
+    delete schema.traffic;
+    return;
+  }
+  traffic.base = traffic.base.map((range, index) => {
+    if (Number.isFinite(Number(range))) {
+      const value = Number(range);
+      warn(issues, `traffic.base[${index}]`, 'Numeric base normalized to [n,n].');
+      return [value, value];
+    }
+    if (isRange(range) && range.every((value) => Number.isFinite(Number(value)))) return range.map(Number);
+    warn(issues, `traffic.base[${index}]`, 'Invalid base range normalized to [0,0].');
+    return [0, 0];
+  });
+  traffic.capacity = traffic.capacity.map((value, index) => {
+    const number = Number(value);
+    if (Number.isFinite(number) && number >= 0) return number;
+    warn(issues, `traffic.capacity[${index}]`, 'Invalid capacity normalized to 0.');
+    return 0;
+  });
+  if (!Array.isArray(traffic.waves) || !traffic.waves.length) {
+    traffic.waves = [{ id: 'day', label: '영업', share: 1 }];
+    warn(issues, 'traffic.waves', 'Empty waves normalized to one daily wave.');
+  }
+  traffic.waves = traffic.waves.filter(isObject).map((wave, index) => ({
+    id: typeof wave.id === 'string' && wave.id ? wave.id : `wave_${index + 1}`,
+    label: typeof wave.label === 'string' && wave.label ? wave.label : '영업',
+    share: Number.isFinite(Number(wave.share)) && Number(wave.share) > 0 ? Number(wave.share) : 1,
+  }));
+  const shareSum = traffic.waves.reduce((sum, wave) => sum + wave.share, 0);
+  if (shareSum < 0.5 || shareSum > 1.5) {
+    traffic.waves.forEach((wave) => { wave.share /= shareSum; });
+    warn(issues, 'traffic.waves', 'Wave shares normalized to a total of 1.');
+  }
+  const knownModifiers = new Set(['ladder_rank', 'staff', 'facility_level']);
+  traffic.modifiers = asArray(traffic.modifiers).filter((modifier, index) => {
+    if (isObject(modifier) && knownModifiers.has(modifier.type)) return true;
+    warn(issues, `traffic.modifiers[${index}]`, 'Unknown traffic modifier removed.');
+    return false;
+  });
 }
 
 function normalizeMenuTrade(schema, issues) {

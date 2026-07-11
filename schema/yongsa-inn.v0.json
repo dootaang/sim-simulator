@@ -15,6 +15,23 @@
     ]
   },
 
+  "traffic": {
+    "id": "inn_service",
+    "capacityFacility": "tavern",
+    "base": [[8,15],[15,30],[25,50],[40,80]],
+    "capacity": [15,30,50,80],
+    "waves": [
+      { "id": "lunch", "label": "점심 영업", "share": 0.4 },
+      { "id": "evening", "label": "저녁 영업", "share": 0.6 }
+    ],
+    "modifiers": [
+      { "type": "ladder_rank", "ladder": "reputation", "axis": "village", "perRank": 0.06 },
+      { "type": "staff", "perStaff": 0.08, "max": 0.32 },
+      { "type": "facility_level", "facility": "kitchen", "perLevel": 0.05 }
+    ],
+    "sells": { "entity": "menuItem" }
+  },
+
   "initialState": {
     "day": 1,
     "gold": 500000,

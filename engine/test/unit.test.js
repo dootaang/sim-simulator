@@ -42,7 +42,7 @@ test('buy_item is schema-priced, inventory-backed, guarded, and consumes no rng'
   assert.equal(rngCalls, 0);
   state = bought.state;
   assert.match(summarize(shop, state), /\[소지품\] 서약반지 ×2/);
-  assert.deepEqual(availableManagement(shop, state).sections.map((section) => section.type), ['sell', 'buy', 'purchase', 'upgrade', 'gather', 'day_end']);
+  assert.deepEqual(availableManagement(shop, state).sections.map((section) => section.type), ['traffic', 'sell', 'buy', 'purchase', 'upgrade', 'gather', 'day_end']);
   state.combat = { active: true };
   assert.deepEqual(availableManagement(shop, state), { sections: [] });
 });

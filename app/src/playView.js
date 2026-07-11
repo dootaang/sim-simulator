@@ -405,8 +405,15 @@ function renderManagementConsole(input, ctx, render) {
   for (const section of descriptor.sections) {
     const group = el('div', 'mgmt-section');
     const label = el('span', 'combat-command-label');
-    label.textContent = ({ sell: '판매', buy: '구매', purchase: '재료 구매', upgrade: '증축', gather: '채집 (무료 · 획득량은 주사위)', day_end: '하루' })[section.type] || section.type;
+    const trafficDay = Number(getEngineState().day);
+    label.textContent = section.type === 'traffic' ? (Number.isFinite(trafficDay) ? `🏪 ${trafficDay}일차 영업` : '🏪 영업') : ({ sell: '판매', buy: '구매', purchase: '재료 구매', upgrade: '증축', gather: '채집 (무료 · 획득량은 주사위)', day_end: '하루' })[section.type] || section.type;
     group.append(label);
+    if (section.type === 'traffic') for (const wave of section.waves) {
+      const control = button(wave.resolved ? `✓ ${wave.label} 완료` : `${wave.label} 진행`, 'secondary-btn');
+      control.disabled = busy || wave.resolved;
+      control.addEventListener('click', () => runManagementTurn({ id: 'traffic_wave', params: { wave: wave.id } }, input, ctx, render));
+      group.append(control);
+    }
     if (section.type === 'sell' || section.type === 'buy') for (const item of section.items) {
       const owned = section.type === 'buy' && item.owned ? ` · 보유 ${item.owned}` : '';
       const control = button(`${item.name} (${formatMoney(item.price)})${owned}`, 'secondary-btn');

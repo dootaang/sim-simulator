@@ -4714,6 +4714,22 @@ select:focus { border-color: var(--amber-line); }
             "gather \uC218\uB7C9\uD45C\uB294 SPEC-M3d \uAE30\uBCF8\uAC12 \uC801\uC6A9: small 1~3, large 5~10, bulk 10~20. \uC0AC\uB0E5/\uCC44\uC9D1/\uBAAC\uC2A4\uD130 \uBD80\uC0B0\uBB3C \uC790\uAE09 \uADDC\uBAA8\uB97C LLM\uC774 \uC218\uCE58\uB85C \uC4F0\uC9C0 \uC54A\uB3C4\uB85D \uC5D4\uC9C4 \uD45C\uB85C \uB460."
           ]
         },
+        traffic: {
+          id: "inn_service",
+          capacityFacility: "tavern",
+          base: [[8, 15], [15, 30], [25, 50], [40, 80]],
+          capacity: [15, 30, 50, 80],
+          waves: [
+            { id: "lunch", label: "\uC810\uC2EC \uC601\uC5C5", share: 0.4 },
+            { id: "evening", label: "\uC800\uB141 \uC601\uC5C5", share: 0.6 }
+          ],
+          modifiers: [
+            { type: "ladder_rank", ladder: "reputation", axis: "village", perRank: 0.06 },
+            { type: "staff", perStaff: 0.08, max: 0.32 },
+            { type: "facility_level", facility: "kitchen", perLevel: 0.05 }
+          ],
+          sells: { entity: "menuItem" }
+        },
         initialState: {
           day: 1,
           gold: 5e5,
@@ -5090,6 +5106,15 @@ select:focus { border-color: var(--amber-line); }
       function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
       }
+      function saleConsumes(menu, state2) {
+        const c = menu.consumes && Object.keys(menu.consumes).length ? menu.consumes : null;
+        if (c) return c;
+        const cat = String(menu.category || "");
+        const res = state2.resources || {};
+        if (/주류|주점|술|drink|liquor/i.test(cat) && "drink" in res) return { drink: 1 };
+        if (/요리|음식|식사|food|cuisine|dish|meal/i.test(cat) && "food" in res) return { food: 1 };
+        return {};
+      }
       function entityList(schema2, type) {
         const block = (schema2.entities || []).find((entry) => entry.type === type);
         return block && Array.isArray(block.instances) ? block.instances : [];
@@ -5136,7 +5161,8 @@ select:focus { border-color: var(--amber-line); }
         ladderById,
         formulaById,
         rankIndex,
-        normalizeInt
+        normalizeInt,
+        saleConsumes
       };
     }
   });
@@ -5281,6 +5307,10 @@ select:focus { border-color: var(--amber-line); }
       function availableManagement2(schema2, state2) {
         if (state2 && state2.combat && state2.combat.active) return { sections: [] };
         const sections = [];
+        if (schema2.traffic) {
+          const resolved = state2.traffic && state2.traffic.day === state2.day ? state2.traffic.resolved || {} : {};
+          sections.push({ type: "traffic", id: schema2.traffic.id, waves: (schema2.traffic.waves || []).map((wave) => ({ id: wave.id, label: wave.label, share: wave.share, resolved: !!resolved[wave.id] })) });
+        }
         const menus = availableMenu2(schema2, state2);
         const sell = menus.filter((item) => menuTrade(item) === "sell").map((item) => ({ name: item.name, price: Number(item.price || 0), category: item.category }));
         if (sell.length) sections.push({ type: "sell", items: sell });
@@ -5926,6 +5956,138 @@ select:focus { border-color: var(--amber-line); }
     }
   });
 
+  // ../engine/core/rng.js
+  var require_rng = __commonJS({
+    "../engine/core/rng.js"(exports, module) {
+      "use strict";
+      function hashSeed(seed) {
+        const s = String(seed == null ? 0 : seed);
+        let h = 1779033703 ^ s.length;
+        for (let i = 0; i < s.length; i++) {
+          h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
+          h = h << 13 | h >>> 19;
+        }
+        return h >>> 0;
+      }
+      function createRng2(seed) {
+        let t = hashSeed(seed);
+        return {
+          next() {
+            t += 1831565813;
+            let x = t;
+            x = Math.imul(x ^ x >>> 15, x | 1);
+            x ^= x + Math.imul(x ^ x >>> 7, x | 61);
+            return ((x ^ x >>> 14) >>> 0) / 4294967296;
+          },
+          int(min, max) {
+            const lo = Math.ceil(Number(min));
+            const hi = Math.floor(Number(max));
+            if (hi < lo) return lo;
+            return Math.floor(this.next() * (hi - lo + 1)) + lo;
+          }
+        };
+      }
+      function deriveRng(seed, key) {
+        const value = `${seed == null ? 0 : seed}:${key}`;
+        let hash = 2166136261;
+        for (let i = 0; i < value.length; i += 1) {
+          hash ^= value.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        return createRng2(hash >>> 0);
+      }
+      module.exports = { createRng: createRng2, deriveRng };
+    }
+  });
+
+  // ../engine/core/traffic.js
+  var require_traffic = __commonJS({
+    "../engine/core/traffic.js"(exports, module) {
+      "use strict";
+      var { deriveRng } = require_rng();
+      var { saleConsumes } = require_utils();
+      function resolveTrafficWave(schema2, state2, waveId) {
+        if (state2.combat && state2.combat.active) return { ok: false, reason: "in_combat" };
+        const traffic = schema2 && schema2.traffic;
+        if (!traffic) return { ok: false, reason: "traffic_not_configured" };
+        const wave = (traffic.waves || []).find((entry) => entry.id === waveId);
+        if (!wave) return { ok: false, reason: "unknown_wave", detail: waveId };
+        const resolved = state2.traffic && state2.traffic.day === state2.day ? { ...state2.traffic.resolved || {} } : {};
+        if (resolved[waveId]) return { ok: false, reason: "wave_already_resolved", detail: waveId };
+        const base = traffic.base || [];
+        const rawLevel = Number(state2.facilities && state2.facilities[traffic.capacityFacility] || 1);
+        const level = Math.max(1, Math.min(base.length, Math.round(rawLevel)));
+        const range = base[level - 1];
+        const share = Number(wave.share);
+        const rng2 = deriveRng(state2.seed ?? 0, `traffic/${state2.day}/${traffic.id}/${waveId}`);
+        let potential = rng2.int(Math.round(Number(range[0]) * share), Math.round(Number(range[1]) * share));
+        let multiplier = 1;
+        for (const modifier of traffic.modifiers || []) {
+          if (modifier.type === "ladder_rank") {
+            const rank = state2.reputation && state2.reputation[modifier.axis] && state2.reputation[modifier.axis].rank;
+            multiplier *= 1 + Number(modifier.perRank || 0) * Math.max(0, ["E", "D", "C", "B", "A", "S"].indexOf(rank));
+          } else if (modifier.type === "staff") {
+            multiplier *= 1 + Math.min(Number(modifier.perStaff || 0) * (Array.isArray(state2.staff) ? state2.staff.length : 0), Number(modifier.max || 0));
+          } else if (modifier.type === "facility_level") {
+            const modifierLevel = Number(state2.facilities && state2.facilities[modifier.facility] || 1);
+            multiplier *= 1 + Number(modifier.perLevel || 0) * (modifierLevel - 1);
+          }
+        }
+        potential = Math.round(potential * multiplier);
+        const cap = Math.round(Number(traffic.capacity[level - 1]) * share);
+        const accepted = Math.min(potential, cap);
+        const lostCapacity = potential - accepted;
+        let served = 0;
+        let revenue = 0;
+        const sales = [];
+        const sellsEntityType = traffic.sells && traffic.sells.entity;
+        const entity = sellsEntityType ? (schema2.entities || []).find((entry) => entry.type === sellsEntityType) : null;
+        const instances = entity && entity.instances || [];
+        const kitchenLevel = Number(state2.facilities && state2.facilities.kitchen || 1);
+        const canSell = (item) => Number(item.requiresKitchenLevel || 1) <= kitchenLevel && Object.entries(saleConsumes(item, state2)).every(([id, qty]) => Number(state2.resources && state2.resources[id] || 0) >= Number(qty));
+        const weightOf = (item) => {
+          const price = Number(item.price);
+          return price > 0 ? 1 / Math.sqrt(price) : 1;
+        };
+        for (; served < accepted; served += 1) {
+          const candidates = instances.filter(canSell);
+          if (!candidates.length) break;
+          const weights = candidates.map(weightOf);
+          const target = rng2.next() * weights.reduce((sum, weight) => sum + weight, 0);
+          let cursor = 0;
+          let chosen = candidates[candidates.length - 1];
+          for (let i = 0; i < candidates.length; i += 1) {
+            cursor += weights[i];
+            if (target < cursor) {
+              chosen = candidates[i];
+              break;
+            }
+          }
+          for (const [id, qty] of Object.entries(saleConsumes(chosen, state2))) state2.resources[id] = Math.max(0, Number(state2.resources[id] || 0) - Number(qty));
+          const price = Number(chosen.price || 0);
+          state2.gold = Number(state2.gold || 0) + price;
+          revenue += price;
+          let sale = sales.find((entry) => entry.name === chosen.name);
+          if (!sale) {
+            sale = { name: chosen.name, qty: 0, subtotal: 0 };
+            sales.push(sale);
+          }
+          sale.qty += 1;
+          sale.subtotal += price;
+        }
+        const lostStockout = accepted - served;
+        resolved[waveId] = true;
+        state2.traffic = { day: state2.day, resolved };
+        const avgTicket = served > 0 ? Math.round(revenue / served) : 0;
+        const entries = [{ ok: true, wave: waveId, label: wave.label, potential, customers: accepted, served, revenue, sales }];
+        if (lostCapacity > 0) entries.push({ ok: true, kindHint: "loss", lostCapacity, revenue_opportunity: lostCapacity * avgTicket, text: `\uB9CC\uC11D\uC73C\uB85C ${lostCapacity}\uBA85 \uB3CC\uB824\uBCF4\uB0C4` });
+        if (lostStockout > 0) entries.push({ ok: true, kindHint: "loss", lostStockout, revenue_opportunity: lostStockout * avgTicket, text: `\uC7AC\uACE0 \uBD80\uC871\uC73C\uB85C ${lostStockout}\uBA85 \uB193\uCE68` });
+        return { ok: true, entries };
+      }
+      module.exports = { resolveTrafficWave };
+    }
+  });
+
   // ../engine/core/applyEvent.js
   var require_applyEvent = __commonJS({
     "../engine/core/applyEvent.js"(exports, module) {
@@ -5935,6 +6097,7 @@ select:focus { border-color: var(--amber-line); }
       var { staffMax: staffMax2, tierOf, menuTrade } = require_selectors();
       var { poolHeal } = require_pools();
       var { resolveCheck } = require_resolveCheck();
+      var { resolveTrafficWave } = require_traffic();
       var {
         clone,
         clamp,
@@ -5944,7 +6107,8 @@ select:focus { border-color: var(--amber-line); }
         scaleById,
         ladderById,
         rankIndex,
-        normalizeInt
+        normalizeInt,
+        saleConsumes
       } = require_utils();
       function applyEvent2(schema2, state2, event, rng2) {
         const type = event && event.id;
@@ -5995,6 +6159,12 @@ select:focus { border-color: var(--amber-line); }
             return hire(schema2, next, params, ok, fail);
           case "fire":
             return fire(next, params, ok, fail);
+          case "traffic_wave": {
+            const result = resolveTrafficWave(schema2, next, params.wave);
+            if (!result.ok) return fail(result.reason, result.detail);
+            for (const entry of result.entries) log.push(Object.assign({ event: type }, entry));
+            return { state: next, log };
+          }
           case "start_encounter":
             return startEncounter(schema2, next, params, rng2, ok, fail);
           case "combat_action":
@@ -6230,15 +6400,6 @@ select:focus { border-color: var(--amber-line); }
         else delete state2.rooms[roomNo];
         return ok({ roomNo, guestName });
       }
-      function saleConsumes(menu, state2) {
-        const c = menu.consumes && Object.keys(menu.consumes).length ? menu.consumes : null;
-        if (c) return c;
-        const cat = String(menu.category || "");
-        const res = state2.resources || {};
-        if (/주류|주점|술|drink|liquor/i.test(cat) && "drink" in res) return { drink: 1 };
-        if (/요리|음식|식사|food|cuisine|dish|meal/i.test(cat) && "food" in res) return { food: 1 };
-        return {};
-      }
       function sale(schema2, state2, params, ok, fail) {
         const menu = findMenu(schema2, params.menuName);
         const qty = normalizeInt(params.qty, 1);
@@ -6305,41 +6466,6 @@ select:focus { border-color: var(--amber-line); }
         return ok({ npcId });
       }
       module.exports = { applyEvent: applyEvent2 };
-    }
-  });
-
-  // ../engine/core/rng.js
-  var require_rng = __commonJS({
-    "../engine/core/rng.js"(exports, module) {
-      "use strict";
-      function hashSeed(seed) {
-        const s = String(seed == null ? 0 : seed);
-        let h = 1779033703 ^ s.length;
-        for (let i = 0; i < s.length; i++) {
-          h = Math.imul(h ^ s.charCodeAt(i), 3432918353);
-          h = h << 13 | h >>> 19;
-        }
-        return h >>> 0;
-      }
-      function createRng2(seed) {
-        let t = hashSeed(seed);
-        return {
-          next() {
-            t += 1831565813;
-            let x = t;
-            x = Math.imul(x ^ x >>> 15, x | 1);
-            x ^= x + Math.imul(x ^ x >>> 7, x | 61);
-            return ((x ^ x >>> 14) >>> 0) / 4294967296;
-          },
-          int(min, max) {
-            const lo = Math.ceil(Number(min));
-            const hi = Math.floor(Number(max));
-            if (hi < lo) return lo;
-            return Math.floor(this.next() * (hi - lo + 1)) + lo;
-          }
-        };
-      }
-      module.exports = { createRng: createRng2 };
     }
   });
 
@@ -8026,8 +8152,73 @@ ${row3.content}`;
         validateQuests(schema2, issues);
         validateGather(schema2, issues);
         validateSettlement(schema2, issues);
+        validateTraffic(schema2, issues);
         validateEvents(schema2, issues);
         return { schema: schema2, issues };
+      }
+      function validateTraffic(schema2, issues) {
+        if (schema2.traffic == null) return;
+        if (!isObject(schema2.traffic)) {
+          warn(issues, "traffic", "traffic must be an object; removed.");
+          delete schema2.traffic;
+          return;
+        }
+        const traffic = schema2.traffic;
+        const facilities = asArray(findEntity(schema2, "facility") && findEntity(schema2, "facility").instances);
+        if (!facilities.some((facility) => facility && facility.id === traffic.capacityFacility)) {
+          warn(issues, "traffic.capacityFacility", "Unknown capacity facility; traffic module removed.");
+          delete schema2.traffic;
+          return;
+        }
+        const sellsEntity = isObject(traffic.sells) ? traffic.sells.entity : null;
+        if (!sellsEntity || !findEntity(schema2, sellsEntity)) {
+          warn(issues, "traffic.sells", "Missing or unknown sells entity; traffic module removed.");
+          delete schema2.traffic;
+          return;
+        }
+        if (!Array.isArray(traffic.base) || !traffic.base.length || !Array.isArray(traffic.capacity) || !traffic.capacity.length) {
+          warn(issues, "traffic", "base and capacity must be non-empty arrays; traffic module removed.");
+          delete schema2.traffic;
+          return;
+        }
+        traffic.base = traffic.base.map((range, index) => {
+          if (Number.isFinite(Number(range))) {
+            const value = Number(range);
+            warn(issues, `traffic.base[${index}]`, "Numeric base normalized to [n,n].");
+            return [value, value];
+          }
+          if (isRange(range) && range.every((value) => Number.isFinite(Number(value)))) return range.map(Number);
+          warn(issues, `traffic.base[${index}]`, "Invalid base range normalized to [0,0].");
+          return [0, 0];
+        });
+        traffic.capacity = traffic.capacity.map((value, index) => {
+          const number = Number(value);
+          if (Number.isFinite(number) && number >= 0) return number;
+          warn(issues, `traffic.capacity[${index}]`, "Invalid capacity normalized to 0.");
+          return 0;
+        });
+        if (!Array.isArray(traffic.waves) || !traffic.waves.length) {
+          traffic.waves = [{ id: "day", label: "\uC601\uC5C5", share: 1 }];
+          warn(issues, "traffic.waves", "Empty waves normalized to one daily wave.");
+        }
+        traffic.waves = traffic.waves.filter(isObject).map((wave, index) => ({
+          id: typeof wave.id === "string" && wave.id ? wave.id : `wave_${index + 1}`,
+          label: typeof wave.label === "string" && wave.label ? wave.label : "\uC601\uC5C5",
+          share: Number.isFinite(Number(wave.share)) && Number(wave.share) > 0 ? Number(wave.share) : 1
+        }));
+        const shareSum = traffic.waves.reduce((sum, wave) => sum + wave.share, 0);
+        if (shareSum < 0.5 || shareSum > 1.5) {
+          traffic.waves.forEach((wave) => {
+            wave.share /= shareSum;
+          });
+          warn(issues, "traffic.waves", "Wave shares normalized to a total of 1.");
+        }
+        const knownModifiers = /* @__PURE__ */ new Set(["ladder_rank", "staff", "facility_level"]);
+        traffic.modifiers = asArray(traffic.modifiers).filter((modifier, index) => {
+          if (isObject(modifier) && knownModifiers.has(modifier.type)) return true;
+          warn(issues, `traffic.modifiers[${index}]`, "Unknown traffic modifier removed.");
+          return false;
+        });
       }
       function normalizeMenuTrade(schema2, issues) {
         const menu = findEntity(schema2, "menuItem");
@@ -9373,6 +9564,7 @@ ${Array.from(extras).join(" ")}` : text;
     "enemy_action",
     "enemy_turn",
     "end_encounter",
+    "traffic_wave",
     "day_end"
   ];
   function getSchema() {
@@ -9411,6 +9603,8 @@ ${Array.from(extras).join(" ")}` : text;
     return item;
   }
   function summarizeEvent(type, entry, formatMoney3) {
+    if (entry.ok && type === "traffic_wave" && entry.wave) return `${entry.label} \xB7 \uC190\uB2D8 ${entry.customers}\uBA85 \xB7 \uB9E4\uCD9C +${formatMoney3(entry.revenue)}`;
+    if (entry.ok && type === "traffic_wave" && entry.text) return entry.text;
     if (entry.ok && type === "attempt_quest") return entry.success ? `\u2696 ${entry.name} \u{1F3B2}${entry.roll}${entry.tier === "critical_success" ? " \uD06C\uB9AC\uD2F0\uCEEC" : ""} \uC131\uACF5 \xB7 +${formatMoney3(entry.goldDelta)}` : `\u2696 ${entry.name} \u{1F3B2}${entry.roll} \uC2E4\uD328`;
     if (entry.ok && type === "buy_item") return `\u{1F6D2} ${entry.menuName} \xD7${entry.qty} \xB7 -${formatMoney3(-entry.goldDelta)} (\uBCF4\uC720 ${entry.owned})`;
     if (entry.ok && type === "use_item") {
@@ -9458,7 +9652,7 @@ ${Array.from(extras).join(" ")}` : text;
     if (["use_item"].includes(type)) return "pool";
     if (["attempt_quest"].includes(type)) return "quest";
     if (["day_end"].includes(type)) return "settlement";
-    if (["buy_item", "reward", "upgrade", "gain_resource", "gold_delta", "resource_delta", "sale", "purchase"].includes(type)) return "resource";
+    if (["traffic_wave", "buy_item", "reward", "upgrade", "gain_resource", "gold_delta", "resource_delta", "sale", "purchase"].includes(type)) return "resource";
     return "info";
   }
 
@@ -10403,8 +10597,15 @@ ${Array.from(extras).join(" ")}` : text;
     for (const section of descriptor.sections) {
       const group = el2("div", "mgmt-section");
       const label = el2("span", "combat-command-label");
-      label.textContent = { sell: "\uD310\uB9E4", buy: "\uAD6C\uB9E4", purchase: "\uC7AC\uB8CC \uAD6C\uB9E4", upgrade: "\uC99D\uCD95", gather: "\uCC44\uC9D1 (\uBB34\uB8CC \xB7 \uD68D\uB4DD\uB7C9\uC740 \uC8FC\uC0AC\uC704)", day_end: "\uD558\uB8E8" }[section.type] || section.type;
+      const trafficDay = Number(getEngineState().day);
+      label.textContent = section.type === "traffic" ? Number.isFinite(trafficDay) ? `\u{1F3EA} ${trafficDay}\uC77C\uCC28 \uC601\uC5C5` : "\u{1F3EA} \uC601\uC5C5" : { sell: "\uD310\uB9E4", buy: "\uAD6C\uB9E4", purchase: "\uC7AC\uB8CC \uAD6C\uB9E4", upgrade: "\uC99D\uCD95", gather: "\uCC44\uC9D1 (\uBB34\uB8CC \xB7 \uD68D\uB4DD\uB7C9\uC740 \uC8FC\uC0AC\uC704)", day_end: "\uD558\uB8E8" }[section.type] || section.type;
       group.append(label);
+      if (section.type === "traffic") for (const wave of section.waves) {
+        const control = button2(wave.resolved ? `\u2713 ${wave.label} \uC644\uB8CC` : `${wave.label} \uC9C4\uD589`, "secondary-btn");
+        control.disabled = busy || wave.resolved;
+        control.addEventListener("click", () => runManagementTurn({ id: "traffic_wave", params: { wave: wave.id } }, input2, ctx, render2));
+        group.append(control);
+      }
       if (section.type === "sell" || section.type === "buy") for (const item of section.items) {
         const owned = section.type === "buy" && item.owned ? ` \xB7 \uBCF4\uC720 ${item.owned}` : "";
         const control = button2(`${item.name} (${formatMoney2(item.price)})${owned}`, "secondary-btn");

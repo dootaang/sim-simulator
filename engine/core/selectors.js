@@ -23,6 +23,10 @@ function menuTrade(menu) {
 function availableManagement(schema, state) {
   if (state && state.combat && state.combat.active) return { sections: [] };
   const sections = [];
+  if (schema.traffic) {
+    const resolved = state.traffic && state.traffic.day === state.day ? state.traffic.resolved || {} : {};
+    sections.push({ type: 'traffic', id: schema.traffic.id, waves: (schema.traffic.waves || []).map((wave) => ({ id: wave.id, label: wave.label, share: wave.share, resolved: !!resolved[wave.id] })) });
+  }
   const menus = availableMenu(schema, state);
   const sell = menus.filter((item) => menuTrade(item) === 'sell').map((item) => ({ name: item.name, price: Number(item.price || 0), category: item.category }));
   if (sell.length) sections.push({ type: 'sell', items: sell });

@@ -5,6 +5,7 @@ const { startEncounter, combatAction, enemyAction, enemyTurn, endEncounter } = r
 const { staffMax, tierOf, menuTrade } = require('./selectors.js');
 const { poolHeal } = require('./pools.js');
 const { resolveCheck } = require('./resolveCheck.js');
+const { resolveTrafficWave } = require('./traffic.js');
 const {
   clone,
   clamp,
@@ -15,6 +16,7 @@ const {
   ladderById,
   rankIndex,
   normalizeInt,
+  saleConsumes,
 } = require('./utils.js');
 
 function applyEvent(schema, state, event, rng) {
@@ -68,6 +70,12 @@ function applyEvent(schema, state, event, rng) {
       return hire(schema, next, params, ok, fail);
     case 'fire':
       return fire(next, params, ok, fail);
+    case 'traffic_wave': {
+      const result = resolveTrafficWave(schema, next, params.wave);
+      if (!result.ok) return fail(result.reason, result.detail);
+      for (const entry of result.entries) log.push(Object.assign({ event: type }, entry));
+      return { state: next, log };
+    }
     case 'start_encounter':
       return startEncounter(schema, next, params, rng, ok, fail);
     case 'combat_action':
@@ -329,18 +337,6 @@ function checkout(state, params, ok, fail) {
   if (remaining.length) state.rooms[roomNo] = remaining;
   else delete state.rooms[roomNo];
   return ok({ roomNo, guestName });
-}
-
-// 판매 1건은 재료를 소비한다(공짜 돈 방지). 스키마에 consumes가 없으면
-// 카테고리로 추정(요리→food, 주류→drink 1개)해 최소 원가를 강제한다.
-function saleConsumes(menu, state) {
-  const c = menu.consumes && Object.keys(menu.consumes).length ? menu.consumes : null;
-  if (c) return c;
-  const cat = String(menu.category || '');
-  const res = state.resources || {};
-  if (/주류|주점|술|drink|liquor/i.test(cat) && 'drink' in res) return { drink: 1 };
-  if (/요리|음식|식사|food|cuisine|dish|meal/i.test(cat) && 'food' in res) return { food: 1 };
-  return {};
 }
 
 function sale(schema, state, params, ok, fail) {

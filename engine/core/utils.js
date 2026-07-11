@@ -9,6 +9,19 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+// 판매 1건이 소비하는 재료(공짜 돈 방지). 스키마에 consumes가 없으면
+// 카테고리로 추정(요리→food, 주류→drink 1개)해 최소 원가를 강제한다.
+// sale 이벤트와 traffic_wave 영업이 같은 규칙을 공유한다(모듈 간 일관성).
+function saleConsumes(menu, state) {
+  const c = menu.consumes && Object.keys(menu.consumes).length ? menu.consumes : null;
+  if (c) return c;
+  const cat = String(menu.category || '');
+  const res = state.resources || {};
+  if (/주류|주점|술|drink|liquor/i.test(cat) && 'drink' in res) return { drink: 1 };
+  if (/요리|음식|식사|food|cuisine|dish|meal/i.test(cat) && 'food' in res) return { food: 1 };
+  return {};
+}
+
 function entityList(schema, type) {
   const block = (schema.entities || []).find((entry) => entry.type === type);
   return block && Array.isArray(block.instances) ? block.instances : [];
@@ -69,4 +82,5 @@ module.exports = {
   formulaById,
   rankIndex,
   normalizeInt,
+  saleConsumes,
 };

@@ -29,4 +29,14 @@ function createRng(seed) {
   };
 }
 
-module.exports = { createRng };
+function deriveRng(seed, key) {
+  const value = `${seed == null ? 0 : seed}:${key}`;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return createRng(hash >>> 0);
+}
+
+module.exports = { createRng, deriveRng };
