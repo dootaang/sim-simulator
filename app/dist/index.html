@@ -7586,6 +7586,318 @@ ${bodies}`;
     }
   });
 
+  // ../engine/core/modules/commonRpg.js
+  var require_commonRpg = __commonJS({
+    "../engine/core/modules/commonRpg.js"(exports, module) {
+      "use strict";
+      var { scopedEvent } = require_eventSupport();
+      var { safeOwnKey, safeStateKey } = require_utils();
+      function createProgressionModule() {
+        return moduleDef("core.progression", [], ["player.statPoints"], ["player.level", "player.exp"], {
+          "progression/gain": scopedEvent(({ schema: schema2, state: state2, params, rng, ok, fail }) => {
+            const source = schema2.progression && schema2.progression.sources && schema2.progression.sources[params.source];
+            if (source == null) return fail("unknown_progression_source", params.source);
+            const amount = rollValue(source, rng);
+            const before = { level: Number(state2.player.level || 1), exp: Number(state2.player.exp || 0) };
+            state2.player.exp = before.exp + amount;
+            const thresholds = schema2.progression.thresholds || [];
+            const levelUps = [];
+            while (thresholds[state2.player.level - 1] != null && state2.player.exp >= Number(thresholds[state2.player.level - 1])) {
+              state2.player.exp -= Number(thresholds[state2.player.level - 1]);
+              state2.player.level += 1;
+              state2.player.statPoints = Number(state2.player.statPoints || 0) + Number(schema2.progression.statPointsPerLevel || 0);
+              levelUps.push(state2.player.level);
+            }
+            return ok({ source: params.source, amount, before, after: { level: state2.player.level, exp: state2.player.exp }, levelUps, statPoints: state2.player.statPoints || 0 });
+          }),
+          "progression/allocate": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const stat2 = String(params.stat || "");
+            if (!safeStateKey(stat2) || !(schema2.progression && (schema2.progression.allocatableStats || []).includes(stat2))) return fail("unknown_stat", stat2);
+            if (Number(state2.player.statPoints || 0) < 1) return fail("no_stat_points");
+            const before = Number(state2.player[stat2] || state2.player.stats && state2.player.stats[stat2] || 0);
+            state2.player.stats = state2.player.stats || {};
+            state2.player.stats[stat2] = before + 1;
+            state2.player.statPoints -= 1;
+            return ok({ stat: stat2, before, after: before + 1, remaining: state2.player.statPoints });
+          })
+        }, { "progression/summary": (schema2, state2) => ({ level: state2.player.level, exp: state2.player.exp, next: schema2.progression && schema2.progression.thresholds && schema2.progression.thresholds[state2.player.level - 1] || null, statPoints: state2.player.statPoints || 0 }) });
+      }
+      function createEquipmentModule() {
+        return moduleDef("core.equipment", ["core.inventory"], ["equipment"], ["resources", "items"], {
+          "equipment/equip": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const slot = String(params.slot || "");
+            const itemId = String(params.itemId || "");
+            const slots = schema2.equipment && schema2.equipment.slots || [];
+            if (!safeStateKey(slot) || !slots.some((entry) => (typeof entry === "string" ? entry : entry.id) === slot)) return fail("unknown_slot", slot);
+            const item = itemDefs(schema2).find((entry) => entry.id === itemId);
+            if (!item) return fail("unknown_item", itemId);
+            if (item.slot && item.slot !== slot) return fail("wrong_slot", `${itemId}:${slot}`);
+            if (owned(state2, itemId) < 1) return fail("item_not_owned", itemId);
+            state2.equipment = state2.equipment || {};
+            const before = state2.equipment[slot] || null;
+            state2.equipment[slot] = itemId;
+            return ok({ slot, before, itemId });
+          }),
+          "equipment/unequip": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const slot = String(params.slot || "");
+            if (!state2.equipment || !safeOwnKey(state2.equipment, slot) || !state2.equipment[slot]) return fail("slot_empty", slot);
+            const itemId = state2.equipment[slot];
+            delete state2.equipment[slot];
+            return ok({ slot, itemId });
+          })
+        }, { "equipment/slots": (schema2, state2) => (schema2.equipment && schema2.equipment.slots || []).map((slot) => {
+          const id = typeof slot === "string" ? slot : slot.id;
+          return { slot: id, itemId: state2.equipment && state2.equipment[id] || null };
+        }) });
+      }
+      function createQuestModule() {
+        return moduleDef("rpg.quests", [], ["questProgress"], ["gold", "resources"], {
+          "quest/start": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const quest = questDef(schema2, params.questId);
+            if (!quest || !safeStateKey(quest.id)) return fail("unknown_quest", params.questId);
+            state2.questProgress = state2.questProgress || {};
+            if (safeOwnKey(state2.questProgress, quest.id) && state2.questProgress[quest.id].status !== "failed") return fail("quest_already_started", quest.id);
+            state2.questProgress[quest.id] = { status: "active", steps: {}, startedDay: state2.day };
+            return ok({ questId: quest.id });
+          }),
+          "quest/progress": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const quest = questDef(schema2, params.questId);
+            const progress = quest && state2.questProgress && state2.questProgress[quest.id];
+            if (!quest || !progress || progress.status !== "active") return fail("quest_not_active", params.questId);
+            const step = (quest.steps || []).find((entry) => entry.id === params.stepId);
+            if (!step || !safeStateKey(step.id)) return fail("unknown_quest_step", params.stepId);
+            progress.steps[step.id] = Math.min(Number(step.target || 1), Number(progress.steps[step.id] || 0) + 1);
+            const complete = (quest.steps || []).every((entry) => Number(progress.steps[entry.id] || 0) >= Number(entry.target || 1));
+            if (complete) progress.status = "complete";
+            return ok({ questId: quest.id, stepId: step.id, value: progress.steps[step.id], complete });
+          }),
+          "quest/claim": scopedEvent(({ schema: schema2, state: state2, params, rng, ok, fail }) => {
+            const quest = questDef(schema2, params.questId);
+            const progress = quest && state2.questProgress && state2.questProgress[quest.id];
+            if (!quest || !progress || progress.status !== "complete") return fail("quest_not_complete", params.questId);
+            applyRewards(state2, quest.rewards || {}, rng);
+            progress.status = "claimed";
+            return ok({ questId: quest.id, rewards: quest.rewards || {} });
+          }),
+          "quest/fail": scopedEvent(({ state: state2, params, ok, fail }) => {
+            const progress = state2.questProgress && state2.questProgress[params.questId];
+            if (!progress || progress.status !== "active") return fail("quest_not_active", params.questId);
+            progress.status = "failed";
+            return ok({ questId: params.questId });
+          })
+        }, { "quests/list": (schema2, state2) => (schema2.rpgQuests || []).map((quest) => ({ ...quest, progress: state2.questProgress && state2.questProgress[quest.id] || null })) });
+      }
+      function createPartyModule() {
+        return moduleDef("rpg.party", [], ["party"], ["npcs"], {
+          "party/add": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const id = String(params.memberId || "");
+            if (!npcDefs(schema2).some((npc) => npc.id === id)) return fail("unknown_member", id);
+            state2.party = state2.party || { members: [], formation: {} };
+            if (state2.party.members.includes(id)) return fail("already_in_party", id);
+            const max2 = Number(schema2.party && schema2.party.maxSize || 4);
+            if (state2.party.members.length >= max2) return fail("party_full");
+            state2.party.members.push(id);
+            return ok({ memberId: id });
+          }),
+          "party/remove": scopedEvent(({ state: state2, params, ok, fail }) => {
+            if (!state2.party || !state2.party.members.includes(params.memberId)) return fail("not_in_party", params.memberId);
+            state2.party.members = state2.party.members.filter((id) => id !== params.memberId);
+            for (const [role, id] of Object.entries(state2.party.formation || {})) if (id === params.memberId) delete state2.party.formation[role];
+            return ok({ memberId: params.memberId });
+          }),
+          "party/assign": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const role = String(params.role || "");
+            if (!safeStateKey(role) || !(schema2.party && (schema2.party.roles || []).includes(role))) return fail("unknown_party_role", role);
+            if (!state2.party || !state2.party.members.includes(params.memberId)) return fail("not_in_party", params.memberId);
+            state2.party.formation = state2.party.formation || {};
+            state2.party.formation[role] = params.memberId;
+            return ok({ role, memberId: params.memberId });
+          })
+        }, { "party/formation": (_schema, state2) => state2.party || { members: [], formation: {} } });
+      }
+      function createTimeModule() {
+        return moduleDef("core.time", [], ["clock"], ["day"], {
+          "time/advance": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const unit = String(params.unit || "turn");
+            if (!["turn", "hour", "day"].includes(unit)) return fail("unknown_time_unit", unit);
+            state2.clock = state2.clock || { day: Number(state2.day || 1), hour: 8, turn: 0 };
+            const before = { ...state2.clock };
+            if (unit === "turn") state2.clock.turn += 1;
+            if (unit === "hour") state2.clock.hour += Number(schema2.time && schema2.time.hoursPerStep || 1);
+            if (unit === "day") state2.clock.day += 1;
+            while (state2.clock.hour >= 24) {
+              state2.clock.hour -= 24;
+              state2.clock.day += 1;
+            }
+            state2.day = state2.clock.day;
+            return ok({ unit, before, after: { ...state2.clock } });
+          })
+        }, { "time/current": (_schema, state2) => state2.clock || { day: state2.day, hour: null, turn: null } });
+      }
+      function createLocationModule() {
+        return moduleDef("core.location", [], ["location"], [], {
+          "location/move": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const target2 = String(params.locationId || "");
+            const locations = schema2.locations || [];
+            const destination = locations.find((location) => location.id === target2);
+            if (!destination) return fail("unknown_location", target2);
+            const current = locations.find((location) => location.id === state2.location);
+            if (current && Array.isArray(current.links) && !current.links.includes(target2)) return fail("location_not_connected", `${state2.location}:${target2}`);
+            const before = state2.location || null;
+            state2.location = target2;
+            return ok({ before, locationId: target2 });
+          })
+        }, { "location/map": (schema2, state2) => (schema2.locations || []).map((location) => ({ ...location, current: location.id === state2.location, reachable: location.id === state2.location || !(schema2.locations || []).find((item) => item.id === state2.location)?.links || (schema2.locations || []).find((item) => item.id === state2.location).links.includes(location.id) })) });
+      }
+      function createLootModule() {
+        return moduleDef("rpg.loot", ["core.inventory"], ["lootHistory"], ["resources", "items"], {
+          "loot/roll": scopedEvent(({ schema: schema2, state: state2, params, rng, ok, fail }) => {
+            const table = (schema2.lootTables || []).find((item) => item.id === params.tableId);
+            if (!table || !(table.entries || []).length) return fail("unknown_loot_table", params.tableId);
+            const entry = weightedPick(table.entries, rng);
+            const qty = rollValue(entry.qty == null ? 1 : entry.qty, rng);
+            addOwned(state2, entry.itemId, qty);
+            state2.lootHistory = (state2.lootHistory || []).concat([{ tableId: table.id, itemId: entry.itemId, qty }]).slice(-100);
+            return ok({ tableId: table.id, itemId: entry.itemId, qty });
+          })
+        }, { "loot/tables": (schema2) => schema2.lootTables || [] });
+      }
+      function createShopModule() {
+        return moduleDef("rpg.shop", ["core.inventory"], ["shopHistory"], ["gold", "resources", "items"], {
+          "shop/buy": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => trade(schema2, state2, params, "buy", ok, fail)),
+          "shop/sell": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => trade(schema2, state2, params, "sell", ok, fail))
+        }, { "shop/catalog": (schema2, state2, shopId) => {
+          const shop = (schema2.shops || []).find((item) => item.id === shopId);
+          return shop ? (shop.items || []).map((item) => ({ ...item, owned: owned(state2, item.itemId), affordable: Number(state2.gold || 0) >= Number(item.buyPrice || 0) })) : [];
+        } });
+      }
+      function createCraftingModule() {
+        return moduleDef("rpg.crafting", ["core.inventory"], ["craftingHistory"], ["resources", "items"], {
+          "crafting/craft": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const recipe = (schema2.recipes || []).find((item) => item.id === params.recipeId);
+            if (!recipe) return fail("unknown_recipe", params.recipeId);
+            for (const [id, qty] of Object.entries(recipe.inputs || {})) if (owned(state2, id) < Number(qty)) return fail("missing_ingredient", id);
+            for (const [id, qty] of Object.entries(recipe.inputs || {})) addOwned(state2, id, -Number(qty));
+            for (const [id, qty] of Object.entries(recipe.outputs || {})) addOwned(state2, id, Number(qty));
+            state2.craftingHistory = (state2.craftingHistory || []).concat([recipe.id]).slice(-100);
+            return ok({ recipeId: recipe.id, outputs: recipe.outputs || {} });
+          })
+        }, { "crafting/recipes": (schema2, state2) => (schema2.recipes || []).map((recipe) => ({ ...recipe, craftable: Object.entries(recipe.inputs || {}).every(([id, qty]) => owned(state2, id) >= Number(qty)) })) });
+      }
+      function createFactionsModule() {
+        return moduleDef("core.factions", [], ["factions"], [], {
+          "factions/change": scopedEvent(({ schema: schema2, state: state2, params, rng, ok, fail }) => {
+            const faction = (schema2.factions || []).find((item) => item.id === params.factionId);
+            const source = faction && faction.sources && faction.sources[params.source];
+            if (!faction || !safeStateKey(faction.id) || source == null) return fail("unknown_faction_source", `${params.factionId}:${params.source}`);
+            state2.factions = state2.factions || {};
+            const before = Number(state2.factions[faction.id] || faction.initial || 0);
+            const delta = rollValue(source, rng);
+            const after = Math.max(Number(faction.min ?? -100), Math.min(Number(faction.max ?? 100), before + delta));
+            state2.factions[faction.id] = after;
+            return ok({ factionId: faction.id, source: params.source, before, delta, after });
+          })
+        }, { "factions/list": (schema2, state2) => (schema2.factions || []).map((faction) => ({ ...faction, value: (state2.factions && state2.factions[faction.id]) ?? faction.initial ?? 0 })) });
+      }
+      function createJobsModule() {
+        return moduleDef("core.jobs", ["core.time"], ["jobs"], ["resources", "items", "gold"], {
+          "jobs/start": scopedEvent(({ schema: schema2, state: state2, params, ok, fail }) => {
+            const def = (schema2.jobs || []).find((item) => item.id === params.jobId);
+            if (!def) return fail("unknown_job", params.jobId);
+            for (const [id, qty] of Object.entries(def.cost || {})) if (id === "gold" ? Number(state2.gold || 0) < Number(qty) : owned(state2, id) < Number(qty)) return fail("job_cost_missing", id);
+            for (const [id, qty] of Object.entries(def.cost || {})) id === "gold" ? state2.gold -= Number(qty) : addOwned(state2, id, -Number(qty));
+            state2.jobs = state2.jobs || [];
+            const instanceId = `${def.id}:${Number(state2.clock && state2.clock.turn || 0)}:${state2.jobs.length}`;
+            state2.jobs.push({ id: instanceId, jobId: def.id, remaining: Math.max(1, Number(def.duration || 1)), status: "active" });
+            return ok({ instanceId, jobId: def.id });
+          }),
+          "jobs/tick": scopedEvent(({ schema: schema2, state: state2, params, rng, ok, fail }) => {
+            const job = (state2.jobs || []).find((item) => item.id === params.instanceId);
+            if (!job || job.status !== "active") return fail("job_not_active", params.instanceId);
+            job.remaining -= 1;
+            if (job.remaining <= 0) {
+              const def = (schema2.jobs || []).find((item) => item.id === job.jobId);
+              applyRewards(state2, def && def.outputs || {}, rng);
+              job.remaining = 0;
+              job.status = "complete";
+            }
+            return ok({ instanceId: job.id, remaining: job.remaining, status: job.status });
+          }),
+          "jobs/collect": scopedEvent(({ state: state2, params, ok, fail }) => {
+            const index = (state2.jobs || []).findIndex((item) => item.id === params.instanceId && item.status === "complete");
+            if (index < 0) return fail("job_not_complete", params.instanceId);
+            const [job] = state2.jobs.splice(index, 1);
+            return ok({ instanceId: job.id, jobId: job.jobId });
+          })
+        }, { "jobs/queue": (_schema, state2) => state2.jobs || [] });
+      }
+      function moduleDef(id, dependencies, owns, writes, events, selectors2 = {}) {
+        return { id, version: "1.0.0", dependencies, stateAccess: { owns, reads: [], writes }, events, selectors: selectors2, processes: {}, migrations: {} };
+      }
+      function rollValue(value, rng) {
+        if (Array.isArray(value)) return rng.int(Number(value[0]), Number(value[1]));
+        return Number(value && value.value != null ? value.value : value);
+      }
+      function weightedPick(entries, rng) {
+        const total = entries.reduce((sum, entry) => sum + Math.max(0, Number(entry.weight || 1)), 0);
+        let roll = rng.int(1, Math.max(1, total));
+        for (const entry of entries) {
+          roll -= Math.max(0, Number(entry.weight || 1));
+          if (roll <= 0) return entry;
+        }
+        return entries[entries.length - 1];
+      }
+      function itemDefs(schema2) {
+        const block = (schema2.entities || []).find((entry) => entry.type === "item");
+        return block && block.instances || [];
+      }
+      function npcDefs(schema2) {
+        const block = (schema2.entities || []).find((entry) => entry.type === "npc");
+        return block && block.instances || [];
+      }
+      function questDef(schema2, id) {
+        return (schema2.rpgQuests || []).find((quest) => quest.id === id);
+      }
+      function owned(state2, id) {
+        if (!safeStateKey(String(id))) return 0;
+        return Number((state2.resources && state2.resources[id]) ?? (state2.items && state2.items[id]) ?? 0);
+      }
+      function addOwned(state2, id, delta) {
+        if (!safeStateKey(String(id))) throw new Error(`unsafe_item_id:${id}`);
+        const target2 = state2.resources && Object.prototype.hasOwnProperty.call(state2.resources, id) ? state2.resources : state2.items = state2.items || {};
+        target2[id] = Math.max(0, Number(target2[id] || 0) + Number(delta));
+      }
+      function applyRewards(state2, rewards, rng) {
+        for (const [id, value] of Object.entries(rewards || {})) {
+          const amount = rollValue(value, rng);
+          if (id === "gold") state2.gold = Number(state2.gold || 0) + amount;
+          else addOwned(state2, id, amount);
+        }
+      }
+      function trade(schema2, state2, params, direction, ok, fail) {
+        const shop = (schema2.shops || []).find((item2) => item2.id === params.shopId);
+        const item = shop && (shop.items || []).find((entry) => entry.itemId === params.itemId);
+        if (!item) return fail("unknown_shop_item", `${params.shopId}:${params.itemId}`);
+        const qty = Math.max(1, Math.trunc(Number(params.qty || 1)));
+        const price = Number(direction === "buy" ? item.buyPrice : item.sellPrice);
+        if (!Number.isFinite(price) || price < 0) return fail("price_unavailable", direction);
+        const total = price * qty;
+        if (direction === "buy") {
+          if (Number(state2.gold || 0) < total) return fail("insufficient_gold");
+          state2.gold -= total;
+          addOwned(state2, item.itemId, qty);
+        } else {
+          if (owned(state2, item.itemId) < qty) return fail("insufficient_items");
+          addOwned(state2, item.itemId, -qty);
+          state2.gold = Number(state2.gold || 0) + total;
+        }
+        state2.shopHistory = (state2.shopHistory || []).concat([{ shopId: shop.id, itemId: item.itemId, qty, direction, total }]).slice(-100);
+        return ok({ shopId: shop.id, itemId: item.itemId, qty, direction, total });
+      }
+      module.exports = { createProgressionModule, createEquipmentModule, createQuestModule, createPartyModule, createTimeModule, createLocationModule, createLootModule, createShopModule, createCraftingModule, createFactionsModule, createJobsModule };
+    }
+  });
+
   // ../engine/core/applyEvent.js
   var require_applyEvent = __commonJS({
     "../engine/core/applyEvent.js"(exports, module) {
@@ -7602,6 +7914,7 @@ ${bodies}`;
       var { createStatsModule } = require_stats();
       var { createInventoryModule } = require_inventory();
       var { createCombatModule } = require_combat2();
+      var { createProgressionModule, createEquipmentModule, createQuestModule, createPartyModule, createTimeModule, createLocationModule, createLootModule, createShopModule, createCraftingModule, createFactionsModule, createJobsModule } = require_commonRpg();
       var {
         clone: clone3,
         findById,
@@ -7858,18 +8171,29 @@ ${bodies}`;
       var defaultModuleRegistry = new ModuleRegistry();
       defaultModuleRegistry.register(createStatsModule());
       defaultModuleRegistry.register(createInventoryModule());
+      defaultModuleRegistry.register(createProgressionModule());
+      defaultModuleRegistry.register(createEquipmentModule());
+      defaultModuleRegistry.register(createQuestModule());
+      defaultModuleRegistry.register(createPartyModule());
+      defaultModuleRegistry.register(createTimeModule());
+      defaultModuleRegistry.register(createLocationModule());
+      defaultModuleRegistry.register(createLootModule());
+      defaultModuleRegistry.register(createShopModule());
+      defaultModuleRegistry.register(createCraftingModule());
+      defaultModuleRegistry.register(createFactionsModule());
+      defaultModuleRegistry.register(createJobsModule());
       defaultModuleRegistry.register(createCombatModule());
       defaultModuleRegistry.register(createLegacyModule(applyLegacyEvent));
       function applyEvent(schema2, state2, event, rng) {
         return defaultModuleRegistry.dispatch(schema2, state2, event, rng);
       }
-      function getDefaultModuleRegistry() {
+      function getDefaultModuleRegistry2() {
         return defaultModuleRegistry;
       }
       function getRegisteredEventIds2() {
         return defaultModuleRegistry.eventIds();
       }
-      module.exports = { applyEvent, getDefaultModuleRegistry, getRegisteredEventIds: getRegisteredEventIds2 };
+      module.exports = { applyEvent, getDefaultModuleRegistry: getDefaultModuleRegistry2, getRegisteredEventIds: getRegisteredEventIds2 };
     }
   });
 
@@ -7897,6 +8221,14 @@ ${bodies}`;
           claimedRewards: Array.isArray(initial.claimedRewards) ? clone3(initial.claimedRewards) : [],
           combat: null
         };
+        if (schema2.progression) state2.player.statPoints = Number(initial.player && initial.player.statPoints || 0);
+        if (schema2.equipment) state2.equipment = clone3(initial.equipment || {});
+        if (schema2.rpgQuests) state2.questProgress = clone3(initial.questProgress || {});
+        if (schema2.party) state2.party = clone3(initial.party || { members: [], formation: {} });
+        if (schema2.time) state2.clock = clone3(initial.clock || { day: state2.day, hour: Number(schema2.time.startHour || 8), turn: 0 });
+        if (schema2.locations) state2.location = initial.location || schema2.locations[0] && schema2.locations[0].id || null;
+        if (schema2.factions) state2.factions = clone3(initial.factions || {});
+        if (schema2.jobs) state2.jobs = clone3(initial.jobs || []);
         if (seed != null) state2.seed = seed;
         return state2;
       }
@@ -13404,7 +13736,7 @@ ${Array.from(extras).join(" ")}` : text;
 
   // src/engineSession.js
   var defaultSchema = require_yongsa_inn_v0();
-  var { getRegisteredEventIds } = require_applyEvent();
+  var { getDefaultModuleRegistry, getRegisteredEventIds } = require_applyEvent();
   var { createSessionJournal, restoreSessionJournal, stateHash } = require_sessionJournal();
   var { buildPlaySessionExport } = require_playSession();
   var activeSchema = defaultSchema;
@@ -13417,6 +13749,9 @@ ${Array.from(extras).join(" ")}` : text;
   var continuityMemory = createContinuityMemoryStore();
   function getEventTypes() {
     return getRegisteredEventIds();
+  }
+  function selectEngine(id, ...args) {
+    return getDefaultModuleRegistry().select(id, ...args);
   }
   var buttonOnlyEvents = /* @__PURE__ */ new Set([
     "traffic_wave",
@@ -17240,6 +17575,15 @@ ${Array.from(extras).join(" ")}` : text;
       "core.locations": ({ content, state: state2 }) => (content.locations || []).map((location) => ({ ...location, selected: state2.location === location.id })),
       "core.calendar": ({ state: state2 }) => ({ day: state2.day, time: state2.time || null }),
       "core.jobs": ({ state: state2 }) => state2.jobs || [],
+      "progression.summary": ({ schema: schema2, state: state2 }) => api.select("progression/summary", schema2, state2),
+      "equipment.slots": ({ schema: schema2, state: state2 }) => api.select("equipment/slots", schema2, state2),
+      "party.formation": ({ schema: schema2, state: state2 }) => api.select("party/formation", schema2, state2),
+      "time.current": ({ schema: schema2, state: state2 }) => api.select("time/current", schema2, state2),
+      "location.map": ({ schema: schema2, state: state2 }) => api.select("location/map", schema2, state2),
+      "quests.list": ({ schema: schema2, state: state2 }) => api.select("quests/list", schema2, state2),
+      "crafting.recipes": ({ schema: schema2, state: state2 }) => api.select("crafting/recipes", schema2, state2),
+      "factions.list": ({ schema: schema2, state: state2 }) => api.select("factions/list", schema2, state2),
+      "jobs.queue": ({ schema: schema2, state: state2 }) => api.select("jobs/queue", schema2, state2),
       "rpg.quests": ({ schema: schema2, state: state2 }) => (schema2.quests || []).map((quest) => ({ ...quest, completed: !!(state2.completedQuests || {})[quest.id] })),
       "combat.hud": ({ state: state2 }) => state2.combat ? { ...state2.combat, player: state2.player && state2.player.pools && state2.player.pools.hp } : null,
       "combat.actions": ({ schema: schema2, state: state2 }) => {
@@ -17713,6 +18057,7 @@ ${Array.from(extras).join(" ")}` : text;
     const declarative = renderDeclarativePlayer(ctx, {
       state: getEngineState,
       schema: getSchema,
+      select: selectEngine,
       chat: () => renderChat(ctx, render2),
       sidebar: () => renderSide(ctx, render2),
       render: render2,

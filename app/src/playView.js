@@ -5,7 +5,7 @@ const { resolveSpeaker, resolveSpeakerList } = require('./speakerResolver.js');
 const { PROVIDERS, callProvider } = require('./llm/providers.js');
 const { providerConfig, loadSettings, saveSettings, registerCustomOrigin, readKey, keyName, defaultModel } = require('./llm/byokSettings.js');
 const { el, button, field, row, notice, hiddenBase, namedInput, namedTextarea, namedSelect, appendOption, copyFallback: fallbackCopy } = require('./ui/dom.js');
-import { applyContinuityPatch, approveMemory, buttonOnlyEvents, exportPlaySession, getContinuityPatches, getEngineState, getEventCount, getMemoryRecords, getSchema, getSessionEpoch, hashPromptPayload, importPlaySession, ingestMemoryTurn, proposeContinuityPatch, recordPromptRun, rejectContinuityPatch, rejectMemory, retrieveGroundedMemory, runEvent, summarizeEvent, summarizeEventItem, validateMemoryFactRefs } from './engineSession.js';
+import { applyContinuityPatch, approveMemory, buttonOnlyEvents, exportPlaySession, getContinuityPatches, getEngineState, getEventCount, getMemoryRecords, getSchema, getSessionEpoch, hashPromptPayload, importPlaySession, ingestMemoryTurn, proposeContinuityPatch, recordPromptRun, rejectContinuityPatch, rejectMemory, retrieveGroundedMemory, runEvent, selectEngine, summarizeEvent, summarizeEventItem, validateMemoryFactRefs } from './engineSession.js';
 const { parsePlaySessionImport } = require('../core/session/playSession.js');
 import { buildNpcClusters, preferredEmotion, selectAsset } from './npcGallery.js';
 import { verifyNarrative } from '../core/memory/narrativeVerifier.ts';
@@ -333,6 +333,7 @@ function renderLayout(ctx, render) {
   const declarative = renderDeclarativePlayer(ctx, {
     state: getEngineState,
     schema: getSchema,
+    select: selectEngine,
     chat: () => renderChat(ctx, render),
     sidebar: () => renderSide(ctx, render),
     render,

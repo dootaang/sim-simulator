@@ -21,6 +21,16 @@ function createState(schema, seed) {
     claimedRewards: Array.isArray(initial.claimedRewards) ? clone(initial.claimedRewards) : [],
     combat: null,
   };
+  // Common modules are opt-in by schema section, preserving byte-identical
+  // legacy state for cards that do not install those modules.
+  if (schema.progression) state.player.statPoints = Number(initial.player && initial.player.statPoints || 0);
+  if (schema.equipment) state.equipment = clone(initial.equipment || {});
+  if (schema.rpgQuests) state.questProgress = clone(initial.questProgress || {});
+  if (schema.party) state.party = clone(initial.party || { members: [], formation: {} });
+  if (schema.time) state.clock = clone(initial.clock || { day: state.day, hour: Number(schema.time.startHour || 8), turn: 0 });
+  if (schema.locations) state.location = initial.location || (schema.locations[0] && schema.locations[0].id) || null;
+  if (schema.factions) state.factions = clone(initial.factions || {});
+  if (schema.jobs) state.jobs = clone(initial.jobs || []);
   if (seed != null) state.seed = seed;
   return state;
 }

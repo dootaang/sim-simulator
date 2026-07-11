@@ -12,6 +12,7 @@ const { createLegacyModule } = require('./modules/legacy.js');
 const { createStatsModule } = require('./modules/stats.js');
 const { createInventoryModule } = require('./modules/inventory.js');
 const { createCombatModule } = require('./modules/combat.js');
+const { createProgressionModule, createEquipmentModule, createQuestModule, createPartyModule, createTimeModule, createLocationModule, createLootModule, createShopModule, createCraftingModule, createFactionsModule, createJobsModule } = require('./modules/commonRpg.js');
 const {
   clone,
   findById,
@@ -294,6 +295,17 @@ function fire(state, params, ok, fail) {
 const defaultModuleRegistry = new ModuleRegistry();
 defaultModuleRegistry.register(createStatsModule());
 defaultModuleRegistry.register(createInventoryModule());
+defaultModuleRegistry.register(createProgressionModule());
+defaultModuleRegistry.register(createEquipmentModule());
+defaultModuleRegistry.register(createQuestModule());
+defaultModuleRegistry.register(createPartyModule());
+defaultModuleRegistry.register(createTimeModule());
+defaultModuleRegistry.register(createLocationModule());
+defaultModuleRegistry.register(createLootModule());
+defaultModuleRegistry.register(createShopModule());
+defaultModuleRegistry.register(createCraftingModule());
+defaultModuleRegistry.register(createFactionsModule());
+defaultModuleRegistry.register(createJobsModule());
 defaultModuleRegistry.register(createCombatModule());
 defaultModuleRegistry.register(createLegacyModule(applyLegacyEvent));
 

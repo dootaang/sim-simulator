@@ -53,7 +53,7 @@ test('unknown events preserve the old failure shape and original state object', 
 
 test('default engine gives extracted features to their modules and leaves the rest in legacy', () => {
   const registry = getDefaultModuleRegistry();
-  assert.deepEqual(registry.listModules().map((module) => module.id), ['core.stats', 'core.inventory', 'combat.turnbased', 'legacy.monolith']);
+  assert.deepEqual(registry.listModules().map((module) => module.id), ['core.stats', 'core.inventory', 'core.progression', 'core.equipment', 'rpg.quests', 'rpg.party', 'core.time', 'core.location', 'rpg.loot', 'rpg.shop', 'rpg.crafting', 'core.factions', 'core.jobs', 'combat.turnbased', 'legacy.monolith']);
   assert.equal(new Set(getRegisteredEventIds()).size, getRegisteredEventIds().length);
   for (const id of ['scale_delta', 'set_scale_mult', 'rep_event', 'exp_gain']) assert.equal(registry.eventOwner(id), 'core.stats');
   for (const id of ['gain_resource', 'resource_delta', 'use_item', 'buy_item', 'purchase', 'purchase_batch']) assert.equal(registry.eventOwner(id), 'core.inventory');

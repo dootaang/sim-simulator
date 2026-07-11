@@ -299,20 +299,22 @@ Recall@5는 28%로 B(53%)보다 낮고 hard-negative를 거르지 못했다. 따
 
 우선순위 1:
 
-- [ ] `core.progression`: 레벨·EXP·스탯 포인트
-- [ ] `core.equipment`: 무기·방어구·장신구 슬롯
-- [ ] `rpg.quests`: 목표·진행도·보상·실패
-- [ ] `rpg.party`: 동료·역할·편성
-- [ ] `core.time`: 날짜·시간 경과
-- [ ] `core.location`: 장소·이동
+- [x] `core.progression`: 레벨·EXP·스탯 포인트
+- [x] `core.equipment`: 무기·방어구·장신구 슬롯
+- [x] `rpg.quests`: 목표·진행도·보상·실패
+- [x] `rpg.party`: 동료·역할·편성
+- [x] `core.time`: 날짜·시간 경과
+- [x] `core.location`: 장소·이동
 
 우선순위 2:
 
-- [ ] `rpg.loot`
-- [ ] `rpg.shop`
-- [ ] `rpg.crafting`
-- [ ] `core.factions`
-- [ ] `core.jobs`: 제조·수복·건설처럼 시간이 걸리는 작업
+- [x] `rpg.loot`
+- [x] `rpg.shop`
+- [x] `rpg.crafting`
+- [x] `core.factions`
+- [x] `core.jobs`: 제조·수복·건설처럼 시간이 걸리는 작업
+
+11개 모듈은 `engine/core/modules/commonRpg.js`에 독립 module definition으로 등록되어 namespaced event와 selector를 제공한다. 스키마 섹션이 없는 기존 카드는 새 상태 키를 만들지 않아 용사여관·범용 전투 golden hash가 그대로 유지된다. 실패·악성 동적 키는 registry가 상태와 RNG를 함께 되돌린다.
 
 ## P4 — 범용 에셋 매퍼
 

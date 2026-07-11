@@ -1,5 +1,5 @@
 const defaultSchema = require('../../schema/yongsa-inn.v0.json');
-const { getRegisteredEventIds } = require('../../engine/core/applyEvent.js');
+const { getDefaultModuleRegistry, getRegisteredEventIds } = require('../../engine/core/applyEvent.js');
 const { createSessionJournal, restoreSessionJournal, stateHash } = require('../../engine/core/sessionJournal.js');
 const { buildPlaySessionExport } = require('../core/session/playSession.js');
 import { createContinuityMemoryStore, formatGroundedMemory, restoreContinuityMemoryStore, validateFactReferences } from '../core/memory/continuityStore.ts';
@@ -17,6 +17,10 @@ let continuityMemory = createContinuityMemoryStore();
 
 export function getEventTypes() {
   return getRegisteredEventIds();
+}
+
+export function selectEngine(id, ...args) {
+  return getDefaultModuleRegistry().select(id, ...args);
 }
 
 // 버튼 전용 인텐트 — LLM 어휘에 노출하지 않으며(prompt.js), LLM 자유 텍스트 응답의
