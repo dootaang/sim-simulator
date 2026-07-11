@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { validateSchema } = require('../src/schema/validate.js');
+const innSchema = require('../../schema/yongsa-inn.v0.json');
 
 function base(extra = {}) {
   return Object.assign({
@@ -36,6 +37,40 @@ test('menu trade keeps sell and buy but removes invalid values with a warning', 
   assert.equal(result.schema.entities[0].instances[1].trade, 'buy');
   assert.equal(result.schema.entities[0].instances[2].trade, undefined);
   assert.ok(result.issues.some((issue) => issue.path.includes('.trade')));
+});
+
+test('review-shaped menu items default optional fields and keep independent consumes objects', () => {
+  const menu = { type: 'menuItem', fields: ['name', 'category', 'price', 'trade', 'desc', 'requiresKitchenLevel'], instances: [
+    { name: '전술인형 계약', category: '상점', price: 100, trade: 'buy', desc: '실측 추가 필드', requiresKitchenLevel: 1 },
+    { name: '장비 계약', category: '상점', price: 50, trade: 'sell', desc: '보존 대상', requiresKitchenLevel: 2 },
+  ] };
+  const result = validateSchema(base({ entities: [menu] }));
+  const [first, second] = result.schema.entities[0].instances;
+  assert.deepEqual(errors(result), []);
+  assert.equal(first.grade, '');
+  assert.deepEqual(first.consumes, {});
+  assert.equal(first.trade, 'buy');
+  assert.equal(first.desc, '실측 추가 필드');
+  first.consumes.ammo = 1;
+  assert.deepEqual(second.consumes, {});
+  assert.equal(result.issues.filter((issue) => issue.path === 'entities[0].fields').length, 1);
+  assert.match(result.issues.find((issue) => issue.path === 'entities[0].fields').msg, /grade, consumes 누락/);
+});
+
+test('menu item name and price remain required', () => {
+  const fields = ['name', 'category', 'grade', 'price', 'requiresKitchenLevel', 'consumes'];
+  const result = validateSchema(base({ entities: [{ type: 'menuItem', fields, instances: [
+    { category: '', grade: '', price: 1, requiresKitchenLevel: 1, consumes: {} },
+    { name: '가격 없음', category: '', grade: '', requiresKitchenLevel: 1, consumes: {} },
+  ] }] }));
+  assert.ok(errors(result).some((issue) => issue.path.endsWith('instances[0].name')));
+  assert.ok(errors(result).some((issue) => issue.path.endsWith('instances[1].price')));
+});
+
+test('inn schema remains error-free without menu item normalization warnings', () => {
+  const result = validateSchema(innSchema);
+  assert.deepEqual(errors(result), []);
+  assert.equal(result.issues.some((issue) => issue.path.endsWith('.fields') && issue.msg.includes('선택 필드')), false);
 });
 
 test('single _hp pool is normalized to hp with initial state key and warning', () => {

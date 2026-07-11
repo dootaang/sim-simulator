@@ -10,7 +10,7 @@ const ENTITY_FIELDS = {
 // 선택 필드: 없으면 기본값으로 정규화(경고). requiresKitchenLevel은 여관 전용 게이트라
 // 상점형 카드(trade:buy)엔 무의미 — 엔진도 || 1 기본값을 쓴다(소전 실측: 에러 19개로 승인 잠김).
 const ENTITY_OPTIONAL_DEFAULTS = {
-  menuItem: { requiresKitchenLevel: 1 },
+  menuItem: { category: '', grade: '', consumes: {}, requiresKitchenLevel: 1 },
 };
 const ROOM_ALIASES = { number: 'no', roomNo: 'no', price: 'pricePerNight' };
 const NPC_ALIASES = { name: 'nameKo' };
@@ -407,18 +407,18 @@ function validateEntities(schema, issues) {
     if (!required) return;
     const optionalDefaults = ENTITY_OPTIONAL_DEFAULTS[entity.type] || {};
     const fieldSet = new Set(asArray(entity.fields));
-    let optionalFieldWarned = false;
+    const missingOptionalFields = [];
     for (const field of required) {
       if (fieldSet.has(field)) continue;
       if (field in optionalDefaults) {
         if (Array.isArray(entity.fields)) entity.fields.push(field);
-        if (!optionalFieldWarned) {
-          warn(issues, `${path}.fields`, `${field} 누락 — 기본값 ${optionalDefaults[field]}으로 정규화했습니다(선택 필드).`);
-          optionalFieldWarned = true;
-        }
+        missingOptionalFields.push(field);
         continue;
       }
       error(issues, `${path}.fields`, `Missing canonical field ${field}.`);
+    }
+    if (missingOptionalFields.length) {
+      warn(issues, `${path}.fields`, `${missingOptionalFields.join(', ')} 누락 — 기본값으로 정규화했습니다(선택 필드).`);
     }
     asArray(entity.instances).forEach((instance, instanceIndex) => {
       const itemPath = `${path}.instances[${instanceIndex}]`;
@@ -426,7 +426,7 @@ function validateEntities(schema, issues) {
       for (const field of required) {
         if (field in instance) continue;
         if (field in optionalDefaults) {
-          instance[field] = optionalDefaults[field];
+          instance[field] = clone(optionalDefaults[field]);
           continue;
         }
         error(issues, `${itemPath}.${field}`, `Missing required field ${field}.`);

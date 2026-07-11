@@ -7757,7 +7757,7 @@ ${row3.content}`;
         facility: ["id", "label", "maxLevel"]
       };
       var ENTITY_OPTIONAL_DEFAULTS = {
-        menuItem: { requiresKitchenLevel: 1 }
+        menuItem: { category: "", grade: "", consumes: {}, requiresKitchenLevel: 1 }
       };
       var ROOM_ALIASES = { number: "no", roomNo: "no", price: "pricePerNight" };
       var NPC_ALIASES = { name: "nameKo" };
@@ -8116,18 +8116,18 @@ ${row3.content}`;
           if (!required) return;
           const optionalDefaults = ENTITY_OPTIONAL_DEFAULTS[entity.type] || {};
           const fieldSet = new Set(asArray(entity.fields));
-          let optionalFieldWarned = false;
+          const missingOptionalFields = [];
           for (const field4 of required) {
             if (fieldSet.has(field4)) continue;
             if (field4 in optionalDefaults) {
               if (Array.isArray(entity.fields)) entity.fields.push(field4);
-              if (!optionalFieldWarned) {
-                warn(issues, `${path}.fields`, `${field4} \uB204\uB77D \u2014 \uAE30\uBCF8\uAC12 ${optionalDefaults[field4]}\uC73C\uB85C \uC815\uADDC\uD654\uD588\uC2B5\uB2C8\uB2E4(\uC120\uD0DD \uD544\uB4DC).`);
-                optionalFieldWarned = true;
-              }
+              missingOptionalFields.push(field4);
               continue;
             }
             error(issues, `${path}.fields`, `Missing canonical field ${field4}.`);
+          }
+          if (missingOptionalFields.length) {
+            warn(issues, `${path}.fields`, `${missingOptionalFields.join(", ")} \uB204\uB77D \u2014 \uAE30\uBCF8\uAC12\uC73C\uB85C \uC815\uADDC\uD654\uD588\uC2B5\uB2C8\uB2E4(\uC120\uD0DD \uD544\uB4DC).`);
           }
           asArray(entity.instances).forEach((instance, instanceIndex) => {
             const itemPath = `${path}.instances[${instanceIndex}]`;
@@ -8135,7 +8135,7 @@ ${row3.content}`;
             for (const field4 of required) {
               if (field4 in instance) continue;
               if (field4 in optionalDefaults) {
-                instance[field4] = optionalDefaults[field4];
+                instance[field4] = clone(optionalDefaults[field4]);
                 continue;
               }
               error(issues, `${itemPath}.${field4}`, `Missing required field ${field4}.`);
