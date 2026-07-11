@@ -4,8 +4,9 @@
   "private": true,
   "license": "GPL-3.0-or-later",
   "scripts": {
-    "test": "node --test test/*.test.js",
-    "test:phasec": "node --test test/*.test.ts",
+    "test": "node --test test/*.test.js && tsx --test test/*.test.ts",
+    "test:phasec": "tsx --test test/*.test.ts",
+    "benchmark:memory": "tsx ../scripts/memory-benchmark.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "build": "node build.mjs",
     "deploy": "node build.mjs && firebase deploy --only hosting",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.1",
+    "tsx": "^4.23.0",
     "typescript": "^5.9.3"
   }
 }

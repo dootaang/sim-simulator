@@ -5,6 +5,44 @@
 export type MemoryKind =
   | 'engine-fact' | 'event' | 'promise' | 'secret' | 'relation' | 'episode' | 'summary';
 
+// "누가, 언제, 어떤 장면에서 알게 되었는가"를
+// Simbot의 구조화 출력과 SessionJournal에 맞게 표현하는 계약이다.
+// 모든 필드는 선택값이라 기존 저장 데이터도 그대로 읽을 수 있다.
+export interface MemorySourceLocator {
+  sourceMessageFingerprint?: string;
+  sourcePacketIndex?: number;
+  sceneId?: string;
+  eventTime?: string;
+  observedAt?: string;
+  knownAt?: string;
+  narrationTime?: string;
+  lastConfirmedAt?: string;
+}
+
+export type MemoryKnowledgeType =
+  | 'experienced' | 'witnessed' | 'heard' | 'inferred' | 'rumor'
+  | 'private-thought' | 'public-fact';
+export type MemoryKnowledgeState =
+  | 'known' | 'suspected' | 'uncertain' | 'misunderstood' | 'forgotten' | 'hidden';
+export type MemoryPrivacy = 'public' | 'shared' | 'private' | 'secret' | 'internal';
+export type MemoryTruthState = 'true' | 'false' | 'contested' | 'unknown';
+
+export interface MemoryKnowledge {
+  type?: MemoryKnowledgeType;
+  state?: MemoryKnowledgeState;
+  privacy?: MemoryPrivacy;
+  truth?: MemoryTruthState;
+  visibleToEntityIds?: string[];
+  deniedToEntityIds?: string[];
+  holderEntityIds?: string[];
+  inferredByEntityIds?: string[];
+}
+
+export interface MemoryLifecycle {
+  state?: 'active' | 'resolved' | 'dormant' | 'superseded' | 'no-longer-true';
+  timeScope?: 'current' | 'past' | 'unknown';
+}
+
 export interface MemoryRecord {
   id: string;
   kind: MemoryKind;
@@ -20,6 +58,11 @@ export interface MemoryRecord {
   // 누가 이 기억을 아는가(C0-4): 'public' 아무나 | 'user' 플레이어 전용(비밀) | 'entity:<npcId>' 특정 NPC
   knowledgeScope: string;
   status: 'candidate' | 'approved' | 'rejected' | 'superseded';
+  canonicalAnchors?: string[];
+  sceneId?: string;
+  sourceLocator?: MemorySourceLocator;
+  knowledge?: MemoryKnowledge;
+  lifecycle?: MemoryLifecycle;
 }
 
 // 검색·주입 결정 계약(C0-1, C2). planner는 abstention 판단을 함께 낼 수 있다.
@@ -43,6 +86,8 @@ export interface EmbeddingProvider {
 export interface RetrievalHit {
   recordId: string;
   score: number;
+  // 정렬용 점수와 별개인 실제 어휘/의미 근거 강도. abstention은 이 값을 본다.
+  evidenceScore?: number;
   lexicalScore?: number;
   semanticScore?: number;
   recencyScore?: number;

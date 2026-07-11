@@ -112,6 +112,32 @@
         "maxMemoryTokens": 186,
         "budgetTokens": 2000
       }
+    },
+    "E. grounded-continuity": {
+      "retrieval": {
+        "recallAt1": 0.17,
+        "recallAt5": 0.28,
+        "recallAt10": 0.32,
+        "mrr": 0.215020202020202,
+        "ndcgAt10": 0.23828176106391685,
+        "attributionPrecision": 0.05800000000000002,
+        "sourcePresenceRate": 1,
+        "supersededRejectionRate": 1
+      },
+      "facts": {
+        "currentFactExactMatch": 1,
+        "supersededAsCurrentCount": 0,
+        "meanSupersededInInjection": 1,
+        "npcConfusionCount": 2,
+        "negativeAbstentionRate": 0,
+        "overAbstentionRate": 0.34,
+        "forbiddenClaimCount": 23
+      },
+      "resources": {
+        "meanMemoryTokens": 91.69166666666666,
+        "maxMemoryTokens": 228,
+        "budgetTokens": 2000
+      }
     }
   }
 }

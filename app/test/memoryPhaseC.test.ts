@@ -9,6 +9,8 @@ import { createVoyageProvider, maskSecrets, VOYAGE_LIMITS, VoyageError } from '.
 import { createEmbeddingCache, fnv1a } from '../core/memory/embeddingCache.ts';
 import { decideAbstention, DEFAULT_ABSTENTION } from '../core/memory/abstention.ts';
 import { planGroundedHybrid } from '../core/memory/groundedPlanner.ts';
+import { createGroundedLexicalSearch } from '../core/memory/groundedLexical.ts';
+import type { MemoryRecord } from '../core/memory/contracts.ts';
 
 const require = createRequire(import.meta.url);
 const corpus = require('./fixtures/memory-benchmark/corpus.json');
@@ -168,4 +170,94 @@ test('grounded: 결정론 — 같은 입력 두 번이 동일 결과', async () 
   const a = await planGroundedHybrid(corpus.records, ...args);
   const b = await planGroundedHybrid(corpus.records, ...args);
   assert.deepEqual(a.hits.map((h) => h.recordId), b.hits.map((h) => h.recordId));
+});
+
+function memory(overrides: Partial<MemoryRecord> & Pick<MemoryRecord, 'id' | 'text'>): MemoryRecord {
+  return {
+    kind: 'episode',
+    sourceMessageIds: [`msg-${overrides.id}`],
+    sourceEventIndexes: [],
+    entities: [],
+    createdTurn: 1,
+    validFromTurn: 1,
+    validToTurn: null,
+    supersedes: [],
+    importance: 0.5,
+    knowledgeScope: 'public',
+    status: 'approved',
+    ...overrides,
+  };
+}
+
+test('continuity contract: 현재 장면 기억은 다른 장면의 현재 질문에 섞이지 않는다', async () => {
+  const records = [
+    memory({ id: 'inn-now', text: '실비아는 여관 홀에서 접시를 닦고 있다', sceneId: 'inn', lifecycle: { timeScope: 'current' } }),
+    memory({ id: 'guild-now', text: '실비아는 길드 접수대 앞에 서 있다', sceneId: 'guild', lifecycle: { timeScope: 'current' } }),
+  ];
+  const plan = await planGroundedHybrid(records, '실비아는 지금 어디에 있어?',
+    { lexicalSearch: createGroundedLexicalSearch(records) },
+    { atTurn: 10, sceneId: 'inn', abstention: { gate: 'off', minConfidence: 0, calibrated: false } });
+  assert.ok(plan.hits.some((hit) => hit.recordId === 'inn-now'));
+  assert.ok(!plan.hits.some((hit) => hit.recordId === 'guild-now'));
+});
+
+test('continuity contract: 비밀은 보유자에게만 보이고 denied 목록이 우선한다', async () => {
+  const records = [memory({
+    id: 'silvia-secret',
+    text: '실비아는 지하 금고 열쇠를 화분 아래 숨겼다',
+    knowledgeScope: 'entity:silvia',
+    knowledge: { privacy: 'secret', holderEntityIds: ['silvia'], deniedToEntityIds: ['owner'], truth: 'true' },
+  })];
+  const search = createGroundedLexicalSearch(records);
+  const owner = await planGroundedHybrid(records, '금고 열쇠를 어디 숨겼지?', { lexicalSearch: search },
+    { atTurn: 10, viewerScopes: ['public', 'entity:silvia'], viewerEntityIds: ['owner'], abstention: { gate: 'off', minConfidence: 0, calibrated: false } });
+  assert.equal(owner.hits.length, 0);
+  const silvia = await planGroundedHybrid(records, '금고 열쇠를 어디 숨겼지?', { lexicalSearch: search },
+    { atTurn: 10, viewerScopes: ['public', 'entity:silvia'], viewerEntityIds: ['silvia'], abstention: { gate: 'off', minConfidence: 0, calibrated: false } });
+  assert.equal(silvia.hits[0]?.recordId, 'silvia-secret');
+});
+
+test('continuity contract: 소문과 추론은 authoritative 사실로 승격되지 않는다', async () => {
+  const records = [memory({
+    id: 'rumor', kind: 'event', text: '상인이 사실은 왕족이라는 소문',
+    knowledge: { type: 'rumor', state: 'uncertain', truth: 'contested', privacy: 'public' },
+  })];
+  const plan = await planGroundedHybrid(records, '상인의 정체는?', { lexicalSearch: createGroundedLexicalSearch(records) },
+    { atTurn: 10, abstention: { gate: 'off', minConfidence: 0, calibrated: false } });
+  assert.equal(plan.currentFacts.length, 0);
+  assert.ok(plan.hits[0]?.selectedBecause.includes('requires-uncertain-language'));
+});
+
+test('continuity contract: 폐기 기억은 과거 질문에서 명시적으로 요청할 때만 회수한다', async () => {
+  const records = [memory({ id: 'old-room', text: '실비아는 예전에 101호를 썼다', validToTurn: 4, status: 'superseded', lifecycle: { state: 'superseded', timeScope: 'past' } })];
+  const search = createGroundedLexicalSearch(records);
+  const current = await planGroundedHybrid(records, '실비아의 방은 지금 어디야?', { lexicalSearch: search },
+    { atTurn: 10, includeSuperseded: true, abstention: { gate: 'off', minConfidence: 0, calibrated: false } });
+  assert.equal(current.hits.length, 0);
+  const past = await planGroundedHybrid(records, '실비아가 예전에 쓰던 방을 기억해?', { lexicalSearch: search },
+    { atTurn: 10, includeSuperseded: true, abstention: { gate: 'off', minConfidence: 0, calibrated: false } });
+  assert.equal(past.hits[0]?.recordId, 'old-room');
+});
+
+test('continuity lexical: 무관한 질문은 낮은 근거로 abstain한다', async () => {
+  const records = [memory({ id: 'egg-price', text: '삶은 달걀 가격은 오천 원이다', canonicalAnchors: ['삶은 달걀'] })];
+  const plan = await planGroundedHybrid(records, '달의 뒷면에 사는 용의 생일은?',
+    { lexicalSearch: createGroundedLexicalSearch(records) }, { atTurn: 10 });
+  assert.equal(plan.abstained, true);
+  assert.equal(plan.hits.length, 0);
+});
+
+test('grounded: 승인 전 candidate는 authoritative 현재 사실이 될 수 없다', async () => {
+  const records = [memory({ id: 'candidate-fact', kind: 'engine-fact', text: '금고에는 백만 원이 있다', status: 'candidate' })];
+  const plan = await planGroundedHybrid(records, '금고 잔액은?', { lexicalSearch: createGroundedLexicalSearch(records) },
+    { atTurn: 10, abstention: { gate: 'off', minConfidence: 0, calibrated: false } });
+  assert.equal(plan.currentFacts.length, 0);
+  assert.equal(plan.hits.length, 0);
+});
+
+test('grounded: 나중에 폐기된 사실도 조회 시점에 유효했다면 당시 사실로 복원한다', async () => {
+  const records = [memory({ id: 'past-valid', kind: 'event', text: '7턴의 실비아 위치는 지하 수로', status: 'superseded', validFromTurn: 7, validToTurn: 64 })];
+  const plan = await planGroundedHybrid(records, '7턴의 실비아 위치는?', { lexicalSearch: createGroundedLexicalSearch(records) },
+    { atTurn: 7, abstention: { gate: 'off', minConfidence: 0, calibrated: false } });
+  assert.equal(plan.currentFacts[0]?.recordId, 'past-valid');
 });

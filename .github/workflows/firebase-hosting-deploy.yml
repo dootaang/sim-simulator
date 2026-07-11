@@ -21,6 +21,18 @@ jobs:
         run: npm ci
         working-directory: app
 
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: app
+
+      - name: App tests
+        run: npm test
+        working-directory: app
+
+      - name: Engine tests
+        run: npm test
+        working-directory: engine
+
       - name: Build
         run: npm run build
         working-directory: app

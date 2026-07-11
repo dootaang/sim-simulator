@@ -31,10 +31,10 @@ export interface AbstentionDecision {
 //  - soft: 최상위 점수가 임계 미만이면 abstain
 //  - strict: 최상위와 차상위 격차(margin)까지 요구 — 근소하게 헷갈리면 abstain
 export function decideAbstention(hits: RetrievalHit[], config: AbstentionConfig = DEFAULT_ABSTENTION): AbstentionDecision {
-  if (config.gate === 'off') return { abstain: false, confidence: hits[0] ? hits[0].score : 0, reason: 'gate-off' };
+  if (config.gate === 'off') return { abstain: false, confidence: hits[0] ? (hits[0].evidenceScore ?? hits[0].score) : 0, reason: 'gate-off' };
   if (!hits.length) return { abstain: true, confidence: 0, reason: 'no-hits' };
-  const top = hits[0].score || 0;
-  const second = hits[1] ? (hits[1].score || 0) : 0;
+  const top = hits[0].evidenceScore ?? hits[0].score ?? 0;
+  const second = hits[1] ? (hits[1].evidenceScore ?? hits[1].score ?? 0) : 0;
   const margin = top - second;
   // 점수 정규화 없이 상대 신뢰도만 본다(uncalibrated) — 실측에서 임계 보정.
   const confidence = top;

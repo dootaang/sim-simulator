@@ -10,13 +10,16 @@ import type { MemoryRecord, RetrievalHit, RetrievalPlan } from './contracts.ts';
 import { decideAbstention, DEFAULT_ABSTENTION } from './abstention.ts';
 import type { AbstentionConfig } from './abstention.ts';
 
-export interface ScoredId { recordId: string; score: number; }
+export interface ScoredId { recordId: string; score: number; evidenceScore?: number; }
 export type LexicalSearchFn = (query: string, k: number) => ScoredId[];
 export type SemanticSearchFn = (query: string, k: number) => Promise<ScoredId[]>;
 
 export interface GroundedConfig {
   atTurn: number;
   viewerScopes?: string[];               // 이 관찰자가 볼 수 있는 knowledgeScope 집합
+  viewerEntityIds?: string[];            // 이 기억을 실제로 아는 인물 id
+  sceneId?: string;                      // 현재 장면 id
+  queryMode?: 'auto' | 'current' | 'past';
   entityAliases?: Record<string, string[]>; // npcId -> 표기들(NPC disambiguation)
   includeSuperseded?: boolean;           // 롤백된 과거값을 주입 후보에 넣을지(기본 false)
   budgetTokens?: number;
@@ -41,6 +44,42 @@ function scopeAllowed(record: MemoryRecord, viewerScopes: string[]): boolean {
   if (viewerScopes.includes(scope)) return true;
   // entity:<id> 스코프는 관찰자 스코프에 'entity:<id>'가 있을 때만 통과.
   return false;
+}
+
+function knowledgeAllowed(record: MemoryRecord, viewerScopes: string[], viewerEntityIds: string[]): boolean {
+  if (!scopeAllowed(record, viewerScopes)) return false;
+  const knowledge = record.knowledge;
+  if (!knowledge) return true;
+  if (knowledge.state === 'forgotten' || knowledge.state === 'hidden') return false;
+  if (knowledge.deniedToEntityIds?.some((id) => viewerEntityIds.includes(id))) return false;
+  if (knowledge.privacy === 'public' || knowledge.type === 'public-fact') return true;
+  const allowed = new Set([...(knowledge.visibleToEntityIds ?? []), ...(knowledge.holderEntityIds ?? [])]);
+  if (!allowed.size) return knowledge.privacy == null;
+  return viewerEntityIds.some((id) => allowed.has(id));
+}
+
+function queryModeOf(query: string, requested: GroundedConfig['queryMode']): 'current' | 'past' {
+  if (requested && requested !== 'auto') return requested;
+  return /(?:그때|예전|과거|이전|당시|옛날|기억|전에|used to|previously|back then|history)/iu.test(query)
+    ? 'past'
+    : 'current';
+}
+
+function sceneAllowed(record: MemoryRecord, sceneId: string | undefined, mode: 'current' | 'past'): boolean {
+  if (!sceneId || mode === 'past') return true;
+  if (record.lifecycle?.timeScope !== 'current') return true;
+  const recordScene = record.sceneId ?? record.sourceLocator?.sceneId;
+  return !recordScene || recordScene === sceneId;
+}
+
+function uncertain(record: MemoryRecord): boolean {
+  return record.knowledge?.truth === 'contested'
+    || record.knowledge?.truth === 'unknown'
+    || record.knowledge?.state === 'suspected'
+    || record.knowledge?.state === 'uncertain'
+    || record.knowledge?.state === 'misunderstood'
+    || record.knowledge?.type === 'rumor'
+    || record.knowledge?.type === 'inferred';
 }
 
 function hitOf(record: MemoryRecord, extra: Partial<RetrievalHit>): RetrievalHit {
@@ -91,61 +130,78 @@ export async function planGroundedHybrid(
 ): Promise<RetrievalPlan> {
   const atTurn = config.atTurn;
   const viewerScopes = config.viewerScopes ?? DEFAULT_VIEWER_SCOPES;
+  const viewerEntityIds = config.viewerEntityIds ?? viewerScopes
+    .filter((scope) => scope.startsWith('entity:'))
+    .map((scope) => scope.slice('entity:'.length));
   const aliases = config.entityAliases ?? {};
   const includeSuperseded = config.includeSuperseded === true;
   const topK = config.topK ?? 20;
   const budgetTokens = config.budgetTokens ?? 2000;
   const abstentionCfg = config.abstention ?? DEFAULT_ABSTENTION;
   const evidenceFloor = config.semanticEvidenceFloor ?? 0.05;
+  const queryMode = queryModeOf(query, config.queryMode ?? 'auto');
   const byId = new Map(records.map((r) => [r.id, r]));
 
   // 유효 시점·승인·스코프·롤백 필터를 통과한 주입 가능 집합.
   function injectable(r: MemoryRecord): boolean {
     if (r.createdTurn > atTurn) return false;
-    if (r.status !== 'approved') return false;               // LLM candidate 자동 승격 금지
-    if (!includeSuperseded && r.validToTurn != null && r.validToTurn < atTurn) return false; // rollback tombstone
-    if (!scopeAllowed(r, viewerScopes)) return false;        // knowledgeScope gate
+    const isPast = r.validToTurn != null && r.validToTurn < atTurn;
+    if (r.status !== 'approved' && !(includeSuperseded && queryMode === 'past' && r.status === 'superseded')) return false;
+    if (isPast && !(includeSuperseded && queryMode === 'past')) return false; // rollback tombstone
+    if (!knowledgeAllowed(r, viewerScopes, viewerEntityIds)) return false;
+    if (!sceneAllowed(r, config.sceneId, queryMode)) return false;
     return true;
   }
 
   // 1) authoritative 현재 사실(폐기값 제외) — 절대 semantic으로 대체하지 않는다.
   const currentFacts = records
     .filter((r) => r.validFromTurn <= atTurn && (r.validToTurn == null || r.validToTurn >= atTurn))
-    .filter((r) => AUTHORITATIVE_KINDS.has(r.kind) && scopeAllowed(r, viewerScopes))
+    // superseded는 "지금은 폐기"라는 뜻이다. 조회 시점의 유효구간 안이라면 그 당시 사실로
+    // 인정하되, candidate/rejected는 어떤 시점에도 authoritative로 승격하지 않는다.
+    .filter((r) => (r.status === 'approved' || r.status === 'superseded') && AUTHORITATIVE_KINDS.has(r.kind))
+    .filter((r) => knowledgeAllowed(r, viewerScopes, viewerEntityIds) && sceneAllowed(r, config.sceneId, 'current'))
+    .filter((r) => !uncertain(r) && r.knowledge?.truth !== 'false')
     .map((r) => hitOf(r, { selectedBecause: ['authoritative-current'] }));
 
   const refEntities = referencedEntities(query, aliases);
 
   // 2) lexical sparse prefilter.
   const lex = deps.lexicalSearch(query, topK * 3).filter((s) => byId.has(s.recordId) && injectable(byId.get(s.recordId)!));
-  const topLexScore = lex.length ? lex[0].score : 0;
-
-  // 3) semantic — evidence gate: lexical 근거가 충분할 때만, 그리고 provider가 있을 때만.
+  // 3) semantic — 어휘가 약한 의역도 구할 수 있게 provider가 있으면 검색한다.
+  // 실제 주입 여부는 아래 evidence floor와 abstention이 결정한다.
   let sem: ScoredId[] = [];
   let semanticUsed = false;
-  if (deps.semanticSearch && topLexScore >= evidenceFloor) {
+  if (deps.semanticSearch) {
     sem = (await deps.semanticSearch(query, topK * 3)).filter((s) => byId.has(s.recordId) && injectable(byId.get(s.recordId)!));
     semanticUsed = true;
   }
 
-  // 4) 융합 — lexical 순위 우선(1/(rank)), semantic은 보조 가산. entity 일치는 부스트, 다른 참조
-  //    엔티티만 담은 hit은 소폭 감점(NPC disambiguation).
+  // 4) 융합 — 순위 자체가 아니라 실제 근거 강도를 쓴다. 그래야 무관한 검색 결과의
+  //    1등이 자동으로 고확신이 되는 문제를 막을 수 있다.
   const score = new Map<string, number>();
+  const evidence = new Map<string, number>();
   const because = new Map<string, string[]>();
-  const bump = (id: string, s: number, tag: string) => {
+  const bump = (id: string, s: number, tag: string, evidenceValue?: number) => {
     score.set(id, (score.get(id) || 0) + s);
+    if (evidenceValue != null) evidence.set(id, Math.max(evidence.get(id) ?? 0, evidenceValue));
     const list = because.get(id) || []; if (!list.includes(tag)) list.push(tag); because.set(id, list);
   };
-  lex.forEach((s, i) => bump(s.recordId, 1 / (i + 1), 'lexical'));
-  sem.forEach((s, i) => bump(s.recordId, 0.5 / (i + 1), 'semantic'));
+  lex.forEach((s) => {
+    const ev = Math.max(0, Math.min(1, s.evidenceScore ?? s.score));
+    bump(s.recordId, ev * 0.65, 'lexical', ev);
+  });
+  sem.forEach((s) => {
+    const ev = Math.max(0, Math.min(1, s.evidenceScore ?? s.score));
+    if (ev >= evidenceFloor) bump(s.recordId, ev * 0.35, 'semantic', ev);
+  });
   if (refEntities.size) {
     for (const id of score.keys()) {
       const rec = byId.get(id)!;
       const recEnts = new Set(rec.entities);
       const hasRef = [...refEntities].some((e) => recEnts.has(e));
       const hasOtherRef = [...recEnts].some((e) => !refEntities.has(e) && Object.prototype.hasOwnProperty.call(aliases, e));
-      if (hasRef) bump(id, 0.5, 'entity-match');
-      else if (hasOtherRef && recEnts.size > 0) bump(id, -0.3, 'other-entity');
+      if (hasRef) bump(id, 0.10, 'entity-match');
+      else if (hasOtherRef && recEnts.size > 0) bump(id, -0.15, 'other-entity');
     }
   }
 
@@ -153,11 +209,16 @@ export async function planGroundedHybrid(
   for (const id of score.keys()) {
     const rec = byId.get(id)!;
     if (rec.importance > 0.5) bump(id, 0.02 * rec.importance, 'important');
+    if (uncertain(rec)) bump(id, 0, 'requires-uncertain-language');
   }
 
   const ranked = [...score.entries()]
     .sort((a, b) => (b[1] - a[1]) || (a[0] < b[0] ? -1 : 1))
-    .map(([id, s]) => hitOf(byId.get(id)!, { score: s, selectedBecause: because.get(id) || [] }));
+    .map(([id, s]) => hitOf(byId.get(id)!, {
+      score: Math.max(0, Math.min(1, s)),
+      evidenceScore: evidence.get(id) ?? 0,
+      selectedBecause: because.get(id) || [],
+    }));
 
   // 5) token budget + per-kind quota. authoritative 현재사실에 이미 든 record는 회상 hit에서
   //    제외해 프롬프트 중복 적재를 막는다(감사 Nit).

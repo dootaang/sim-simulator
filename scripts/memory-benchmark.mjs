@@ -1,6 +1,6 @@
 // 기억 벤치마크 실행 하버스 — 네 비교군을 고정 코퍼스·고정 임베딩 provider로 측정.
 // 외부 API 없음(기본). 결과 JSON + Markdown 리포트를 낸다.
-// 실행: node scripts/memory-benchmark.mjs
+// 실행: cd app && npm run benchmark:memory (tsx가 TypeScript Grounded E를 함께 실행)
 //   --live-voyage 는 이번 단계에서 미구현(Phase A/B 범위 밖) — 붙이면 에러로 안내.
 //
 // 이 스크립트는 CommonJS 모듈(app/core/memory/*)을 require로 불러온다.
@@ -9,6 +9,8 @@ import { createRequire } from 'node:module';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { planGroundedHybrid } from '../app/core/memory/groundedPlanner.ts';
+import { createGroundedLexicalSearch } from '../app/core/memory/groundedLexical.ts';
 
 const require = createRequire(import.meta.url);
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -19,6 +21,7 @@ const { createFixedEmbeddingProvider } = require(join(ROOT, 'app/core/memory/pro
 const planner = require(join(ROOT, 'app/core/memory/contextPlanner.js'));
 const { buildLexicalIndex } = require(join(ROOT, 'app/core/memory/retrievers/lexical.js'));
 const { buildSemanticIndex } = require(join(ROOT, 'app/core/memory/retrievers/semantic.js'));
+const { semanticSearch } = require(join(ROOT, 'app/core/memory/retrievers/semantic.js'));
 const { evaluate } = require(join(ROOT, 'app/core/memory/benchmark.js'));
 
 if (process.argv.includes('--live-voyage')) {
@@ -36,6 +39,17 @@ async function run() {
     'B. structured+lexical': (q) => planner.planStructuredLexical(corpus, q, lexicalIndex),
     'C. hypa-v3': (q) => planner.planHypaV3(corpus, q, semanticIndex),
     'D. simbot-hybrid': (q) => planner.planSimbotHybrid(corpus, q, lexicalIndex, semanticIndex),
+    'E. grounded-continuity': (q) => planGroundedHybrid(corpus.records, q.query, {
+      lexicalSearch: createGroundedLexicalSearch(corpus.records),
+      semanticSearch: (query, k) => semanticSearch(semanticIndex, query, k),
+    }, {
+      atTurn: q.atTurn,
+      viewerScopes: ['public', 'user', 'entity:silvia', 'entity:mirian', 'entity:iris', 'entity:kang', 'entity:sera'],
+      viewerEntityIds: ['user', 'silvia', 'mirian', 'iris', 'kang', 'sera'],
+      includeSuperseded: q.category === 'superseded',
+      queryMode: q.category === 'superseded' ? 'past' : 'auto',
+      topK: 20,
+    }),
   };
 
   const results = {};
@@ -74,7 +88,7 @@ function renderReport(results, provider) {
   lines.push('> 이 표는 **외부 API 없는 고정(결정론) 임베딩 provider**로 측정한 것이다. 목적은 검색 파이프라인·지표가 올바른지, 네 방식의 상대적 강약을 재는 것이다. **절대적 의미 품질이 아니다** — 실제 임베딩 품질은 Voyage 실호출(Phase C, `--live-voyage`)에서 별도 측정한다.');
   lines.push('');
   lines.push(`- provider: \`${provider.modelId}\` (문자 3-gram 해시, ${provider.dimension}차원)`);
-  lines.push('- 비교군: A 최근창만 / B 구조화+어휘 / C HypaV3 재현(frozen summary) / D Simbot 하이브리드');
+  lines.push('- 비교군: A 최근창만 / B 구조화+어휘 / C HypaV3 재현 / D Simbot 하이브리드 / E Grounded Continuity');
   lines.push('');
   lines.push('## 검색 품질');
   lines.push('');
@@ -108,9 +122,9 @@ function renderReport(results, provider) {
   lines.push(row('평균 기억 토큰', (r) => fmtTok(r.resources.meanMemoryTokens)));
   lines.push(row('최대 기억 토큰', (r) => fmtTok(r.resources.maxMemoryTokens)));
   lines.push('');
-  lines.push('## 카테고리별 Recall@5 (D. simbot-hybrid)');
+  lines.push('## 카테고리별 Recall@5 (E. grounded-continuity)');
   lines.push('');
-  const hybrid = results['D. simbot-hybrid'];
+  const hybrid = results['E. grounded-continuity'];
   const byCat = {};
   for (const p of hybrid.per) { (byCat[p.category] = byCat[p.category] || []).push(p.recallAt5); }
   lines.push('| 카테고리 | Recall@5 |');
@@ -126,16 +140,16 @@ function renderReport(results, provider) {
   lines.push('- **폐기 기억 거부율**은 `supersededRecordIds`를 가진 질문(current-fact 20문항)에서 "폐기된 과거값이 현재 사실 블록에 안 들어갔는지"를 측정한다. superseded 카테고리 질문은 정답 자체가 과거값(회상 대상)이라 이 지표의 대상이 아니며, 대신 forbiddenClaims로 "과거를 현재로 단정" 여부를 잡는다.');
   lines.push('- negative 카테고리는 정답 record가 없으므로 Recall 집계에서 제외되고, "금지 문구 회상" 건수로만 평가한다.');
   lines.push('- 고정 provider는 어휘가 겹치는 바꿔 말하기에만 신호를 준다. 진짜 동의어·의역 회수 능력은 Voyage 측정에서 판단한다.');
-  lines.push('- authoritative 현재 사실은 구조화 lookup(B·D)만 제공한다. A·C는 현재 사실 블록이 비어 폐기값 노출 위험이 구조적으로 다르다.');
+  lines.push('- authoritative 현재 사실은 구조화 lookup(B·D·E)이 제공한다. E는 candidate/rejected를 제외하며, 나중에 superseded된 사실도 조회 시점의 유효구간 안에서는 당시 사실로 복원한다.');
   lines.push('');
   lines.push('## 권고 (이번 고정 provider 측정 기준)');
   lines.push('');
-  lines.push('1. **지금 당장 플레이에 연결할 것: 구조화 + 어휘(B의 요소)뿐.** 폐기 과거값을 현재 사실로 노출한 사례 0건, 최근창만(A) 대비 검색 회수가 크게 높다. 외부 비용·지연 없음. (근거 정확도는 precision@5 기준 10% 안팎 — 상위5에 정답 1개가 들어갈 때의 정상 범위이며, 이전의 "근거 100%"는 지표 착시였다.)');
-  lines.push('2. **의미(semantic) 검색은 아직 연결하지 말 것.** 고정 provider에서 D(하이브리드)는 B보다 Recall@5가 낮거나 비슷하다 — 약한 임베딩을 섞으면 정확 매칭이 희석된다. 이는 CLAUDE-TASK 통과 기준 5("Voyage 이득이 FTS 대비 작으면 기본 기능화 보류")를 그대로 확인한 것이다. **연결 여부는 Voyage 실측(Phase C) 이후 결정한다.**');
-  lines.push('3. **abstention(모름) 임계값이 없다는 게 다음 우선 과제.** 모든 planner가 negative 질문에도 top-K를 반환해 "금지 문구 회상"이 10~31건 발생한다. 회상 신뢰도 하한을 두어 "관련 기억 없음"을 반환하는 경로가 필요하다.');
-  lines.push('4. **HypaV3 재현(C)의 무작위 기억은 seed로 격리해 재현성은 확보**했으나, 이 corpus에서 검색 회수 기여가 낮다. 유사 기억 선택은 Voyage 임베딩과 결합했을 때만 재평가한다.');
+  lines.push('1. **현재 검색 품질 기준선은 여전히 B(구조화+어휘)다.** Recall@5가 가장 높고 외부 비용·지연이 없다.');
+  lines.push('2. **E는 연속성 안전 계약을 처음 얹은 통합 기준선이지, 아직 플레이 기본값이 아니다.** 현재 사실·장면·비밀·롤백 필터는 회귀 테스트를 통과했지만, 이 코퍼스에서 Recall@5가 B보다 낮고 답변 가능한 질문을 과하게 포기한다.');
+  lines.push('3. **hard-negative abstention은 아직 미해결이다.** E도 이름과 주제가 매우 비슷한 거짓 질문을 관련 기억으로 오인했다. 단순 점수 임계값만 올리면 정상 질문도 더 많이 버리므로, 다음 단계에서 주장 단위 부정 검증과 정규 앵커 일치를 별도 신호로 추가해야 한다.');
+  lines.push('4. **고정 해시 임베딩은 최종 의미 품질 판정 도구가 아니다.** Voyage 실측 전까지 semantic은 opt-in으로 유지하고, 어휘 근거가 없는 semantic 단독 주입의 하한을 별도로 보정한다.');
   lines.push('');
-  lines.push('> 요약: **authoritative 사실은 엔진이, 회수는 구조화+어휘가** 지금 감당한다. 외부 임베딩은 "측정으로 이득이 증명되면" 켜는 opt-in 후보로 남긴다.');
+  lines.push('> 요약: **authoritative 사실은 엔진이, 현재 기본 회수는 구조화+어휘가** 감당한다. E의 시간·장면·지식 경계는 유지하되, 검색·abstention 보정이 끝나기 전에는 라이브 프롬프트에 연결하지 않는다.');
   return lines.join('\n') + '\n';
 }
 
