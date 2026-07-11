@@ -5,7 +5,7 @@ const { startEncounter, combatAction, enemyAction, enemyTurn, endEncounter } = r
 const { staffMax, tierOf, menuTrade } = require('./selectors.js');
 const { poolHeal } = require('./pools.js');
 const { resolveCheck } = require('./resolveCheck.js');
-const { resolveTrafficWave } = require('./traffic.js');
+const { resolveTrafficWave, generateLodgingQueue, resolveLodgingDecision } = require('./traffic.js');
 const {
   clone,
   clamp,
@@ -75,6 +75,15 @@ function applyEvent(schema, state, event, rng) {
       if (!result.ok) return fail(result.reason, result.detail);
       for (const entry of result.entries) log.push(Object.assign({ event: type }, entry));
       return { state: next, log };
+    }
+    case 'lodging_review': {
+      const result = generateLodgingQueue(schema, next);
+      return result.ok ? ok(result) : fail(result.reason, result.detail);
+    }
+    case 'lodging_accept':
+    case 'lodging_reject': {
+      const result = resolveLodgingDecision(schema, next, params.requestId, type === 'lodging_accept' ? 'accept' : 'reject');
+      return result.ok ? ok(result) : fail(result.reason, result.detail);
     }
     case 'start_encounter':
       return startEncounter(schema, next, params, rng, ok, fail);

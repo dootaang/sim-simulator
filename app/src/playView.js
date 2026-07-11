@@ -414,6 +414,27 @@ function renderManagementConsole(input, ctx, render) {
       control.addEventListener('click', () => runManagementTurn({ id: 'traffic_wave', params: { wave: wave.id } }, input, ctx, render));
       group.append(control);
     }
+    if (section.type === 'traffic' && section.lodging) {
+      if (!section.lodging.reviewed) {
+        const review = button('숙박 문의 확인', 'secondary-btn');
+        review.disabled = busy;
+        review.addEventListener('click', () => runManagementTurn({ id: 'lodging_review', params: {} }, input, ctx, render));
+        group.append(review);
+      }
+      for (const request of section.lodging.pending) {
+        const line = el('div', 'mgmt-row');
+        const text = el('span');
+        text.textContent = `${request.name} · ${request.party}명 · ${request.stayDays}박`;
+        const accept = button('받기', 'secondary-btn');
+        const reject = button('거절', 'secondary-btn');
+        accept.disabled = busy;
+        reject.disabled = busy;
+        accept.addEventListener('click', () => runManagementTurn({ id: 'lodging_accept', params: { requestId: request.id } }, input, ctx, render));
+        reject.addEventListener('click', () => runManagementTurn({ id: 'lodging_reject', params: { requestId: request.id } }, input, ctx, render));
+        line.append(text, accept, reject);
+        group.append(line);
+      }
+    }
     if (section.type === 'sell' || section.type === 'buy') for (const item of section.items) {
       const owned = section.type === 'buy' && item.owned ? ` · 보유 ${item.owned}` : '';
       const control = button(`${item.name} (${formatMoney(item.price)})${owned}`, 'secondary-btn');

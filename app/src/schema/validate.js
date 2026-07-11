@@ -104,6 +104,46 @@ function validateTraffic(schema, issues) {
     warn(issues, `traffic.modifiers[${index}]`, 'Unknown traffic modifier removed.');
     return false;
   });
+  if (traffic.lodging != null) {
+    const lodging = traffic.lodging;
+    if (!isObject(lodging) || !lodging.roomsEntity || !findEntity(schema, lodging.roomsEntity)) {
+      warn(issues, 'traffic.lodging', 'Missing or unknown rooms entity; lodging block removed.');
+      delete traffic.lodging;
+      return;
+    }
+    lodging.base = asArray(lodging.base).map((range, index) => {
+      if (Number.isFinite(Number(range))) {
+        const value = Number(range);
+        warn(issues, `traffic.lodging.base[${index}]`, 'Numeric base normalized to [n,n].');
+        return [value, value];
+      }
+      if (isRange(range) && range.every((value) => Number.isFinite(Number(value)))) return range.map(Number);
+      warn(issues, `traffic.lodging.base[${index}]`, 'Invalid base range normalized to [0,0].');
+      return [0, 0];
+    });
+    if (!Array.isArray(lodging.segments) || !lodging.segments.filter(isObject).length) {
+      lodging.segments = [{ id: 'guest', label: '손님', weight: 1, party: [1, 2], stay: { '1': 1 } }];
+      warn(issues, 'traffic.lodging.segments', 'Empty segments normalized to a default guest segment.');
+    } else lodging.segments = lodging.segments.filter(isObject);
+    lodging.segments = lodging.segments.map((segment, index) => {
+      if (!(Number(segment.weight) > 0)) {
+        segment.weight = 1;
+        warn(issues, `traffic.lodging.segments[${index}].weight`, 'Non-positive weight normalized to 1.');
+      } else segment.weight = Number(segment.weight);
+      const stay = isObject(segment.stay) ? segment.stay : {};
+      const sum = Object.keys(stay).reduce((total, key) => total + Math.max(0, Number(stay[key]) || 0), 0);
+      if (sum <= 0) {
+        segment.stay = { '1': 1 };
+        warn(issues, `traffic.lodging.segments[${index}].stay`, 'Zero-sum stay distribution normalized to one night.');
+      }
+      const party = Array.isArray(segment.party) && segment.party.length >= 2 && segment.party.every((value) => Number.isFinite(Number(value)) && Number(value) >= 1);
+      if (!party) {
+        segment.party = [1, 2];
+        warn(issues, `traffic.lodging.segments[${index}].party`, 'Invalid party range normalized to [1,2].');
+      } else segment.party = [Number(segment.party[0]), Number(segment.party[1])];
+      return segment;
+    });
+  }
 }
 
 function normalizeMenuTrade(schema, issues) {

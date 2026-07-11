@@ -34,6 +34,9 @@ export const eventTypes = [
   'enemy_turn',
   'end_encounter',
   'traffic_wave',
+  'lodging_review',
+  'lodging_accept',
+  'lodging_reject',
   'day_end',
 ];
 
@@ -81,6 +84,9 @@ export function runEvent(event) {
 }
 
 export function summarizeEvent(type, entry, formatMoney) {
+  if (entry.ok && type === 'lodging_review') return `숙박 문의 ${entry.count}건 도착`;
+  if (entry.ok && type === 'lodging_accept') return `${entry.name} 일행 ${entry.party}명 · ${entry.roomNo}호 ${entry.stayDays}박 · 선불 +${formatMoney(entry.goldDelta)}`;
+  if (entry.ok && type === 'lodging_reject') return `${entry.name} 문의 거절`;
   if (entry.ok && type === 'traffic_wave' && entry.wave) return `${entry.label} · 손님 ${entry.customers}명 · 매출 +${formatMoney(entry.revenue)}`;
   if (entry.ok && type === 'traffic_wave' && entry.text) return entry.text;
   if (entry.ok && type === 'attempt_quest') return entry.success
@@ -135,6 +141,6 @@ function eventKind(type, entry) {
   if (['use_item'].includes(type)) return 'pool';
   if (['attempt_quest'].includes(type)) return 'quest';
   if (['day_end'].includes(type)) return 'settlement';
-  if (['traffic_wave', 'buy_item', 'reward', 'upgrade', 'gain_resource', 'gold_delta', 'resource_delta', 'sale', 'purchase'].includes(type)) return 'resource';
+  if (['traffic_wave', 'lodging_accept', 'buy_item', 'reward', 'upgrade', 'gain_resource', 'gold_delta', 'resource_delta', 'sale', 'purchase'].includes(type)) return 'resource';
   return 'info';
 }

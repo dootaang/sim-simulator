@@ -25,7 +25,12 @@ function availableManagement(schema, state) {
   const sections = [];
   if (schema.traffic) {
     const resolved = state.traffic && state.traffic.day === state.day ? state.traffic.resolved || {} : {};
-    sections.push({ type: 'traffic', id: schema.traffic.id, waves: (schema.traffic.waves || []).map((wave) => ({ id: wave.id, label: wave.label, share: wave.share, resolved: !!resolved[wave.id] })) });
+    const section = { type: 'traffic', id: schema.traffic.id, waves: (schema.traffic.waves || []).map((wave) => ({ id: wave.id, label: wave.label, share: wave.share, resolved: !!resolved[wave.id] })) };
+    if (schema.traffic.lodging) {
+      const lodging = state.lodging && state.lodging.day === state.day ? state.lodging : null;
+      section.lodging = { reviewed: !!(lodging && lodging.reviewed), pending: ((lodging && lodging.requests) || []).filter((item) => item.status === 'pending').map(({ id, label, name, party, stayDays }) => ({ id, label, name, party, stayDays })) };
+    }
+    sections.push(section);
   }
   const menus = availableMenu(schema, state);
   const sell = menus.filter((item) => menuTrade(item) === 'sell').map((item) => ({ name: item.name, price: Number(item.price || 0), category: item.category }));
