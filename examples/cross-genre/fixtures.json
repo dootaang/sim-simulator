@@ -1,0 +1,22 @@
+{
+  "lumina": { "title": "루미나 마을", "mode": "conversation-lore", "schema": { "meta": { "id": "lumina-village" }, "initialState": { "day": 1, "player": { "level": 1, "exp": 0 } } }, "screens": [], "lore": [{ "id": "village", "keys": ["루미나"], "content": "마을의 현재 장면에만 필요한 설정" }] },
+  "girlsFrontline": {
+    "title": "소녀전선: 잔불",
+    "schema": {
+      "initialState": { "day": 1, "gold": 0, "resources": { "repair_parts": 2, "reward_token": 0, "m4a1_health": 0 }, "player": { "level": 1, "exp": 0 } },
+      "entities": [{ "type": "npc", "instances": [{ "id": "m4a1" }, { "id": "st-ar15" }] }],
+      "party": { "maxSize": 5, "roles": ["leader", "vanguard"] },
+      "rpgQuests": [{ "id": "supply-run", "steps": [{ "id": "clear", "target": 1 }], "rewards": { "reward_token": 1 } }],
+      "time": { "startHour": 8 }, "jobs": [{ "id": "repair-m4a1", "duration": 1, "cost": { "repair_parts": 1 }, "outputs": { "m4a1_health": 100 } }]
+    }
+  },
+  "belladonna": {
+    "title": "Belladonna Academy",
+    "schema": {
+      "initialState": { "day": 1, "gold": 0, "resources": { "study_result": 0 }, "player": { "level": 1, "exp": 0 } },
+      "progression": { "sources": { "study": [10, 10] }, "thresholds": [30] }, "time": { "startHour": 8 },
+      "jobs": [{ "id": "study-week", "duration": 1, "outputs": { "study_result": 1 } }],
+      "factions": [{ "id": "student-council", "min": -100, "max": 100, "initial": 0, "sources": { "academy-event": [5, 5] } }]
+    }
+  }
+}
