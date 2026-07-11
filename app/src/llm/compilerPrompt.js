@@ -6,6 +6,16 @@ const SYSTEM_PROMPT = "당신은 RisuAI 시뮬봇 카드의 \"룰북 산문\"을
 
 const MAX_RULEBOOK_CHARS = 200000;
 
+const SETTLEMENT_SCHEMA_APPENDIX = `
+
+[settlement 출력 형식]
+"settlement": [
+  { "type": "facility_yield", "facility": "시설id", "resource": "자원id", "perLevel": { "1": 300, "2": [500,700] } },
+  { "type": "pool_recover", "pools": ["hp","mp"], "ratio": 0.5 },
+  { "type": "upkeep", "gold": 200 }
+]
+★하루 마감 정산(시설 레벨별 자원/골드 산출, 휴식 회복, 유지비)은 formulas 서술이 아니라 settlement 타입 스텝으로 출력하라. perLevel의 키는 시설 레벨 문자열("1"~), 값은 정수 또는 [min,max]다. formulas는 참고 설명용으로만 남겨라. 여관형 매출은 기존 daily_revenue 형식만 유지하고 settlement에 이중 출력하지 마라.`;
+
 const TRADE_SCHEMA_APPENDIX = `
 
 [거래 방향 확장]
@@ -33,7 +43,7 @@ skills에는 룰북에 이름과 코스트·위력이 명시된 스킬만 넣는
 const REWARD_SCHEMA_APPENDIX = "\n\n[rewards/upgrades/gather table rules]\nOutput JSON must include \"rewards\": { \"gold\": { \"E\":[min,max], \"D\":[min,max], \"C\":[min,max], \"B\":[min,max], \"A\":[min,max], \"S\":[min,max] } }. Quest/manual/request reward gold belongs only in this engine table, not in individual event params.\n\n★ Reward gold source priority: if the mined rules block has a per-rank table with a pay/reward range (e.g. a questPay or reward field already given as [min,max] numbers), copy those numbers EXACTLY into rewards.gold for the matching rank. Do NOT scale, round up, multiply, or inflate them — the mined numbers are the authoritative amounts. Only invent ranges for ranks that are ABSENT from the mined table, and keep those consistent in magnitude with the nearest mined rank (a lower rank must not exceed a higher rank). Sanity bound: unless a mined value explicitly says so, no rewards.gold max should exceed roughly 3x the most expensive facility upgrade cost — if your inferred number blows past that, you are hallucinating; pull it back down. If the rulebook gives no reward amounts at all, infer sensible tier ranges from menu prices and upgrade costs, then record the reason in _assumptions as temporary reward values.\n\nEach facility instance should include \"upgradeCosts\": { \"2\": cost, \"3\": cost, \"4\": cost } for the next-level expansion costs. Upgrade costs are engine-owned table values; never place costs, gold deltas, or target levels in individual upgrade events. If the rulebook does not provide exact costs, infer them from the economy scale and record the temporary assumption in _assumptions.\n\nOutput top-level \"gather\": { \"small\":[min,max], \"large\":[min,max], \"bulk\":[min,max], \"note\":\"...\" } for self-supply yields such as hunting, gathering, and monster byproducts. Gather quantities are engine-owned table values; never place qty or amount in individual gain_resource events.";
 
 function promptTemplate() {
-  return SYSTEM_PROMPT + TRADE_SCHEMA_APPENDIX + COMBAT_SCHEMA_APPENDIX + REWARD_SCHEMA_APPENDIX;
+  return SYSTEM_PROMPT + SETTLEMENT_SCHEMA_APPENDIX + TRADE_SCHEMA_APPENDIX + COMBAT_SCHEMA_APPENDIX + REWARD_SCHEMA_APPENDIX;
 }
 
 function buildCompilerInput(lore, mined) {

@@ -96,7 +96,7 @@ function eventSections(schema) {
   if ((schema.scales || []).some((scale) => scale.owner === 'npc' || scale.owner === 'captive')) sections.push(EVENT_PROMPTS.scale);
   if (ladders.some((ladder) => ladder.id === 'reputation')) sections.push(EVENT_PROMPTS.reputation);
   if (ladders.some((ladder) => ladder.id === 'player_level' && ladder.sources)) sections.push(EVENT_PROMPTS.experience);
-  if ((schema.processes || []).some((process) => process.trigger === 'dayEnd')) sections.push(EVENT_PROMPTS.dayEnd);
+  if ((schema.processes || []).some((process) => process.trigger === 'dayEnd') || (Array.isArray(schema.settlement) && schema.settlement.length)) sections.push(EVENT_PROMPTS.dayEnd);
   if (hasConsumables(schema)) sections.push(EVENT_PROMPTS.item);
   return sections;
 }

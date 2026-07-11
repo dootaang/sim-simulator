@@ -5338,6 +5338,7 @@ select:focus { border-color: var(--amber-line); }
       "use strict";
       var { clone, formulaById, findMenu, entityList } = require_utils();
       var { availableMenu: availableMenu2, rankWeight } = require_selectors();
+      var { poolHeal } = require_pools();
       function runDayEnd(schema2, state2, rng2) {
         const next = clone(state2);
         const report = {
@@ -5359,8 +5360,63 @@ select:focus { border-color: var(--amber-line); }
         settleRevenue(schema2, next, rng2, report);
         deductWages(next, report);
         checkoutDue(next, report);
+        runSettlement(schema2, next, rng2, report);
         advanceDay(next);
         return { state: next, report };
+      }
+      function runSettlement(schema2, state2, rng2, report) {
+        if (!Array.isArray(schema2.settlement)) return;
+        report.settlement = [];
+        for (const step of schema2.settlement) {
+          if (!step) continue;
+          if (step.type === "facility_yield") runFacilityYield(schema2, state2, rng2, report, step);
+          else if (step.type === "pool_recover") runPoolRecover(state2, report, step);
+          else if (step.type === "upkeep") runUpkeep(state2, report, step);
+        }
+      }
+      function levelValue(perLevel, level) {
+        if (!perLevel || typeof perLevel !== "object") return void 0;
+        if (Object.prototype.hasOwnProperty.call(perLevel, String(level))) return perLevel[String(level)];
+        const key = Object.keys(perLevel).map(Number).filter((n) => Number.isFinite(n) && n <= level).sort((a, b) => b - a)[0];
+        return key == null ? void 0 : perLevel[String(key)];
+      }
+      function runFacilityYield(schema2, state2, rng2, report, step) {
+        const level = Number(state2.facilities && state2.facilities[step.facility] || 1);
+        const value = levelValue(step.perLevel, level);
+        const base = { type: step.type, facility: step.facility, level };
+        if (value == null) return report.settlement.push({ ...base, skipped: "no_level_entry" });
+        const amount = Array.isArray(value) ? rng2.int(value[0], value[1]) : Number(value);
+        if (step.resource) {
+          const declared = (schema2.resources || []).some((resource) => resource && resource.id === step.resource);
+          const existing = state2.resources && Object.prototype.hasOwnProperty.call(state2.resources, step.resource);
+          if (!declared && !existing) return report.settlement.push({ ...base, resource: step.resource, skipped: "unknown_resource" });
+          if (!state2.resources) state2.resources = {};
+          state2.resources[step.resource] = Number(state2.resources[step.resource] || 0) + amount;
+          report.settlement.push({ ...base, resource: step.resource, amount });
+        } else if (step.gold === true) {
+          state2.gold = Number(state2.gold || 0) + amount;
+          report.settlement.push({ ...base, gold: true, amount });
+        }
+      }
+      function runPoolRecover(state2, report, step) {
+        const pools = state2.player && state2.player.pools;
+        const results = [];
+        for (const id of step.pools || []) {
+          if (!pools || !pools[id]) continue;
+          const before = Number(pools[id].cur || 0);
+          const level = Number(state2.facilities && state2.facilities[step.facility] || 1);
+          const byLevel = levelValue(step.perLevel, level);
+          const amount = byLevel != null ? Number(byLevel) : step.amount != null ? Number(step.amount) : Math.floor(Number(pools[id].max || 0) * Number(step.ratio || 0));
+          pools[id] = poolHeal(pools[id], amount);
+          results.push({ id, healed: pools[id].cur - before, cur: pools[id].cur, max: pools[id].max });
+        }
+        report.settlement.push({ type: step.type, pools: results });
+      }
+      function runUpkeep(state2, report, step) {
+        const gold = Number(step.gold || 0);
+        const paid = Math.min(Number(state2.gold || 0), gold);
+        state2.gold = Number(state2.gold || 0) - paid;
+        report.settlement.push({ type: step.type, gold, paid, shortfall: gold - paid });
       }
       function settleRevenue(schema2, state2, rng2, report) {
         const daily = formulaById(schema2, "daily_revenue");
@@ -5443,7 +5499,7 @@ select:focus { border-color: var(--amber-line); }
         state2.day = Number(state2.day || 1) + 1;
         for (const npc of Object.values(state2.npcs || {})) npc.affinityDeltaToday = 0;
       }
-      module.exports = { runDayEnd };
+      module.exports = { runDayEnd, runSettlement };
     }
   });
 
@@ -6316,7 +6372,7 @@ select:focus { border-color: var(--amber-line); }
         if ((schema2.scales || []).some((scale) => scale.owner === "npc" || scale.owner === "captive")) sections.push(EVENT_PROMPTS.scale);
         if (ladders.some((ladder) => ladder.id === "reputation")) sections.push(EVENT_PROMPTS.reputation);
         if (ladders.some((ladder) => ladder.id === "player_level" && ladder.sources)) sections.push(EVENT_PROMPTS.experience);
-        if ((schema2.processes || []).some((process) => process.trigger === "dayEnd")) sections.push(EVENT_PROMPTS.dayEnd);
+        if ((schema2.processes || []).some((process) => process.trigger === "dayEnd") || Array.isArray(schema2.settlement) && schema2.settlement.length) sections.push(EVENT_PROMPTS.dayEnd);
         if (hasConsumables(schema2)) sections.push(EVENT_PROMPTS.item);
         return sections;
       }
@@ -6971,6 +7027,15 @@ ${row3.entry.content}`).join("\n\n");
       var canonicalSchema = require_yongsa_inn_v0();
       var SYSTEM_PROMPT = '\uB2F9\uC2E0\uC740 RisuAI \uC2DC\uBBAC\uBD07 \uCE74\uB4DC\uC758 "\uB8F0\uBD81 \uC0B0\uBB38"\uC744 \uACB0\uC815\uB860 \uAC8C\uC784 \uC5D4\uC9C4\uC6A9 \uD45C\uC900 \uC2A4\uD0A4\uB9C8 JSON\uC73C\uB85C \uBCC0\uD658\uD558\uB294 \uCEF4\uD30C\uC77C\uB7EC\uB2E4.\n\n[\uC124\uACC4 \uCCA0\uD559] \uB7F0\uD0C0\uC784\uC5D0 \uC11C\uC0AC\uB294 LLM\uC774, \uC218\uCE58 \uACC4\uC0B0\xB7\uC0C1\uD0DC\uB294 \uC5D4\uC9C4\uC774 \uC18C\uC720\uD55C\uB2E4. \uB108\uC758 \uC784\uBB34\uB294 \uB8F0\uBD81\uC5D0\uC11C "\uC5D4\uC9C4\uC774 \uACC4\uC0B0\uD560 \uC218 \uC788\uB294 \uADDC\uCE59"(\uC218\uCE58\xB7\uBB38\uD131\xB7\uBC94\uC704\xB7\uD2F0\uC5B4\xB7\uACF5\uC2DD\xB7\uD45C)\uB9CC \uBF51\uC544 \uAD6C\uC870\uD654\uD558\uB294 \uAC83\uC774\uB2E4. \uBD84\uC704\uAE30\xB7\uC11C\uC0AC \uC9C0\uCE68\xB7\uC774\uBBF8\uC9C0 \uADDC\uCE59\uC740 \uB123\uC9C0 \uB9C8\uB77C.\n\n[\uCD9C\uB825 \uD615\uC2DD \u2014 \uC774 JSON \uD558\uB098\uB9CC. \uC55E\uB4A4 \uC124\uBA85\xB7\uB9C8\uD06C\uB2E4\uC6B4\xB7\uCF54\uB4DC\uD39C\uC2A4 \uAE08\uC9C0. \u2605\uD544\uB4DC\uBA85\uC740 \uC544\uB798 \uADF8\uB300\uB85C \uC4F0\uACE0 \uB300\uCCB4 \uC774\uB984\uC744 \uC9C0\uC5B4\uB0B4\uC9C0 \uB9C8\uB77C.]\n{\n  "meta": { "id": "kebab-id", "title": "\uCE74\uB4DC\uBA85", "schemaVersion": "0.1" },\n  "resources": [ { "id": "gold|food|drink|material", "unit": "\uBB38\uC790\uC5F4", "min": 0, "basePrice": \uC815\uC218\uC635\uC158 } ],\n  "scales": [ { "id": "affinity \uB4F1", "owner": "npc|player|captive", "range": [\uCD5C\uC18C,\uCD5C\uB300], "default": \uC815\uC218,\n    "steps": { "S": +\uC815\uC218, "M": +\uC815\uC218, "L": +\uC815\uC218, "XL": +\uC815\uC218, "S-": -\uC815\uC218, "M-": -\uC815\uC218, "L-": -\uC815\uC218, "XL-": -\uC815\uC218 },\n    "tiers": [ { "range": [lo,hi], "label": "\uD2F0\uC5B4\uBA85", "brief": "\uC9E7\uC740 \uC11C\uC220", "forbidden": ["\uAE08\uC9C0\uD589\uB3D9"] } ],\n    "actionMinimums": { "\uB3D9\uC791\uBA85": \uCD5C\uC18C\uC218\uCE58 } } ],\n  "ladders": [\n    { "id": "player_level", "currency": "exp", "thresholds": [\uBB38\uD131\uB4E4 \uB610\uB294 null], "sources": { "\uCE74\uD14C\uACE0\uB9AC": \uAC12 \uB610\uB294 [\uCD5C\uC18C,\uCD5C\uB300] } },\n    { "id": "reputation", "axes": ["\uCD95id"], "axisLabels": { "\uCD95id": "\uD55C\uAE00\uBA85" },\n      "ranks": [ { "id": "E", "next": \uBB38\uD131 }, { "id": "S", "next": null } ],\n      "onPromote": "resetExp", "onNegative": "demoteBorrow",\n      "categories": { "\uCD95id": { "\uCE74\uD14C\uACE0\uB9AC": [\uCD5C\uC18C,\uCD5C\uB300] } } } ],\n  "entities": [\n    { "type": "room", "fields": ["no","kind","pricePerNight","capacity","requiresRoomLevel"], "instances": [ { "no": \uC815\uC218, "kind": "\uBB38\uC790\uC5F4", "pricePerNight": \uC815\uC218, "capacity": \uC815\uC218\uB610\uB294null, "requiresRoomLevel": \uC815\uC218 } ] },\n    { "type": "menuItem", "fields": ["name","category","grade","price","requiresKitchenLevel","consumes"], "instances": [ { "name": "", "category": "", "grade": "E~S", "price": \uC815\uC218, "requiresKitchenLevel": \uC815\uC218, "consumes": { "food|drink": 1 } } ] },\n    { "type": "npc", "fields": ["id","nameKo","nameEn","class","group"], "instances": [ { "id":"", "nameKo":"", "nameEn":"", "class":"", "group":"" } ] },\n    { "type": "facility", "fields": ["id","label","maxLevel"], "instances": [ { "id":"", "label":"", "maxLevel": \uC815\uC218 } ] } ],\n  "formulas": [ { "id": "daily_revenue \uB4F1", "baseline": { "\uC2DC\uC124\uB808\uBCA8": { "cap": \uC815\uC218, "customers": [\uCD5C\uC18C,\uCD5C\uB300], "revenue": [\uCD5C\uC18C,\uCD5C\uB300] } }, "note": "" } ],\n  "processes": [ { "trigger": "dayEnd \uB4F1", "steps": [ { "id": "\uB2E8\uACC4id", "note": "" } ] } ],\n  "events": [ { "id": "sale|purchase|checkin|checkout|hire|fire|scale_delta|rep_event|exp_gain|gold_delta|resource_delta|day_end \uB4F1", "params": { "\uD544\uB4DC": "\uD0C0\uC785" } } ],\n  "initialState": { "day": 1, "gold": \uC815\uC218, "resources": {}, "facilities": {}, "staff": [], "player": {}, "reputation": {} },\n  "_assumptions": [ "\uB8F0\uBD81\uC5D0\uC11C \uD655\uC815 \uBABB \uD55C \uAC12\uACFC \uC0AC\uC720\uB97C \uBB38\uC7A5\uC73C\uB85C" ]\n}\n\n[\uBCC0\uD658 \uADDC\uCE59]\n1. \uB8F0\uBD81\uC5D0 \uBA85\uC2DC\uB41C \uC218\uCE58\uB9CC. \uC5C6\uB294 \uAC12\uC740 \uC9C0\uC5B4\uB0B4\uC9C0 \uB9D0\uACE0 \uC0DD\uB7B5\uD558\uAC70\uB098 null, \uADF8\uB9AC\uACE0 \uBB34\uC5C7\uC744 \uBABB \uC815\uD588\uB294\uC9C0 "_assumptions"\uC5D0 \uBC18\uB4DC\uC2DC \uC801\uB294\uB2E4.\n2. 0~200 \uB4F1 \uC720\uACC4 \uC218\uCE58 + \uAD6C\uAC04\uBCC4 \uC11C\uC220/\uAE08\uC9C0 = scales.tiers. \uC6D0\uBCF8 \uD2F0\uC5B4\uB97C \uD558\uB098\uB3C4 \uBE60\uB728\uB9AC\uC9C0 \uB9D0\uACE0 range\xB7label\xB7forbidden\uC744 \uC62E\uAE34\uB2E4.\n3. EXP \uB204\uC801\u2192\uBB38\uD131 \uC2B9\uAE09 = ladders. \uD3C9\uD310 \uC5EC\uB7EC \uCD95\uC740 axes\uB85C \uBB36\uACE0 \uCD95\uBCC4 \uBCC0\uB3D9 \uBC94\uC704\uD45C\uB97C categories\uB85C.\n4. \uD0DC\uADF8(\uC608: [ysp_affinity::id::\xB1N])\uB294 events\uB85C. \uC2A4\uCF00\uC77C \uBCC0\uB3D9\uC740 LLM\uC774 \uD06C\uAE30(S/M/L/XL)\uB9CC \uBD84\uB958\uD558\uACE0 \uC5D4\uC9C4\uC774 steps\uB85C \uC218\uCE58\uD654\uD558\uB294 \uC124\uACC4\uC774\uBBC0\uB85C params\uC5D0 size\uB97C \uB450\uACE0, \uC6D0\uBCF8\uC774 \xB1N\uC744 \uC918\uB3C4 \uADF8 \uAC12\uB4E4\uC740 steps\uB85C \uBF51\uB294\uB2E4.\n5. \u2605\uBA54\uB274\uB294 \uC5D4\uC9C4 \uD310\uB9E4\uC758 \uD575\uC2EC\uC774\uB2E4. \uC694\uB9AC\xB7\uC8FC\uB958\xB7\uD2B9\uC218\uBA54\uB274\xB7\uBB34\uAE30\xB7\uBC29\uC5B4\uAD6C \uB4F1 \uBAA8\uB4E0 \uD310\uB9E4 \uD488\uBAA9\uC744 entities.menuItem.instances\uC5D0 \uBE60\uC9D0\uC5C6\uC774 \uB123\uB418, name\uC740 \uB8F0\uBD81\uC5D0 \uC801\uD78C \uD55C\uAD6D\uC5B4 \uC774\uB984 \uADF8\uB300\uB85C(\uC608: "\uACE0\uAE30 \uC2A4\uD29C", "\uC5D0\uC77C", "\uCCA0\uC81C \uC7A5\uAC80"), price\uB294 \uC6D0\uBB38 \uAC00\uACA9(1\uB9CC\uC6D0=10000\uCC98\uB7FC \uC22B\uC790\uB9CC), requiresKitchenLevel/requiresForge\uB294 \uADF8 \uD488\uBAA9\uC774 \uB4F1\uC7A5\uD558\uB294 \uC2DC\uC124 \uB808\uBCA8({{#when kitchen level}} \uB4F1 \uC870\uAC74 \uBE14\uB85D\uC758 \uB808\uBCA8)\uB85C \uCC44\uC6B4\uB2E4. \uAC1D\uC2E4\xB7NPC\uB3C4 \uB9C8\uCC2C\uAC00\uC9C0\uB85C \uD45C/\uBAA9\uB85D\uC744 \uBE60\uC9D0\uC5C6\uC774 instances\uB85C.\n6. \uC815\uAE30 \uC815\uC0B0\xB7\uC77C\uAE09 \uCC28\uAC10\xB7\uC2DC\uAC04 \uACBD\uACFC\uB294 formulas + processes\uB85C.\n7. \u2605initialState\uB294 \uD50C\uB808\uC774\uB97C \uBC14\uB85C \uC2DC\uC791\uD560 \uC218 \uC788\uAC8C \uCC44\uC6B4\uB2E4. \uB8F0\uBD81\uC5D0 \uC2DC\uC791 \uC790\uBCF8\xB7\uCD08\uAE30 \uC7AC\uACE0\uAC00 \uC5C6\uC73C\uBA74(\uB300\uAC1C Lua \uBCC0\uC218\uB77C \uBA85\uC2DC \uC548 \uB428), \uC7AC\uD654 \uAC00\uACA9 \uADDC\uBAA8\uB97C \uBCF4\uACE0 \uCD08\uAE30 \uC6B4\uC601\uC774 \uAC00\uB2A5\uD55C \uAC12\uC73C\uB85C \uC815\uD55C\uB2E4: gold\uB294 \uAE30\uBCF8 \uC2DD\uC790\uC7AC/\uC7AC\uB8CC\uB97C \uC218\uC2ED \uC778\uBD84 \uC0B4 \uC218 \uC788\uB294 \uC218\uC900(\uC608: \uCD5C\uC18C 300,000 \uC774\uC0C1), food\xB7drink\uB294 \uCD5C\uC18C \uC601\uC5C5 \uAC00\uB2A5\uD55C \uCD08\uAE30 \uC7AC\uACE0(\uC608: \uAC01 20), facilities\uB294 \uBAA8\uB4E0 \uC2DC\uC124\uC744 \uB808\uBCA8 1\uB85C. \uC774\uB807\uAC8C \uC815\uD55C \uAC12\uC740 _assumptions\uC5D0 "\uC784\uC2DC \uC2DC\uC791\uAC12"\uC73C\uB85C \uAE30\uB85D\uD55C\uB2E4.\n8. \uCD9C\uB825\uC740 \uD30C\uC2F1 \uAC00\uB2A5\uD55C \uB2E8\uC77C JSON. \uADF8 \uC678 \uD14D\uC2A4\uD2B8 \uC808\uB300 \uAE08\uC9C0.\n\n\uC544\uB798 [\uB8F0\uBD81]\uC744 \uCEF4\uD30C\uC77C\uD558\uB77C.\n\n[\uB8F0\uBD81]\n{{RULEBOOK}}';
       var MAX_RULEBOOK_CHARS = 2e5;
+      var SETTLEMENT_SCHEMA_APPENDIX = `
+
+[settlement \uCD9C\uB825 \uD615\uC2DD]
+"settlement": [
+  { "type": "facility_yield", "facility": "\uC2DC\uC124id", "resource": "\uC790\uC6D0id", "perLevel": { "1": 300, "2": [500,700] } },
+  { "type": "pool_recover", "pools": ["hp","mp"], "ratio": 0.5 },
+  { "type": "upkeep", "gold": 200 }
+]
+\u2605\uD558\uB8E8 \uB9C8\uAC10 \uC815\uC0B0(\uC2DC\uC124 \uB808\uBCA8\uBCC4 \uC790\uC6D0/\uACE8\uB4DC \uC0B0\uCD9C, \uD734\uC2DD \uD68C\uBCF5, \uC720\uC9C0\uBE44)\uC740 formulas \uC11C\uC220\uC774 \uC544\uB2C8\uB77C settlement \uD0C0\uC785 \uC2A4\uD15D\uC73C\uB85C \uCD9C\uB825\uD558\uB77C. perLevel\uC758 \uD0A4\uB294 \uC2DC\uC124 \uB808\uBCA8 \uBB38\uC790\uC5F4("1"~), \uAC12\uC740 \uC815\uC218 \uB610\uB294 [min,max]\uB2E4. formulas\uB294 \uCC38\uACE0 \uC124\uBA85\uC6A9\uC73C\uB85C\uB9CC \uB0A8\uACA8\uB77C. \uC5EC\uAD00\uD615 \uB9E4\uCD9C\uC740 \uAE30\uC874 daily_revenue \uD615\uC2DD\uB9CC \uC720\uC9C0\uD558\uACE0 settlement\uC5D0 \uC774\uC911 \uCD9C\uB825\uD558\uC9C0 \uB9C8\uB77C.`;
       var TRADE_SCHEMA_APPENDIX = `
 
 [\uAC70\uB798 \uBC29\uD5A5 \uD655\uC7A5]
@@ -6995,7 +7060,7 @@ skills\uC5D0\uB294 \uB8F0\uBD81\uC5D0 \uC774\uB984\uACFC \uCF54\uC2A4\uD2B8\xB7\
 \uC804\uD22C \uCE74\uB4DC\uC758 initialState.player\uC5D0\uB294 "pools":{"hp":{"cur":\uC815\uC218,"max":\uC815\uC218}} \uD615\uD0DC\uB85C \uAC01 \uC790\uC6D0\uC744 \uB123\uACE0 atk/def/evade/acc\uB97C \uB123\uB294\uB2E4. \uB8F0\uBD81 \uADFC\uAC70\uAC00 \uC5C6\uC73C\uBA74 \uAC01\uAC01 5/0/10/0\uC744 \uC0AC\uC6A9\uD558\uACE0 _assumptions\uC5D0 \uAE30\uB85D\uD55C\uB2E4.`;
       var REWARD_SCHEMA_APPENDIX = '\n\n[rewards/upgrades/gather table rules]\nOutput JSON must include "rewards": { "gold": { "E":[min,max], "D":[min,max], "C":[min,max], "B":[min,max], "A":[min,max], "S":[min,max] } }. Quest/manual/request reward gold belongs only in this engine table, not in individual event params.\n\n\u2605 Reward gold source priority: if the mined rules block has a per-rank table with a pay/reward range (e.g. a questPay or reward field already given as [min,max] numbers), copy those numbers EXACTLY into rewards.gold for the matching rank. Do NOT scale, round up, multiply, or inflate them \u2014 the mined numbers are the authoritative amounts. Only invent ranges for ranks that are ABSENT from the mined table, and keep those consistent in magnitude with the nearest mined rank (a lower rank must not exceed a higher rank). Sanity bound: unless a mined value explicitly says so, no rewards.gold max should exceed roughly 3x the most expensive facility upgrade cost \u2014 if your inferred number blows past that, you are hallucinating; pull it back down. If the rulebook gives no reward amounts at all, infer sensible tier ranges from menu prices and upgrade costs, then record the reason in _assumptions as temporary reward values.\n\nEach facility instance should include "upgradeCosts": { "2": cost, "3": cost, "4": cost } for the next-level expansion costs. Upgrade costs are engine-owned table values; never place costs, gold deltas, or target levels in individual upgrade events. If the rulebook does not provide exact costs, infer them from the economy scale and record the temporary assumption in _assumptions.\n\nOutput top-level "gather": { "small":[min,max], "large":[min,max], "bulk":[min,max], "note":"..." } for self-supply yields such as hunting, gathering, and monster byproducts. Gather quantities are engine-owned table values; never place qty or amount in individual gain_resource events.';
       function promptTemplate() {
-        return SYSTEM_PROMPT + TRADE_SCHEMA_APPENDIX + COMBAT_SCHEMA_APPENDIX + REWARD_SCHEMA_APPENDIX;
+        return SYSTEM_PROMPT + SETTLEMENT_SCHEMA_APPENDIX + TRADE_SCHEMA_APPENDIX + COMBAT_SCHEMA_APPENDIX + REWARD_SCHEMA_APPENDIX;
       }
       function buildCompilerInput2(lore, mined) {
         const entries = Array.isArray(lore && lore.entries) ? lore.entries : [];
@@ -7789,6 +7854,7 @@ ${row3.content}`;
         validateProcesses(schema2, issues);
         validateRewards(schema2, issues);
         validateGather(schema2, issues);
+        validateSettlement(schema2, issues);
         validateEvents(schema2, issues);
         return { schema: schema2, issues };
       }
@@ -8209,6 +8275,89 @@ ${row3.content}`;
           }
           validateAscendingIntegerRange(range, path, issues);
         }
+      }
+      function validateSettlement(schema2, issues) {
+        if (schema2.settlement == null) return;
+        if (!Array.isArray(schema2.settlement)) {
+          warn(issues, "settlement", "settlement must be an array; removed.");
+          delete schema2.settlement;
+          return;
+        }
+        const normalized = [];
+        schema2.settlement.forEach((step, index) => {
+          const path = `settlement[${index}]`;
+          if (!isObject(step) || !["facility_yield", "pool_recover", "upkeep"].includes(step.type)) {
+            warn(issues, path, "Unknown or invalid settlement step removed.");
+            return;
+          }
+          if (step.type === "facility_yield") {
+            if (!isObject(step.perLevel) || !normalizePerLevel(step.perLevel, `${path}.perLevel`, issues)) {
+              warn(issues, path, "facility_yield requires a non-empty perLevel table; removed.");
+              return;
+            }
+            const resource = typeof step.resource === "string" && step.resource.trim();
+            if (!!resource === (step.gold === true)) {
+              warn(issues, path, "facility_yield requires exactly one of resource or gold:true; removed.");
+              return;
+            }
+            if (resource) {
+              step.resource = step.resource.trim();
+              if (!(schema2.resources || []).some((r) => isObject(r) && r.id === step.resource)) {
+                warn(issues, `${path}.resource`, `'${step.resource}'\uB294 schema.resources\uC5D0 \uC120\uC5B8\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4 \u2014 \uC815\uC0B0 \uC2DC \uC2A4\uD0B5\uB429\uB2C8\uB2E4.`);
+              }
+            }
+            normalized.push(step);
+            return;
+          }
+          if (step.type === "pool_recover") {
+            if (!Array.isArray(step.pools) || !step.pools.length || step.pools.some((id) => typeof id !== "string" || !id.trim())) {
+              warn(issues, `${path}.pools`, "pool_recover requires a non-empty string array; removed.");
+              return;
+            }
+            step.pools = step.pools.map((id) => id.trim());
+            if (step.perLevel != null && (!isObject(step.perLevel) || !normalizePerLevel(step.perLevel, `${path}.perLevel`, issues, false, false))) delete step.perLevel;
+            if (step.ratio != null) {
+              const ratio = Number(step.ratio);
+              if (!Number.isFinite(ratio)) delete step.ratio;
+              else {
+                step.ratio = Math.min(1, Math.max(0, ratio));
+                if (step.ratio !== ratio) warn(issues, `${path}.ratio`, "ratio was clamped to 0..1.");
+              }
+            }
+            if (step.amount != null) {
+              const amount = Number(step.amount);
+              if (!Number.isFinite(amount)) delete step.amount;
+              else step.amount = Math.max(0, Math.trunc(amount));
+            }
+            normalized.push(step);
+            return;
+          }
+          const gold = Number(step.gold);
+          if (!Number.isFinite(gold) || Math.trunc(gold) <= 0) {
+            warn(issues, `${path}.gold`, "upkeep gold must be a positive integer; removed.");
+            return;
+          }
+          step.gold = Math.trunc(gold);
+          normalized.push(step);
+        });
+        schema2.settlement = normalized;
+      }
+      function normalizePerLevel(table, path, issues, requireNonEmpty = true, allowRanges = true) {
+        for (const [key, raw] of Object.entries(table)) {
+          const level = Number(key);
+          let value;
+          if (Number.isInteger(level) && level > 0 && Number.isFinite(Number(raw)) && !Array.isArray(raw)) value = Math.trunc(Number(raw));
+          else if (allowRanges && Number.isInteger(level) && level > 0 && isRange(raw) && raw.every((n) => Number.isFinite(Number(n))) && Number(raw[0]) <= Number(raw[1])) value = raw.map((n) => Math.trunc(Number(n)));
+          if (value == null) {
+            warn(issues, `${path}.${key}`, "Invalid perLevel entry removed.");
+            delete table[key];
+            continue;
+          }
+          const canonical = String(level);
+          if (canonical !== key) delete table[key];
+          table[canonical] = value;
+        }
+        return !requireNonEmpty || Object.keys(table).length > 0;
       }
       function validateUpgradeCosts(costs, path, issues) {
         if (!isObject(costs)) return error(issues, path, "upgradeCosts must be an object when present.");
@@ -9057,7 +9206,17 @@ ${Array.from(extras).join(" ")}` : text;
     if (type === "end_encounter") return `\uC804\uD22C \uC885\uB8CC(${entry.outcome}) \xB7 EXP +${entry.expGained} \xB7 \uACE8\uB4DC +${formatMoney3(entry.goldGained)}${entry.levelUps && entry.levelUps.length ? ` \xB7 Lv.${entry.levelUps.join(",")}` : ""}`;
     if (type === "scale_delta") return entry.capped ? `${entry.target} capped \xB7 ${entry.before} -> ${entry.after}` : `${entry.target} ${entry.before} -> ${entry.after}`;
     if (type === "rep_event") return `${entry.axis}/${entry.category} ${entry.before.rank}(${entry.before.exp}) -> ${entry.after.rank}(${entry.after.exp}), delta ${entry.delta}`;
-    if (type === "day_end") return `\uD558\uB8E8 \uB9C8\uAC10 \xB7 ${entry.report.day}\uC77C\uCC28 \uC815\uC0B0`;
+    if (type === "day_end") {
+      let text = `\uD558\uB8E8 \uB9C8\uAC10 \xB7 ${entry.report.day}\uC77C\uCC28 \uC815\uC0B0`;
+      const healedByPool = {};
+      for (const step of entry.report.settlement || []) {
+        if (step.amount != null && !step.skipped) text += ` \xB7 ${step.resource || (step.gold ? "\uACE8\uB4DC" : "")} +${step.amount}`;
+        else if (Array.isArray(step.pools)) for (const pool of step.pools) healedByPool[pool.id] = (healedByPool[pool.id] || 0) + Number(pool.healed || 0);
+        else if (step.type === "upkeep") text += ` \xB7 \uC720\uC9C0\uBE44 -${step.paid}`;
+      }
+      for (const [id, healed] of Object.entries(healedByPool)) text += ` \xB7 ${String(id).toUpperCase()} +${healed}`;
+      return text;
+    }
     if (type === "sale") {
       const cost = entry.consumed ? Object.entries(entry.consumed).map(([r, n]) => ` \xB7 ${r} -${n}`).join("") : "";
       return `sale \xB7 ${entry.menuName || ""} \xB7 gold +${formatMoney3(entry.goldDelta)}${cost}`;

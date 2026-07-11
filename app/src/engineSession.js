@@ -98,7 +98,17 @@ export function summarizeEvent(type, entry, formatMoney) {
   if (type === 'end_encounter') return `전투 종료(${entry.outcome}) · EXP +${entry.expGained} · 골드 +${formatMoney(entry.goldGained)}${entry.levelUps && entry.levelUps.length ? ` · Lv.${entry.levelUps.join(',')}` : ''}`;
   if (type === 'scale_delta') return entry.capped ? `${entry.target} capped · ${entry.before} -> ${entry.after}` : `${entry.target} ${entry.before} -> ${entry.after}`;
   if (type === 'rep_event') return `${entry.axis}/${entry.category} ${entry.before.rank}(${entry.before.exp}) -> ${entry.after.rank}(${entry.after.exp}), delta ${entry.delta}`;
-  if (type === 'day_end') return `하루 마감 · ${entry.report.day}일차 정산`;
+  if (type === 'day_end') {
+    let text = `하루 마감 · ${entry.report.day}일차 정산`;
+    const healedByPool = {}; // 복수 스텝의 같은 풀 회복을 합산 표기(감사 지적: HP +10 · HP +20 중복 나열 방지)
+    for (const step of entry.report.settlement || []) {
+      if (step.amount != null && !step.skipped) text += ` · ${step.resource || (step.gold ? '골드' : '')} +${step.amount}`;
+      else if (Array.isArray(step.pools)) for (const pool of step.pools) healedByPool[pool.id] = (healedByPool[pool.id] || 0) + Number(pool.healed || 0);
+      else if (step.type === 'upkeep') text += ` · 유지비 -${step.paid}`;
+    }
+    for (const [id, healed] of Object.entries(healedByPool)) text += ` · ${String(id).toUpperCase()} +${healed}`;
+    return text;
+  }
   if (type === 'sale') {
     const cost = entry.consumed ? Object.entries(entry.consumed).map(([r, n]) => ` · ${r} -${n}`).join('') : '';
     return `sale · ${entry.menuName || ''} · gold +${formatMoney(entry.goldDelta)}${cost}`;

@@ -170,3 +170,27 @@ test('resource effects normalize valid amounts and remove invalid effects', () =
   assert.equal(result.schema.resources[2].effect, undefined);
   assert.equal(result.issues.filter((issue) => issue.path.endsWith('.effect')).length, 2);
 });
+
+test('settlement normalizes and drops invalid steps using warnings only', () => {
+  const result = validateSchema(base({ settlement: [
+    { type: 'unknown' },
+    { type: 'facility_yield', facility: 'base', resource: 'res', perLevel: { 1: '300', bad: 2, 3: ['4', '8'] } },
+    { type: 'pool_recover', pools: ['hp'], ratio: 2, amount: '10.8' },
+    { type: 'upkeep', gold: '200.9' },
+    { type: 'upkeep', gold: 0 },
+  ] }));
+  assert.deepEqual(errors(result), []);
+  assert.equal(result.schema.settlement.length, 3);
+  assert.deepEqual(result.schema.settlement[0].perLevel, { 1: 300, 3: [4, 8] });
+  assert.equal(result.schema.settlement[1].ratio, 1);
+  assert.equal(result.schema.settlement[1].amount, 10);
+  assert.equal(result.schema.settlement[2].gold, 200);
+  assert.ok(result.issues.every((issue) => issue.level === 'warn'));
+});
+
+test('non-array settlement is removed with warning and no errors', () => {
+  const result = validateSchema(base({ settlement: {} }));
+  assert.equal(result.schema.settlement, undefined);
+  assert.deepEqual(errors(result), []);
+  assert.ok(result.issues.some((issue) => issue.path === 'settlement' && issue.level === 'warn'));
+});

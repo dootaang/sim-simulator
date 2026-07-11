@@ -35,6 +35,7 @@ function validateSchema(obj) {
   validateProcesses(schema, issues);
   validateRewards(schema, issues);
   validateGather(schema, issues);
+  validateSettlement(schema, issues);
   validateEvents(schema, issues);
 
   return { schema, issues };
@@ -496,6 +497,95 @@ function validateGather(schema, issues) {
     }
     validateAscendingIntegerRange(range, path, issues);
   }
+}
+
+function validateSettlement(schema, issues) {
+  if (schema.settlement == null) return;
+  if (!Array.isArray(schema.settlement)) {
+    warn(issues, 'settlement', 'settlement must be an array; removed.');
+    delete schema.settlement;
+    return;
+  }
+  const normalized = [];
+  schema.settlement.forEach((step, index) => {
+    const path = `settlement[${index}]`;
+    if (!isObject(step) || !['facility_yield', 'pool_recover', 'upkeep'].includes(step.type)) {
+      warn(issues, path, 'Unknown or invalid settlement step removed.');
+      return;
+    }
+    if (step.type === 'facility_yield') {
+      if (!isObject(step.perLevel) || !normalizePerLevel(step.perLevel, `${path}.perLevel`, issues)) {
+        warn(issues, path, 'facility_yield requires a non-empty perLevel table; removed.');
+        return;
+      }
+      const resource = typeof step.resource === 'string' && step.resource.trim();
+      if (!!resource === (step.gold === true)) {
+        warn(issues, path, 'facility_yield requires exactly one of resource or gold:true; removed.');
+        return;
+      }
+      if (resource) {
+        step.resource = step.resource.trim();
+        // 정적 단계에서도 미선언 자원을 미리 경고(감사 지적 — 런타임은 이미 스킵 방어됨).
+        if (!(schema.resources || []).some((r) => isObject(r) && r.id === step.resource)) {
+          warn(issues, `${path}.resource`, `'${step.resource}'는 schema.resources에 선언되지 않았습니다 — 정산 시 스킵됩니다.`);
+        }
+      }
+      normalized.push(step);
+      return;
+    }
+    if (step.type === 'pool_recover') {
+      if (!Array.isArray(step.pools) || !step.pools.length || step.pools.some((id) => typeof id !== 'string' || !id.trim())) {
+        warn(issues, `${path}.pools`, 'pool_recover requires a non-empty string array; removed.');
+        return;
+      }
+      step.pools = step.pools.map((id) => id.trim());
+      // 범위 금지(allowRanges=false) — pool_recover는 rng 미소비 계약(감사 지적).
+      if (step.perLevel != null && (!isObject(step.perLevel) || !normalizePerLevel(step.perLevel, `${path}.perLevel`, issues, false, false))) delete step.perLevel;
+      if (step.ratio != null) {
+        const ratio = Number(step.ratio);
+        if (!Number.isFinite(ratio)) delete step.ratio;
+        else {
+          step.ratio = Math.min(1, Math.max(0, ratio));
+          if (step.ratio !== ratio) warn(issues, `${path}.ratio`, 'ratio was clamped to 0..1.');
+        }
+      }
+      if (step.amount != null) {
+        const amount = Number(step.amount);
+        if (!Number.isFinite(amount)) delete step.amount;
+        else step.amount = Math.max(0, Math.trunc(amount));
+      }
+      normalized.push(step);
+      return;
+    }
+    const gold = Number(step.gold);
+    if (!Number.isFinite(gold) || Math.trunc(gold) <= 0) {
+      warn(issues, `${path}.gold`, 'upkeep gold must be a positive integer; removed.');
+      return;
+    }
+    step.gold = Math.trunc(gold);
+    normalized.push(step);
+  });
+  schema.settlement = normalized;
+}
+
+function normalizePerLevel(table, path, issues, requireNonEmpty = true, allowRanges = true) {
+  for (const [key, raw] of Object.entries(table)) {
+    const level = Number(key);
+    let value;
+    if (Number.isInteger(level) && level > 0 && Number.isFinite(Number(raw)) && !Array.isArray(raw)) value = Math.trunc(Number(raw));
+    // pool_recover는 rng를 소비하지 않으므로 범위 값을 받지 않는다(감사 지적: NaN→무음 무효 방지).
+    else if (allowRanges && Number.isInteger(level) && level > 0 && isRange(raw) && raw.every((n) => Number.isFinite(Number(n))) && Number(raw[0]) <= Number(raw[1])) value = raw.map((n) => Math.trunc(Number(n)));
+    if (value == null) {
+      warn(issues, `${path}.${key}`, 'Invalid perLevel entry removed.');
+      delete table[key];
+      continue;
+    }
+    // 키 정규화: "01" 같은 표기를 "1"로(감사 지적: 레벨 조회·폴백 실패 방지).
+    const canonical = String(level);
+    if (canonical !== key) delete table[key];
+    table[canonical] = value;
+  }
+  return !requireNonEmpty || Object.keys(table).length > 0;
 }
 
 function validateUpgradeCosts(costs, path, issues) {
