@@ -358,7 +358,7 @@ function validateTraffic(schema, issues) {
         }
         card.choices = card.choices.filter(isObject).map((choice, choiceIndex) => {
           const effects = isObject(choice.effects) ? choice.effects : {};
-          for (const key of Object.keys(effects)) if (!['gold', 'resources', 'waveMultiplier'].includes(key)) {
+          for (const key of Object.keys(effects)) if (!['gold', 'resources', 'waveMultiplier', 'affinity'].includes(key)) {
             delete effects[key];
             warn(issues, `traffic.incidents.deck[${cardIndex}].choices[${choiceIndex}].effects.${key}`, 'Unknown incident effect removed.');
           }
@@ -371,6 +371,31 @@ function validateTraffic(schema, issues) {
             const raw = Number(effects.waveMultiplier);
             effects.waveMultiplier = Number.isFinite(raw) ? Math.max(0.1, Math.min(2, raw)) : 1;
             if (effects.waveMultiplier !== raw) warn(issues, `traffic.incidents.deck[${cardIndex}].choices[${choiceIndex}].effects.waveMultiplier`, 'Wave multiplier normalized to 0.1..2.');
+          }
+          if (Object.prototype.hasOwnProperty.call(effects, 'affinity')) {
+            const path = `traffic.incidents.deck[${cardIndex}].choices[${choiceIndex}].effects.affinity`;
+            const affinityScale = asArray(schema.scales).find((scale) => scale && scale.id === 'affinity');
+            if (!isObject(effects.affinity)) {
+              delete effects.affinity;
+              warn(issues, path, 'Invalid affinity effect removed.');
+            } else if (!affinityScale) {
+              delete effects.affinity;
+              warn(issues, path, 'Affinity effect removed because the affinity scale is missing.');
+            } else {
+              const affinity = effects.affinity;
+              if (!['S', 'M', 'L', 'XL'].includes(affinity.size)) {
+                affinity.size = 'S';
+                warn(issues, `${path}.size`, 'Affinity size normalized to S.');
+              }
+              if (!['+', '-'].includes(affinity.direction)) {
+                affinity.direction = '+';
+                warn(issues, `${path}.direction`, 'Affinity direction normalized to +.');
+              }
+              if (typeof affinity.target !== 'string' || !affinity.target.trim()) {
+                affinity.target = 'staff';
+                warn(issues, `${path}.target`, 'Affinity target normalized to staff.');
+              }
+            }
           }
           choice.effects = effects;
           return choice;

@@ -116,3 +116,38 @@ test('compiled inn synthesizes quarter staffing, Korean resource labels, and tav
   assert.equal(schema.resources.find((item) => item.id === 'food').label, '식자재');
   assert.equal(schema.resources.find((item) => item.id === 'material').label, '재료');
 });
+
+function withIncidentAffinity(affinity, includeScale = true) {
+  const input = compiledInnLike();
+  if (includeScale) input.scales = [{ id: 'affinity', owner: 'npc', range: [0, 200], default: 50, steps: { S: 1, 'S-': -2 } }];
+  input.traffic = {
+    id: 'inn', capacityFacility: 'lv_tavern', base: [[1, 2]], capacity: [5],
+    waves: [{ id: 'day', label: '영업', share: 1 }], modifiers: [], sells: { entity: 'menuItem' },
+    incidents: { chance: 100, deck: [{ id: 'event', label: '사건', choices: [{ id: 'pick', label: '선택', effects: { affinity } }] }] },
+  };
+  return input;
+}
+
+test('incident affinity effect normalizes size, direction, and target with warnings', () => {
+  const { schema, issues } = validateSchema(withIncidentAffinity({ size: 'huge', direction: '?', target: '' }));
+  const effect = schema.traffic.incidents.deck[0].choices[0].effects.affinity;
+  assert.deepEqual(effect, { size: 'S', direction: '+', target: 'staff' });
+  assert.ok(issues.some((issue) => issue.path.endsWith('.affinity.size')));
+  assert.ok(issues.some((issue) => issue.path.endsWith('.affinity.direction')));
+  assert.ok(issues.some((issue) => issue.path.endsWith('.affinity.target')));
+  assert.ok(issues.every((issue) => issue.level !== 'error'));
+});
+
+test('non-object incident affinity effects are removed with warnings', () => {
+  for (const value of ['up', null]) {
+    const { schema, issues } = validateSchema(withIncidentAffinity(value));
+    assert.equal(schema.traffic.incidents.deck[0].choices[0].effects.affinity, undefined);
+    assert.ok(issues.some((issue) => issue.path.endsWith('.effects.affinity')));
+  }
+});
+
+test('incident affinity effect is removed when affinity scale is absent', () => {
+  const { schema, issues } = validateSchema(withIncidentAffinity({ size: 'M', direction: '+', target: 'staff' }, false));
+  assert.equal(schema.traffic.incidents.deck[0].choices[0].effects.affinity, undefined);
+  assert.ok(issues.some((issue) => issue.msg && issue.msg.includes('affinity scale is missing')));
+});

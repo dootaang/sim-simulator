@@ -45,8 +45,10 @@ const REWARD_SCHEMA_APPENDIX = "\n\n[rewards/upgrades/gather table rules]\nOutpu
 
 const QUEST_SCHEMA_APPENDIX = `\n\n★임무·의뢰·작전·게시판 데이터는 quests로 출력하라. rewardTier는 rewards.gold의 키와 정확히 일치해야 한다(임무 코드별 보상을 rewards.gold에 넣었으면 그 코드를 rewardTier로). quests 항목은 {id,name,check:{mode:"rate",rate:정수}|{mode:"dc",dc:정수,sides?:정수,stat?:문자열},rewardTier,repeatable?} 형식이다. 성공률이 카드에 있으면 rate로, 난이도만 있으면 등급별 추정(E 90%~S 30% 선)하고 _assumptions에 기록하라. 반복 가능한 일상 의뢰만 repeatable: true.`;
 
+const INCIDENT_SCHEMA_APPENDIX = `\n\n★사건(incidents) 선택지 effects에는 "affinity":{"size":"S|M|L|XL","direction":"+|-","target":"staff"}를 사용할 수 있다. 직원 호감도가 오르내릴 만한 선택지에 부여하라.`;
+
 function promptTemplate() {
-  return SYSTEM_PROMPT + SETTLEMENT_SCHEMA_APPENDIX + TRADE_SCHEMA_APPENDIX + COMBAT_SCHEMA_APPENDIX + REWARD_SCHEMA_APPENDIX + QUEST_SCHEMA_APPENDIX;
+  return SYSTEM_PROMPT + SETTLEMENT_SCHEMA_APPENDIX + TRADE_SCHEMA_APPENDIX + COMBAT_SCHEMA_APPENDIX + REWARD_SCHEMA_APPENDIX + QUEST_SCHEMA_APPENDIX + INCIDENT_SCHEMA_APPENDIX;
 }
 
 function buildCompilerInput(lore, mined) {

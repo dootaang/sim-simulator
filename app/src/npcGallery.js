@@ -180,9 +180,13 @@ function rankEmotion(name, preferred) {
   return index < 0 ? preferred.length : index;
 }
 
-export function selectAsset(group, emotion) {
+export function selectAsset(group, emotion, variant) {
   const items = group.emotions.get(emotion);
   if (!items || !items.length) return null;
+  if (typeof variant === 'number' && Number.isFinite(variant)) {
+    const exact = items.find((item) => item.variant === variant);
+    if (exact) return exact;
+  }
   return items[stableIndex(`${group.charId}:${emotion}`, items.length)];
 }
 

@@ -22,6 +22,8 @@ export const eventTypes = [
   'set_wage',
   'fire',
   'scale_delta',
+  'set_scale_mult',
+  'set_outfit',
   'rep_event',
   'exp_gain',
   'reward',
@@ -91,7 +93,11 @@ export function runEvent(event) {
 export function summarizeEvent(type, entry, formatMoney) {
   if (entry.ok && type === 'traffic_wave' && entry.skipped) return `${entry.label} 영업 건너뜀`;
   if (entry.ok && entry.awaitingChoice && entry.incident) return `⚠ ${entry.incident.label} 발생 — 대응을 선택하세요`;
-  if (entry.ok && type === 'incident_choice' && entry.incidentId) return `${entry.label} · ${entry.choiceLabel}${entry.goldDelta != null ? ` · ${entry.goldDelta >= 0 ? '+' : ''}${formatMoney(entry.goldDelta)}` : ''}`;
+  if (entry.ok && type === 'incident_choice' && entry.incidentId) {
+    let text = `${entry.label} · ${entry.choiceLabel}${entry.goldDelta != null ? ` · ${entry.goldDelta >= 0 ? '+' : ''}${formatMoney(entry.goldDelta)}` : ''}`;
+    for (const [npcId, delta] of Object.entries(entry.affinityDeltas || {})) text += ` · 호감 ${npcId} ${delta >= 0 ? '+' : ''}${delta}`;
+    return text;
+  }
   if (entry.ok && type === 'mail_check') return entry.arrived ? `편지 ${entry.arrived}통 도착` : '새 편지 없음';
   if (entry.ok && type === 'mail_open') return entry.type === 'reward'
     ? `${entry.axis} 감사 선물 개봉 · +${formatMoney(entry.goldDelta)}`
@@ -107,6 +113,8 @@ export function summarizeEvent(type, entry, formatMoney) {
   if (entry.ok && type === 'buy_item') return `🛒 ${entry.menuName} ×${entry.qty} · -${formatMoney(-entry.goldDelta)} (보유 ${entry.owned})`;
   if (entry.ok && type === 'purchase_batch') return `재료 일괄 구매 ${entry.items.length}종 · -${formatMoney(-entry.goldDelta)}`;
   if (entry.ok && type === 'set_wage') return `${entry.npcId} 일급 ${formatMoney(entry.before)}→${formatMoney(entry.dailyWage)}`;
+  if (entry.ok && type === 'set_scale_mult') return `⚖ ${entry.scale} 배율 ×${entry.mult}`;
+  if (entry.ok && type === 'set_outfit') return `👗 ${entry.npcId} 의상 변경`;
   if (entry.ok && type === 'use_item') {
     const def = ((activeSchema && activeSchema.resources) || []).find((resource) => resource.id === entry.itemId);
     return `🧪 ${(def && def.label) || entry.itemId} · ${String(entry.pool).toUpperCase()} +${entry.amount} (남은 ${entry.remaining})`;
@@ -152,6 +160,7 @@ export function summarizeEventItem(type, entry, formatMoney) {
 
 function eventKind(type, entry) {
   if (!entry || !entry.ok) return 'system';
+  if (['set_scale_mult', 'set_outfit'].includes(type)) return 'info';
   if (type === 'traffic_wave' && entry.skipped) return 'info';
   if (['start_encounter', 'combat_action', 'enemy_action', 'enemy_turn', 'end_encounter'].includes(type)) return 'combat';
   if (['use_item'].includes(type)) return 'pool';

@@ -363,8 +363,8 @@ function npcPresentation(schema, npcId) {
   const npc = entityInstances(schema, 'npc').find((item) => String(item.id).toLowerCase() === String(npcId).toLowerCase());
   const keys = [npc && npc.nameEn, npc && npc.id, npcId].filter(Boolean).map((value) => String(value).toLowerCase());
   const group = npcGroups.find((item) => keys.includes(String(item.charId).toLowerCase()));
-  const pick = group && selectAsset(group, preferredEmotion(group));
-  return { name: (npc && (npc.nameKo || npc.name || npc.nameEn)) || String(npcId), asset: pick && pick.asset };
+  const pick = group && selectAsset(group, preferredEmotion(group), outfitOf(npcId));
+  return { name: (npc && (npc.nameKo || npc.name || npc.nameEn)) || String(npcId), asset: pick && pick.asset, group };
 }
 function renderNpcAvatars(npcIds, ctx) {
   const row = el('div', 'npc-avatar-row');
@@ -388,7 +388,8 @@ function assistantMessage(content, chips, prompt = lastPrompt) {
 }
 function sceneLine() { const schema = getSchema(), state = getEngineState(); if (!schema || !state) return '새로운 장면'; return summarize(schema, state).split('\n')[0] || '새로운 장면'; }
 function emotions() { return character && character.group ? Array.from(character.group.emotions.keys()) : []; }
-function applyEmotion(value) { if (!value || !character || !character.group || !character.group.emotions.has(value)) return; const pick = selectAsset(character.group, value); if (pick) { character.asset = pick.asset; character.emotion = value; } }
+function outfitOf(npcId) { const state = getEngineState(); return state && state.npcs && state.npcs[npcId] ? state.npcs[npcId].outfit : undefined; }
+function applyEmotion(value) { if (!value || !character || !character.group || !character.group.emotions.has(value)) return; const pick = selectAsset(character.group, value, outfitOf(character.group.charId)); if (pick) { character.asset = pick.asset; character.emotion = value; } }
 
 function renderSide(ctx, render) {
   const side = el('aside', 'play-side-panel');
@@ -876,6 +877,21 @@ function renderSettings(render) {
   manualCombat.checked = lsGet('simbot.play.manualCombat') === '1';
   manualCombat.addEventListener('change', () => { lsSet('simbot.play.manualCombat', manualCombat.checked ? '1' : '0'); render(); });
 
+  const mults = el('div', 'scale-mults');
+  const multHeading = el('h4'); multHeading.textContent = '배율'; mults.append(multHeading);
+  const schema = getSchema(); const state = getEngineState();
+  for (const scale of (schema && schema.scales) || []) {
+    if (!scale || !scale.steps) continue;
+    const current = state && state.scaleMults && state.scaleMults[scale.id] != null ? state.scaleMults[scale.id] : 1;
+    const input = namedInput(`scaleMult-${scale.id}`, String(current), 'range');
+    input.min = '0.5'; input.max = '3'; input.step = '0.1';
+    const label = el('span'); label.textContent = `${scale.label || scale.id} ×${Number(current).toFixed(1)}`;
+    input.addEventListener('change', () => runLedgerAction({ id: 'set_scale_mult', params: { scale: scale.id, mult: Number(input.value) } }, render));
+    mults.append(field(label.textContent, input));
+  }
+  // 델타 스케일이 없는 카드에서는 빈 '배율' 제목만 남으므로 통째로 숨긴다.
+  if (mults.childNodes.length <= 1) mults.replaceChildren();
+
   details.append(
     field('제공자', provider),
     settings.provider === 'custom' ? field('Base URL', base) : hiddenBase(base),
@@ -883,6 +899,7 @@ function renderSettings(render) {
     field('모델', model),
     field('빠른 전투 (전투 서사를 종료 시 한 번에)', fastCombat),
     field('디버그: 수동 전투 개시', manualCombat),
+    mults,
     field(settings.provider === 'vertex' ? '서비스 계정 JSON' : 'API 키', key),
     row(save, del),
     settings.provider === 'vertex'
@@ -950,6 +967,19 @@ function appendStaffGrid(section, ctx, render, schema, state, npcs) {
     const label = el('strong'); label.textContent = name;
     const wage = el('span'); wage.textContent = `일급 ${formatMoney(item.dailyWage)}`;
     copy.append(label, wage);
+    if (presentation.group) {
+      const variants = Array.from(new Set(Array.from(presentation.group.emotions.values()).flat().map((asset) => asset.variant)
+        .filter((variant) => variant != null && Number.isFinite(variant)))).sort((a, b) => a - b);
+      if (variants.length) {
+        const outfits = { 0: '기본의상', 1: '직원복', 2: '메이드복', 3: '갑옷', 4: '경량갑옷' };
+        const select = namedSelect(`outfit-${item.npcId}`);
+        for (const variant of variants) appendOption(select, String(variant), outfits[variant] || `의상 ${variant}`, false);
+        select.value = String(outfitOf(item.npcId) ?? 0);
+        select.disabled = busy;
+        select.addEventListener('change', () => runLedgerAction({ id: 'set_outfit', params: { npcId: item.npcId, outfit: Number(select.value) } }, render));
+        copy.append(select);
+      }
+    }
     const fire = button('해고', 'secondary-btn staff-fire-btn');
     fire.disabled = busy;
     fire.addEventListener('click', () => openCannedScene(`'${name}'에게 해고를 통보하는 장면을 열어라. 대화가 마무리되면 fire 사건을 내라.`, ctx, render));

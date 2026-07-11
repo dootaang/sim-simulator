@@ -28,6 +28,10 @@ function applyEvent(schema, state, event, rng) {
     const result = runDayEnd(schema, state, rng);
     if (result.state.pendingQuest && result.state.pendingQuest.day !== result.state.day) delete result.state.pendingQuest;
     if (result.state.questAttempts && result.state.questAttempts.day !== result.state.day) delete result.state.questAttempts;
+    for (const scale of (schema && schema.scales) || []) {
+      if (!scale || !scale.steps) continue;
+      for (const npc of Object.values(result.state.npcs || {})) npc[`${scale.id}DeltaToday`] = 0;
+    }
     return { state: result.state, log: [{ ok: true, event: type, report: result.report }] };
   }
 
@@ -58,6 +62,10 @@ function applyEvent(schema, state, event, rng) {
       return buyItem(schema, next, params, ok, fail);
     case 'scale_delta':
       return scaleDelta(schema, next, params, ok, fail);
+    case 'set_scale_mult':
+      return setScaleMult(schema, next, params, ok, fail);
+    case 'set_outfit':
+      return setOutfit(next, params, ok, fail);
     case 'rep_event':
       return repEvent(schema, next, params, rng, ok, fail);
     case 'exp_gain':
@@ -287,7 +295,9 @@ function scaleDelta(schema, state, params, ok, fail) {
   if (!Number.isFinite(base)) return fail('unknown_scale_step', key);
   const bonusLimit = Math.abs(Number(scale.charBonus || 0));
   const charBonus = clamp(normalizeInt(params.charBonus, 0), -bonusLimit, bonusLimit);
-  const rawDelta = base + charBonus;
+  const multRaw = Number((state.scaleMults || {})[scaleId]);
+  const mult = Number.isFinite(multRaw) && multRaw > 0 ? Math.min(3, Math.max(0.5, multRaw)) : 1;
+  const rawDelta = Math.floor((base + charBonus) * mult + 0.5);
   const range = scale.range || [0, 200];
   const after = clamp(before + rawDelta, Number(range[0]), Number(range[1]));
   const fromTier = tierOf(schema, scaleId, before);
@@ -301,6 +311,29 @@ function scaleDelta(schema, state, params, ok, fail) {
     entry.tierChanged = { from: fromTier || null, to: toTier || null };
   }
   return ok(entry);
+}
+
+function setScaleMult(schema, state, params, ok, fail) {
+  const scale = params.scale;
+  if (!scaleById(schema, scale)) return fail('unknown_scale', scale);
+  const raw = params.mult;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return fail('invalid_mult', params.mult);
+  const mult = Math.round(Math.min(3, Math.max(0.5, raw)) * 10) / 10;
+  state.scaleMults = state.scaleMults || {};
+  const beforeRaw = Number(state.scaleMults[scale]);
+  const before = Number.isFinite(beforeRaw) ? beforeRaw : 1;
+  state.scaleMults[scale] = mult;
+  return ok({ scale, before, mult });
+}
+
+function setOutfit(state, params, ok, fail) {
+  const npcId = params.npcId;
+  if (!state.npcs || !state.npcs[npcId]) return fail('unknown_target', npcId);
+  const outfit = normalizeInt(params.outfit);
+  if (outfit < 0 || outfit > 9) return fail('invalid_outfit', params.outfit);
+  const before = state.npcs[npcId].outfit;
+  state.npcs[npcId].outfit = outfit;
+  return ok({ npcId, before, outfit });
 }
 
 function repEvent(schema, state, params, rng, ok, fail) {

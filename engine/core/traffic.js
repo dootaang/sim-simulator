@@ -166,6 +166,41 @@ function resolveIncidentChoice(schema, state, choiceId) {
       entry.resourceDeltas[id] = state.resources[id] - before;
     }
   }
+  if (effects.affinity) {
+    const scale = ((schema && schema.scales) || []).find((item) => item && item.id === 'affinity');
+    if (scale && scale.steps) {
+      const affinity = effects.affinity;
+      const size = affinity.size || 'S';
+      const key = affinity.direction === '-' ? `${size}-` : size;
+      const base = Number(scale.steps[key]);
+      if (Number.isFinite(base)) {
+        const multRaw = Number((state.scaleMults || {}).affinity);
+        const mult = Number.isFinite(multRaw) && multRaw > 0 ? Math.min(3, Math.max(0.5, multRaw)) : 1;
+        const delta = Math.floor(base * mult + 0.5);
+        const targetIds = affinity.target && affinity.target !== 'staff'
+          ? [affinity.target]
+          : (state.staff || []).map((item) => item.npcId);
+        const targets = Array.from(new Set(targetIds)).filter((npcId) => state.npcs && state.npcs[npcId]);
+        if (targets.length) {
+          entry.affinityDeltas = {};
+          const cap = Number(scale.dailyCapPerTarget || scale.dailyCap || 0);
+          const range = scale.range || [0, 200];
+          for (const npcId of targets) {
+            const npc = state.npcs[npcId];
+            const used = Number(npc.affinityDeltaToday || 0);
+            const before = Number(npc.affinity || scale.default || 0);
+            if (cap && used >= cap) {
+              entry.affinityDeltas[npcId] = 0;
+              continue;
+            }
+            npc.affinity = Math.max(Number(range[0]), Math.min(Number(range[1]), before + delta));
+            npc.affinityDeltaToday = used + 1;
+            entry.affinityDeltas[npcId] = npc.affinity - before;
+          }
+        }
+      }
+    }
+  }
   const waveMultiplier = effects.waveMultiplier == null ? 1 : Math.max(0.1, Math.min(2, Number(effects.waveMultiplier)));
   if (effects.waveMultiplier != null) entry.waveMultiplier = waveMultiplier;
   delete state.pendingIncident;
