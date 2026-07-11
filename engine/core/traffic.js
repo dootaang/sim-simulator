@@ -42,7 +42,8 @@ function resolveTrafficWave(schema, state, waveId, waveMultiplier = 1) {
   const sellsEntityType = traffic.sells && traffic.sells.entity;
   const entity = sellsEntityType ? (schema.entities || []).find((entry) => entry.type === sellsEntityType) : null;
   const instances = (entity && entity.instances) || [];
-  const kitchenLevel = Number((state.facilities && state.facilities.kitchen) || 1);
+  // 주방 게이트 시설은 스키마가 바인딩 가능(traffic.kitchenFacility) — 컴파일 카드의 임의 시설명 대응. 기본 'kitchen'.
+  const kitchenLevel = Number((state.facilities && state.facilities[traffic.kitchenFacility || 'kitchen']) || 1);
   // sale 이벤트와 동일한 소비 규칙(saleConsumes) — consumes 없는 메뉴도 카테고리 최소 원가 강제(공짜 돈 방지).
   const canSell = (item) => Number(item.requiresKitchenLevel || 1) <= kitchenLevel
     && Object.entries(saleConsumes(item, state)).every(([id, qty]) => Number((state.resources && state.resources[id]) || 0) >= Number(qty));
@@ -178,7 +179,8 @@ function generateLodgingQueue(schema, state) {
   if (!lodging) return { ok: false, reason: 'lodging_not_configured' };
   if (state.lodging && state.lodging.day === state.day && state.lodging.reviewed) return { ok: false, reason: 'already_reviewed' };
   const base = lodging.base || [];
-  const roomLevel = Math.max(1, Math.min(base.length, Math.round(Number((state.facilities && state.facilities.room) || 1))));
+  // 객실 게이트 시설은 스키마가 바인딩 가능(lodging.roomFacility) — 기본 'room'.
+  const roomLevel = Math.max(1, Math.min(base.length, Math.round(Number((state.facilities && state.facilities[lodging.roomFacility || 'room']) || 1))));
   const range = base[roomLevel - 1] || [0, 0];
   const rankOrder = ['E', 'D', 'C', 'B', 'A', 'S'];
   const eligible = (lodging.segments || []).filter((segment) => {
@@ -222,7 +224,7 @@ function resolveLodgingDecision(schema, state, requestId, decision) {
   }
   const lodging = schema.traffic && schema.traffic.lodging;
   const entity = lodging && (schema.entities || []).find((item) => item.type === lodging.roomsEntity);
-  const roomLevel = Number((state.facilities && state.facilities.room) || 1);
+  const roomLevel = Number((state.facilities && state.facilities[(lodging && lodging.roomFacility) || 'room']) || 1);
   const candidates = ((entity && entity.instances) || []).map((room, index) => ({ room, index })).filter(({ room }) => {
     if (Number(room.requiresRoomLevel || 1) > roomLevel) return false;
     const occupied = (state.rooms && state.rooms[String(room.no)] || []).length;

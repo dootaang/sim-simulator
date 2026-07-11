@@ -475,10 +475,14 @@ function renderApproval(ctx, result, render) {
   const section = el('section', 'import-approval');
   const approve = button('이 규칙으로 플레이 시작', 'primary-btn');
   const counts = issueCounts(result.issues);
-  approve.disabled = !result.schema || counts.error > 0 || busy;
+  // 고급 편집에서 수정했지만 아직 재검증하지 않은 섹션이 있으면 승인 잠금 —
+  // 수정 전 스키마가 조용히 승인되는 혼란 방지(감사 지적).
+  const pendingDrafts = result.drafts ? Object.keys(result.drafts) : [];
+  approve.disabled = !result.schema || counts.error > 0 || busy || pendingDrafts.length > 0;
   approve.addEventListener('click', () => {
     const current = currentResult(ctx);
     if (!current || !current.schema || issueCounts(current.issues).error > 0) return;
+    if (current.drafts && Object.keys(current.drafts).length) { render(); return; }
     // 승인 시점에 한 번 더 정규화 — 배포 후 추가된 합성 규칙(traffic 등)이 기존 컴파일 결과에도 적용되게.
     const finalized = validateSchema(current.schema);
     setActiveSchema(finalized.schema);
@@ -488,11 +492,13 @@ function renderApproval(ctx, result, render) {
   });
   const note = el('p', 'muted-line');
   const hasJsonError = (result.issues || []).some((issue) => issue.source === 'advanced-json');
-  note.textContent = hasJsonError
-    ? '고급 편집의 JSON에 오류가 있어요 — 되돌리려면 다시 컴파일'
-    : counts.error > 0
-      ? '플레이를 시작하려면 확인이 필요한 오류를 해결해 주세요.'
-    : '승인하면 활성 엔진 세션이 이 정규화된 스키마로 재설정됩니다.';
+  note.textContent = pendingDrafts.length > 0
+    ? `고급 편집에 저장되지 않은 수정이 있어요(${pendingDrafts.join(', ')}) — 각 섹션의 "섹션 재검증"을 먼저 눌러주세요.`
+    : hasJsonError
+      ? '고급 편집의 JSON에 오류가 있어요 — 되돌리려면 다시 컴파일'
+      : counts.error > 0
+        ? '플레이를 시작하려면 확인이 필요한 오류를 해결해 주세요.'
+        : '승인하면 활성 엔진 세션이 이 정규화된 스키마로 재설정됩니다.';
   section.append(approve, note);
   return section;
 }

@@ -38,8 +38,9 @@ function validateSchema(obj) {
   validateQuests(schema, issues);
   validateGather(schema, issues);
   validateSettlement(schema, issues);
-  validateTraffic(schema, issues);
+  // 합성이 검증보다 먼저 — 합성된 traffic도 반드시 validateTraffic의 클램프·정규화를 거친다.
   synthesizeTrafficModule(schema, issues);
+  validateTraffic(schema, issues);
   validateEvents(schema, issues);
 
   return { schema, issues };
@@ -56,7 +57,11 @@ function normalizeFacilityIds(schema, issues) {
   for (const instance of instances) {
     if (!instance || typeof instance.id !== 'string') continue;
     const match = /^lv_(.+)$/.exec(instance.id);
-    if (!match || taken.has(match[1])) continue;
+    if (!match) continue;
+    if (taken.has(match[1])) {
+      warn(issues, 'entities.facility', `Facility id ${instance.id} not normalized: ${match[1]} already exists.`);
+      continue;
+    }
     renames[instance.id] = match[1];
     instance.id = match[1];
     taken.add(match[1]);
@@ -161,6 +166,7 @@ function synthesizeTrafficModule(schema, issues) {
       ] });
   }
 
+  const roomFacility = findFacility(/room|객실/i); // '직원 숙소'(quarters) 오매칭 방지 — 숙소는 제외
   const traffic = {
     id: 'auto_service',
     capacityFacility: tavern.id,
@@ -175,6 +181,9 @@ function synthesizeTrafficModule(schema, issues) {
     lodging: { roomsEntity: 'room', base: [[1, 2], [1, 3], [2, 4], [3, 6]], segments },
     incidents: { chance: 35, deck },
   };
+  // 엔진의 주방/객실 레벨 게이트는 기본 id(kitchen/room)를 쓴다 — 임의 시설명 카드는 명시 바인딩.
+  if (kitchen) traffic.kitchenFacility = kitchen.id;
+  if (roomFacility) traffic.lodging.roomFacility = roomFacility.id;
   if (repLadder && axes.length) {
     traffic.mail = {
       ladder: 'reputation',
@@ -216,6 +225,15 @@ function validateTraffic(schema, issues) {
     warn(issues, 'traffic.sells', 'Missing or unknown sells entity; traffic module removed.');
     delete schema.traffic;
     return;
+  }
+  // 시설 바인딩(선택): 존재하지 않는 시설을 가리키면 제거 — 엔진이 기본 id로 폴백한다.
+  if (traffic.kitchenFacility != null && !facilities.some((facility) => facility && facility.id === traffic.kitchenFacility)) {
+    warn(issues, 'traffic.kitchenFacility', 'Unknown kitchen facility binding removed; engine falls back to "kitchen".');
+    delete traffic.kitchenFacility;
+  }
+  if (isObject(traffic.lodging) && traffic.lodging.roomFacility != null && !facilities.some((facility) => facility && facility.id === traffic.lodging.roomFacility)) {
+    warn(issues, 'traffic.lodging.roomFacility', 'Unknown room facility binding removed; engine falls back to "room".');
+    delete traffic.lodging.roomFacility;
   }
   if (!Array.isArray(traffic.base) || !traffic.base.length || !Array.isArray(traffic.capacity) || !traffic.capacity.length) {
     warn(issues, 'traffic', 'base and capacity must be non-empty arrays; traffic module removed.');

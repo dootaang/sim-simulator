@@ -6098,7 +6098,7 @@ select:focus { border-color: var(--amber-line); }
         const sellsEntityType = traffic.sells && traffic.sells.entity;
         const entity = sellsEntityType ? (schema2.entities || []).find((entry) => entry.type === sellsEntityType) : null;
         const instances = entity && entity.instances || [];
-        const kitchenLevel = Number(state2.facilities && state2.facilities.kitchen || 1);
+        const kitchenLevel = Number(state2.facilities && state2.facilities[traffic.kitchenFacility || "kitchen"] || 1);
         const canSell = (item) => Number(item.requiresKitchenLevel || 1) <= kitchenLevel && Object.entries(saleConsumes(item, state2)).every(([id, qty]) => Number(state2.resources && state2.resources[id] || 0) >= Number(qty));
         const weightOf = (item) => {
           const price = Number(item.price);
@@ -6230,7 +6230,7 @@ select:focus { border-color: var(--amber-line); }
         if (!lodging) return { ok: false, reason: "lodging_not_configured" };
         if (state2.lodging && state2.lodging.day === state2.day && state2.lodging.reviewed) return { ok: false, reason: "already_reviewed" };
         const base = lodging.base || [];
-        const roomLevel = Math.max(1, Math.min(base.length, Math.round(Number(state2.facilities && state2.facilities.room || 1))));
+        const roomLevel = Math.max(1, Math.min(base.length, Math.round(Number(state2.facilities && state2.facilities[lodging.roomFacility || "room"] || 1))));
         const range = base[roomLevel - 1] || [0, 0];
         const rankOrder = ["E", "D", "C", "B", "A", "S"];
         const eligible = (lodging.segments || []).filter((segment) => {
@@ -6270,7 +6270,7 @@ select:focus { border-color: var(--amber-line); }
         }
         const lodging = schema2.traffic && schema2.traffic.lodging;
         const entity = lodging && (schema2.entities || []).find((item) => item.type === lodging.roomsEntity);
-        const roomLevel = Number(state2.facilities && state2.facilities.room || 1);
+        const roomLevel = Number(state2.facilities && state2.facilities[lodging && lodging.roomFacility || "room"] || 1);
         const candidates = (entity && entity.instances || []).map((room2, index) => ({ room: room2, index })).filter(({ room: room2 }) => {
           if (Number(room2.requiresRoomLevel || 1) > roomLevel) return false;
           const occupied = (state2.rooms && state2.rooms[String(room2.no)] || []).length;
@@ -8426,8 +8426,8 @@ ${row3.content}`;
         validateQuests(schema2, issues);
         validateGather(schema2, issues);
         validateSettlement(schema2, issues);
-        validateTraffic(schema2, issues);
         synthesizeTrafficModule(schema2, issues);
+        validateTraffic(schema2, issues);
         validateEvents(schema2, issues);
         return { schema: schema2, issues };
       }
@@ -8440,7 +8440,11 @@ ${row3.content}`;
         for (const instance of instances) {
           if (!instance || typeof instance.id !== "string") continue;
           const match = /^lv_(.+)$/.exec(instance.id);
-          if (!match || taken.has(match[1])) continue;
+          if (!match) continue;
+          if (taken.has(match[1])) {
+            warn(issues, "entities.facility", `Facility id ${instance.id} not normalized: ${match[1]} already exists.`);
+            continue;
+          }
           renames[instance.id] = match[1];
           instance.id = match[1];
           taken.add(match[1]);
@@ -8543,6 +8547,7 @@ ${row3.content}`;
             ]
           });
         }
+        const roomFacility = findFacility(/room|객실/i);
         const traffic = {
           id: "auto_service",
           capacityFacility: tavern.id,
@@ -8557,6 +8562,8 @@ ${row3.content}`;
           lodging: { roomsEntity: "room", base: [[1, 2], [1, 3], [2, 4], [3, 6]], segments },
           incidents: { chance: 35, deck }
         };
+        if (kitchen) traffic.kitchenFacility = kitchen.id;
+        if (roomFacility) traffic.lodging.roomFacility = roomFacility.id;
         if (repLadder && axes.length) {
           traffic.mail = {
             ladder: "reputation",
@@ -8594,6 +8601,14 @@ ${row3.content}`;
           warn(issues, "traffic.sells", "Missing or unknown sells entity; traffic module removed.");
           delete schema2.traffic;
           return;
+        }
+        if (traffic.kitchenFacility != null && !facilities.some((facility) => facility && facility.id === traffic.kitchenFacility)) {
+          warn(issues, "traffic.kitchenFacility", 'Unknown kitchen facility binding removed; engine falls back to "kitchen".');
+          delete traffic.kitchenFacility;
+        }
+        if (isObject(traffic.lodging) && traffic.lodging.roomFacility != null && !facilities.some((facility) => facility && facility.id === traffic.lodging.roomFacility)) {
+          warn(issues, "traffic.lodging.roomFacility", 'Unknown room facility binding removed; engine falls back to "room".');
+          delete traffic.lodging.roomFacility;
         }
         if (!Array.isArray(traffic.base) || !traffic.base.length || !Array.isArray(traffic.capacity) || !traffic.capacity.length) {
           warn(issues, "traffic", "base and capacity must be non-empty arrays; traffic module removed.");
@@ -12211,10 +12226,15 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
     const section = el3("section", "import-approval");
     const approve = button3("\uC774 \uADDC\uCE59\uC73C\uB85C \uD50C\uB808\uC774 \uC2DC\uC791", "primary-btn");
     const counts = issueCounts(result.issues);
-    approve.disabled = !result.schema || counts.error > 0 || busy2;
+    const pendingDrafts = result.drafts ? Object.keys(result.drafts) : [];
+    approve.disabled = !result.schema || counts.error > 0 || busy2 || pendingDrafts.length > 0;
     approve.addEventListener("click", () => {
       const current = currentResult(ctx);
       if (!current || !current.schema || issueCounts(current.issues).error > 0) return;
+      if (current.drafts && Object.keys(current.drafts).length) {
+        render2();
+        return;
+      }
       const finalized = validateSchema(current.schema);
       setActiveSchema(finalized.schema);
       current.approved = true;
@@ -12223,7 +12243,7 @@ ${result.schema ? JSON.stringify(result.schema, null, 2) : "(\uD30C\uC2F1 \uC2E4
     });
     const note = el3("p", "muted-line");
     const hasJsonError = (result.issues || []).some((issue) => issue.source === "advanced-json");
-    note.textContent = hasJsonError ? "\uACE0\uAE09 \uD3B8\uC9D1\uC758 JSON\uC5D0 \uC624\uB958\uAC00 \uC788\uC5B4\uC694 \u2014 \uB418\uB3CC\uB9AC\uB824\uBA74 \uB2E4\uC2DC \uCEF4\uD30C\uC77C" : counts.error > 0 ? "\uD50C\uB808\uC774\uB97C \uC2DC\uC791\uD558\uB824\uBA74 \uD655\uC778\uC774 \uD544\uC694\uD55C \uC624\uB958\uB97C \uD574\uACB0\uD574 \uC8FC\uC138\uC694." : "\uC2B9\uC778\uD558\uBA74 \uD65C\uC131 \uC5D4\uC9C4 \uC138\uC158\uC774 \uC774 \uC815\uADDC\uD654\uB41C \uC2A4\uD0A4\uB9C8\uB85C \uC7AC\uC124\uC815\uB429\uB2C8\uB2E4.";
+    note.textContent = pendingDrafts.length > 0 ? `\uACE0\uAE09 \uD3B8\uC9D1\uC5D0 \uC800\uC7A5\uB418\uC9C0 \uC54A\uC740 \uC218\uC815\uC774 \uC788\uC5B4\uC694(${pendingDrafts.join(", ")}) \u2014 \uAC01 \uC139\uC158\uC758 "\uC139\uC158 \uC7AC\uAC80\uC99D"\uC744 \uBA3C\uC800 \uB20C\uB7EC\uC8FC\uC138\uC694.` : hasJsonError ? "\uACE0\uAE09 \uD3B8\uC9D1\uC758 JSON\uC5D0 \uC624\uB958\uAC00 \uC788\uC5B4\uC694 \u2014 \uB418\uB3CC\uB9AC\uB824\uBA74 \uB2E4\uC2DC \uCEF4\uD30C\uC77C" : counts.error > 0 ? "\uD50C\uB808\uC774\uB97C \uC2DC\uC791\uD558\uB824\uBA74 \uD655\uC778\uC774 \uD544\uC694\uD55C \uC624\uB958\uB97C \uD574\uACB0\uD574 \uC8FC\uC138\uC694." : "\uC2B9\uC778\uD558\uBA74 \uD65C\uC131 \uC5D4\uC9C4 \uC138\uC158\uC774 \uC774 \uC815\uADDC\uD654\uB41C \uC2A4\uD0A4\uB9C8\uB85C \uC7AC\uC124\uC815\uB429\uB2C8\uB2E4.";
     section.append(approve, note);
     return section;
   }

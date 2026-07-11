@@ -347,3 +347,30 @@ test('unknown required rank never unlocks (fail-closed gate)', () => {
   assert.equal(result.log[0].ok, true);
   assert.equal(result.log[0].awaitingChoice, undefined);
 });
+
+test('kitchenFacility binding gates menus for arbitrary facility ids', () => {
+  const source = JSON.parse(JSON.stringify(schema));
+  source.traffic.kitchenFacility = 'cooking';
+  const entity = source.entities.find((entry) => entry.type === 'menuItem');
+  entity.instances = [{ name: '고급 요리', category: '요리', price: 20000, requiresKitchenLevel: 2, consumes: { food: 1 } }];
+  const locked = createState(source, 42);
+  locked.facilities.cooking = 1;
+  const lockedRun = run(locked, 'lunch', source);
+  assert.equal(lockedRun.log[0].served, 0); // 바인딩 시설 Lv1 → Lv2 메뉴 잠김
+  const open = createState(source, 42);
+  open.facilities.cooking = 2;
+  const openRun = run(open, 'lunch', source);
+  assert.ok(openRun.log[0].served > 0); // 바인딩 시설 Lv2 → 판매
+});
+
+test('roomFacility binding gates lodging demand level', () => {
+  const source = JSON.parse(JSON.stringify(schema));
+  source.traffic.lodging.roomFacility = 'guestroom';
+  source.traffic.lodging.base = [[0, 0], [0, 0], [9, 9], [9, 9]];
+  const low = createState(source, 42);
+  low.facilities.guestroom = 1;
+  assert.equal(lodging(low, 'lodging_review', {}, source).state.lodging.requests.length, 0);
+  const high = createState(source, 42);
+  high.facilities.guestroom = 3;
+  assert.ok(lodging(high, 'lodging_review', {}, source).state.lodging.requests.length > 0);
+});
