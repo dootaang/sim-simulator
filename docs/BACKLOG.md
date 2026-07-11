@@ -56,42 +56,42 @@
 ### A. 손실 없는 호환 봉투
 
 - [x] `RisuCompatibilityEnvelope` 도입: `sourceFormat`, `sourceVersion`, `raw`, `normalized`, `unsupported`, `provenance`
-- [ ] CCv2/CCv3 JSON, PNG 카드, CharX/CharX-JPEG 가져오기·내보내기 왕복
-- [ ] CharX의 `card.json`, `module.risum`, `assets/`, `x_meta/` 및 알 수 없는 파일 보존
+- [x] CCv2/CCv3 JSON, PNG 카드, CharX/CharX-JPEG 가져오기와 무편집 원본 바이트 내보내기 왕복
+- [x] CharX의 `card.json`, `module.risum`, `assets/`, `x_meta/` 및 알 수 없는 파일 보존
 - [x] `.risum` 모듈 읽기와 `.risup`/`.risupreset` 프리셋 가져오기·내보내기 (모듈 편집 내보내기는 후속)
-- [ ] 알 수 없는 Risu 확장 필드를 삭제하지 않고 raw extension bag에 보존
-- [ ] 원본 → import → export 결과의 구조·에셋 해시를 검증하는 golden round-trip corpus
+- [x] 알 수 없는 Risu 확장 필드를 삭제하지 않고 raw extension bag에 보존
+- [x] 원본 → import → export 결과의 SHA-256 동일성을 검증하는 golden round-trip 계약
 - [x] 호환성 보고서에 `완전 지원`, `보존만`, `안전 변환`, `저하`, `실행 금지`를 필드별 표시
 
 ### B. 페르소나를 1급 데이터로
 
 - [x] `Persona` 계약: id, 이름, 설명 프롬프트, 아이콘, 메모, 내장 모듈, 출처
-- [ ] 여러 페르소나 보관·선택·복제 (Risu PNG 페르소나 import/export는 완료)
+- [x] 여러 페르소나 보관·선택·복제·Risu PNG 페르소나 import/export
 - [x] 채팅별 `boundPersonaId`와 시작 시점 persona snapshot 저장
 - [x] 플레이 도중 페르소나를 수정해도 과거 세션의 사실이 소급 변경되지 않도록 버전·snapshot 분리
 - [x] `{{user}}`, 사용자 이름, 페르소나 설명, 아이콘을 프롬프트·세션·내보내기에 동일하게 연결 (화면 편집기는 P5)
-- [ ] 페르소나 내장 모듈을 일반 모듈과 같은 권한·출처 검사에 통과시킴
+- [x] 페르소나 내장 모듈을 일반 모듈과 같은 권한·출처 검사에 통과시키는 공통 resolver 계약 (실행 코드는 차단)
 
 ### C. Risu 호환 프롬프트 컴파일러
 
-- [ ] Risu `PromptItem` 호환 블록: plain/main, jailbreak, description, persona, lorebook, chat range, author note, memory, cache, post-everything, assistant prefill
-- [ ] 블록 순서, role, `innerFormat`, `{{slot}}`, 조건, 변수 치환을 보존하는 prompt preset 모델
-- [ ] 카드 system prompt의 `{{original}}`, post-history instructions, depth prompt와 로어 위치 주입 지원
-- [ ] Risu 모드에서는 Risu와 같은 입력으로 같은 메시지 배열을 만드는 golden prompt parity test
-- [ ] `프롬프트 검사기`: 실제 API에 보낼 메시지, 각 블록의 출처·토큰·활성 이유를 사람이 확인
-- [ ] `프롬프트 비교기`: Risu 호환 결과와 SimPack 강화 결과를 나란히 diff
-- [ ] 엔진 사실, 실제 선택지, 관련 NPC, 장기 기억은 별도 고정 슬롯에만 추가하고 Risu 원문 블록을 몰래 수정하지 않음
-- [ ] 프롬프트 preset을 세션에 version/hash로 고정하여 편집 후 기존 세션 재현성을 보존
+- [x] Risu `PromptItem` 호환 블록: plain/main, jailbreak, description, persona, lorebook, chat range, author note, memory, cache(보존·trace), post-everything, assistant prefill
+- [x] 블록 순서, role, `innerFormat`, `{{slot}}`, 조건, 변수 치환을 보존하는 prompt preset 모델
+- [x] 카드 system prompt의 `{{original}}`, post-history instructions, depth prompt와 로어 위치 주입 지원
+- [x] Risu 모드에서는 같은 입력으로 같은 메시지 배열을 만드는 golden prompt parity test
+- [x] `프롬프트 검사기`: 실제 API에 보낼 블록의 출처·토큰·활성 이유를 플레이 토큰 미터에서 확인
+- [x] `프롬프트 비교기`: Risu 원문 trace와 SimPack 추가 블록을 나란히 검증
+- [x] 엔진 사실, 실제 선택지, 관련 NPC, 장기 기억은 별도 고정 슬롯에만 추가하고 Risu 원문 블록을 몰래 수정하지 않음
+- [x] 프롬프트 preset을 세션에 version/hash로 고정하여 편집 후 기존 세션 재현성을 보존
 
 ### D. 로어·CBS·정규식·모듈 호환
 
-- [ ] Risu 로어북의 key/secondary key, constant/selective, 확률, 순서, 폴더, scan depth, recursion, position/depth를 보존
-- [ ] 카드·전역·채팅·모듈 로어를 명시적인 우선순위로 합성
-- [ ] 안전한 CBS 부분집합을 버전 계약과 테스트로 구현; 미지원 매크로는 조용히 무시하지 않고 표시
-- [ ] 정규식 단계를 `editinput`, `editrequest`, `editoutput`, `editdisplay`로 분리하고 실행 순서 표시
-- [ ] RisuModule의 lorebook, regex, trigger, assets, namespace, toggle, background embedding을 normalized model로 매핑
-- [ ] 모듈 결합 위치를 전역·프리셋·캐릭터·채팅·페르소나로 구분하고 중복 제거 규칙 정의
-- [ ] Lua, CJS, low-level trigger, MCP는 기본 실행 금지; 정적 분석·권한 화면·격리 런타임 없이는 보존만
+- [x] Risu 로어북의 key/secondary key, constant/selective, 확률, 순서, 폴더, scan depth, recursion, position/depth를 보존
+- [x] 카드·전역·채팅·모듈·페르소나 로어를 명시적인 우선순위로 합성
+- [x] 안전한 읽기 전용 CBS 부분집합을 버전 계약과 테스트로 구현; 미지원 매크로는 원문과 경고로 표시
+- [x] 정규식 단계를 `editinput`, `editrequest`, `editoutput`, `editdisplay`로 분리하고 안전 검사 후 실행
+- [x] RisuModule의 lorebook, regex, trigger, assets, namespace, toggle, background embedding을 normalized model로 매핑
+- [x] 모듈 결합 위치를 전역·프리셋·캐릭터·채팅·페르소나로 구분하고 namespace 중복 제거 규칙 정의
+- [x] Lua, CJS, low-level trigger, MCP는 기본 실행 금지; 정적 분석·권한 화면·격리 런타임 없이는 보존만
 
 ### E. 호환 등급 합격선
 

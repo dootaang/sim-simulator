@@ -1,6 +1,8 @@
 const { simulateActivation } = require('../../core/lorebook/activate.js');
 const { estimateTokens } = require('../../core/lorebook/tokens.js');
 const { summarize, npcSummary, availableActions } = require('../../../engine/core/selectors.js');
+const { compilePrompt } = require('../../core/prompt/compilePrompt.js');
+const { compareRisuAndSimPack } = require('../../core/prompt/comparePrompt.js');
 
 const COMMON_PROMPT = `[절대 규칙]
 1. 게임 수치(골드·재고·호감도·평판·경험치)는 외부 엔진이 계산한다. 너는 수치를 창작하거나 계산하지 마라. 상태 정보에 적힌 값만 사실로 취급하라.
@@ -169,7 +171,7 @@ function availableActionText(schema, state) {
   }).filter(Boolean).join('\n');
 }
 
-function buildPrompt({ schema, state, lore, persona, recentMessages, userInput, lastVerdicts, emotions, speakerCatalog, recentChanges, groundedMemory, currentMessageId }) {
+function buildPrompt({ schema, state, lore, card, persona, promptPreset, recentMessages, userInput, lastVerdicts, emotions, speakerCatalog, recentChanges, groundedMemory, currentMessageId }) {
   const combatCapable = isCombatCapable(schema);
   const stateText = summarize(schema, state);
   const npcIds = relatedNpcIds(schema, state, recentMessages, userInput);
@@ -221,8 +223,35 @@ function buildPrompt({ schema, state, lore, persona, recentMessages, userInput, 
     String(userInput || ''),
   ].filter((part) => part !== '').join('\n');
 
-  // 컨텍스트(user)까지 포함해 병합 — 이력 끝이 user(연출문 등)면 컨텍스트와 한 메시지로 합쳐진다.
-  const messages = conversationMessages([...(recentMessages || []).slice(-8), { role: 'user', content: context }]);
+  // 선택한 Risu preset은 원래 순서/role을 먼저 그대로 조립하고, 결정론 엔진 문맥은
+  // 마지막 별도 user 메시지로만 덧붙인다. preset 원문을 몰래 고치지 않는다.
+  let messages;
+  let promptTrace = [];
+  let promptWarnings = [];
+  let assistantPrefill = '';
+  let promptComparison = null;
+  if (promptPreset && Array.isArray(promptPreset.blocks)) {
+    const compiled = compilePrompt({
+      preset: promptPreset,
+      card: card || {}, persona: persona || null, lore: { entries: loreText ? [{ content: loreText }] : [] },
+      chat: (recentMessages || []).slice(-8).map((message) => ({ role: message.role === 'assistant' ? 'assistant' : 'user', content: String(message.content || '') })),
+      memory: groundedMemory || '',
+    });
+    messages = compiled.messages.concat({ role: 'user', content: context });
+    promptTrace = compiled.trace;
+    promptWarnings = compiled.warnings;
+    assistantPrefill = compiled.assistantPrefill;
+    promptComparison = compareRisuAndSimPack({
+      preset: promptPreset, card: card || {}, persona: persona || null,
+      lore: { entries: loreText ? [{ content: loreText }] : [] },
+      chat: (recentMessages || []).slice(-8).map((message) => ({ role: message.role === 'assistant' ? 'assistant' : 'user', content: String(message.content || '') })),
+      memory: groundedMemory || '',
+      engineContext: { facts: stateText, availableActions: actionText, groundedMemory: groundedMemory || '' },
+    });
+  } else {
+    // 기존 카드의 golden bytes 보존 경로.
+    messages = conversationMessages([...(recentMessages || []).slice(-8), { role: 'user', content: context }]);
+  }
 
   const injectedParts = {
     state: estimateTokens(stateText),
@@ -251,6 +280,10 @@ function buildPrompt({ schema, state, lore, persona, recentMessages, userInput, 
     injectedParts,
     relatedNpcIds: npcIds,
     injectedText: { state: stateText, verdicts: verdictText, npc: npcText, repCats, npcList, speakers: speakerText, items: itemList, ...(questList ? { quests: questList } : {}), lore: loreText, groundedMemory: groundedMemory || '', actions: actionText },
+    promptTrace,
+    promptWarnings,
+    assistantPrefill,
+    promptComparison,
   };
 }
 

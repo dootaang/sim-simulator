@@ -16,6 +16,7 @@ const splitKeys = (s) => S(s).split(',').map((x) => x.trim()).filter(Boolean);
 
 function normCCv3Entry(e, i) {
   e = e || {};
+  const decorators = decoratorMetadata(S(e.content));
   return {
     uid: 'e' + i,
     name: S(e.comment || e.name),
@@ -26,8 +27,12 @@ function normCCv3Entry(e, i) {
     constant: !!e.constant,
     selective: !!e.selective,
     useRegex: !!(e.extensions && (e.extensions.useRegex || e.extensions.risu_useRegex)),
+    caseSensitive: !!(e.case_sensitive || e.extensions && (e.extensions.case_sensitive || e.extensions.risu_case_sensitive)),
+    probability: finitePercent(e.probability ?? (e.extensions && e.extensions.probability), 100),
     order: typeof e.insertion_order === 'number' ? e.insertion_order : i,
     position: S(e.position),
+    depth: Number.isFinite(Number(e.depth)) ? Math.max(0, Math.trunc(Number(e.depth))) : decorators.depth,
+    role: S(e.role || decorators.role),
     folder: '',
     isFolder: false,
     raw: e,
@@ -46,12 +51,28 @@ function normRisuEntry(e, i) {
     constant: !!e.alwaysActive,
     selective: !!e.selective,
     useRegex: !!e.useRegex,
+    caseSensitive: !!(e.extentions && e.extentions.risu_case_sensitive),
+    probability: finitePercent(e.activationPercent, 100),
     order: typeof e.insertorder === 'number' ? e.insertorder : i,
     position: '',
+    depth: 0,
+    role: '',
     folder: S(e.folder),
     isFolder: e.mode === 'folder',
     raw: e,
   };
+}
+
+function finitePercent(value, fallback) { const number = Number(value); return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback; }
+function decoratorMetadata(content) {
+  const result = { depth: 0, role: '' };
+  for (const line of S(content).split('\n')) {
+    const match = /^@@(depth|role)\s+(.+)$/i.exec(line.trim());
+    if (!match) { if (line.trim() && !line.trim().startsWith('@@')) break; continue; }
+    if (match[1].toLowerCase() === 'depth') result.depth = Math.max(0, Math.trunc(Number(match[2])) || 0);
+    else result.role = match[2].trim();
+  }
+  return result;
 }
 
 // parseCard 결과 → { kind, bookName, entries } | null(로어북 없음).
@@ -131,6 +152,30 @@ function loreStats(entries) {
   };
 }
 
+// Explicit source priority: global → preset → character → chat → module → persona.
+// Higher-priority books replace the same source+uid; unrelated entries coexist.
+function mergeLorebooks(sources) {
+  const priority = { global: 0, preset: 1, character: 2, chat: 3, module: 4, persona: 5 };
+  const merged = new Map();
+  const books = (sources || []).filter((source) => source && source.lore && Array.isArray(source.lore.entries))
+    .map((source, index) => ({ ...source, index, rank: priority[source.scope] ?? 0 }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index);
+  for (const source of books) {
+    source.lore.entries.forEach((entry, index) => {
+      const identity = String(entry.raw && (entry.raw.id || entry.raw.uid) || `${entry.name}|${(entry.keys || []).join(',')}|${index}`);
+      const sourceKey = source.namespace || source.scope;
+      merged.set(`${sourceKey}:${identity}`, { ...entry, uid: `${sourceKey}:${entry.uid || index}`, sourceScope: source.scope, sourceNamespace: source.namespace || '' });
+    });
+  }
+  return {
+    kind: 'merged', bookName: 'Merged Risu lore',
+    scanDepth: Math.max(0, ...books.map((source) => Number(source.lore.scanDepth || 0))),
+    tokenBudget: books.map((source) => Number(source.lore.tokenBudget || 0)).filter(Boolean).at(-1),
+    recursive: books.some((source) => source.lore.recursive),
+    entries: Array.from(merged.values()).sort((a, b) => (a.order || 0) - (b.order || 0)),
+  };
+}
+
 // ── 내보내기 빌더 ──────────────────────────────────────────────────────────
 // tr: uid → { name?, content? } 번역 맵(없으면 원문). nameMode: 'tr'|'orig'(번역 반영 시 이름 처리).
 // keyAdd: uid → string[] — "발동 키 다국어 무장"이 추가한 번역 키(★원본 키는 절대 대체 안 함, 뒤에 덧붙임+중복 제거).
@@ -198,4 +243,4 @@ function buildMarkdown(lore, tr, nameMode, keyAdd) {
   return out.join('\n');
 }
 
-module.exports = { extractLorebook, splitDecorators, groupByFolder, loreStats, buildCharacterBook, buildMarkdown, mergedKeys };
+module.exports = { extractLorebook, splitDecorators, groupByFolder, loreStats, mergeLorebooks, buildCharacterBook, buildMarkdown, mergedKeys };

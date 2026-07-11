@@ -71,6 +71,7 @@ function sanitizePromptRuns(promptRuns) {
       responseText: String(run.responseText == null ? '' : run.responseText),
       proposedEvents: Array.isArray(run.proposedEvents) ? run.proposedEvents.map((id) => String(id)) : [],
       appliedOk: Number.isFinite(Number(run.appliedOk)) ? Number(run.appliedOk) : 0,
+      ...(Array.isArray(run.blocks) ? { blocks: run.blocks.slice(0, 200).map((item) => ({ blockId: String(item && item.blockId || ''), active: item && item.active === true })) } : {}),
       ...(Array.isArray(run.proposedMemory) ? { proposedMemory: run.proposedMemory.slice(0, 20).map((item) => ({ kind: String(item && item.kind || ''), text: String(item && item.text || '').slice(0, 500) })) } : {}),
       ...(Array.isArray(run.memoryDecisions) ? { memoryDecisions: run.memoryDecisions.slice(0, 20).map((item) => ({ recordId: String(item && item.recordId || ''), status: String(item && item.status || ''), reason: String(item && item.reason || '') })) } : {}),
       ...(Array.isArray(run.factRefs) ? { factRefs: run.factRefs.slice(0, 20).map((item) => ({ claim: String(item && item.claim || '').slice(0, 300), refs: Array.isArray(item && item.refs) ? item.refs.slice(0, 12).map(String) : [] })) } : {}),

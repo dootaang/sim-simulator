@@ -2,6 +2,8 @@
 'use strict';
 
 const { validateRisuCompatibilityEnvelope } = require('./schemas.js');
+const { normalizeRisuModule } = require('./moduleResolver.js');
+const { normalizeRegexScripts } = require('./regexPipeline.js');
 
 const STATUSES = ['supported', 'preserved', 'translated', 'degraded', 'blocked'];
 
@@ -58,7 +60,11 @@ function collectCompatibilityFeatures(input) {
   if (embeddedModules.length) add(features, 'embedded-modules', '내장 모듈 파일', 'preserved', embeddedModules.length, '모듈 파일 원본은 보존했습니다. Lua·정규식 등 상세 실행 검사는 카드 MRI가 별도로 수행합니다.', 'module', '$.container');
 
   const regex = array(moduleRoot.regex).concat(array(risu.customScripts));
-  if (regex.length) add(features, 'regex', '정규식 스크립트', 'preserved', regex.length, '원본과 실행 단계를 보존하지만 아직 전체 실행하지 않습니다.', 'module', '$.module.regex');
+  if (regex.length) {
+    const normalizedRegex = normalizeRegexScripts([{ scope: 'character', scripts: regex }]);
+    const blocked = normalizedRegex.scripts.filter((script) => !script.safe).length;
+    add(features, 'regex', '정규식 스크립트', blocked ? 'degraded' : 'supported', regex.length, blocked ? `${blocked}개는 안전 검사로 실행 차단하고 나머지는 단계별 실행할 수 있습니다.` : '입력·요청·출력·표시 단계를 구분해 안전한 치환으로 실행할 수 있습니다.', 'module', '$.module.regex');
+  }
 
   const triggers = array(moduleRoot.trigger).concat(array(risu.triggerscript));
   const effects = triggers.flatMap((trigger) => array(trigger && trigger.effect));
@@ -107,18 +113,7 @@ function collectModules(parsed, moduleRoot) {
 }
 
 function moduleBinding(moduleRoot, scope) {
-  const capabilities = [];
-  if (array(moduleRoot.lorebook).length) capabilities.push('lorebook');
-  if (array(moduleRoot.regex).length) capabilities.push('regex');
-  if (array(moduleRoot.trigger).length) capabilities.push('trigger');
-  if (array(moduleRoot.assets).length) capabilities.push('assets');
-  if (moduleRoot.mcp) capabilities.push('mcp');
-  return {
-    id: String(moduleRoot.id || moduleRoot.namespace || moduleRoot.name || 'embedded-module'),
-    name: String(moduleRoot.name || '내장 모듈'), namespace: String(moduleRoot.namespace || ''), scope,
-    lowLevelAccess: !!moduleRoot.lowLevelAccess, capabilities,
-    provenance: { source: 'module', path: '$.module' },
-  };
+  return normalizeRisuModule(moduleRoot, scope, '$.module');
 }
 
 function assetReference(asset) {

@@ -15,9 +15,7 @@
 // 순수성 계약: 입력을 변이하지 않고, 같은 입력이면 항상 같은 출력. app/src 접근 금지.
 
 const { estimateTokens } = require('../lorebook/tokens.js');
-
-const SAFE_MACROS = new Set(['user', 'char']);
-const MACRO_RE = /\{\{([a-zA-Z0-9_]+)(?:::[^{}]*)?\}\}/g;
+const { evaluateSafeCbs } = require('../compat/safeCbs.js');
 
 function compilePrompt(input) {
   const preset = input && input.preset;
@@ -38,16 +36,17 @@ function compilePrompt(input) {
   const warnings = [];
   const warnedMacros = new Set();
   const substitute = (text, path) => {
-    const source = String(text == null ? '' : text);
-    return source.replace(MACRO_RE, (match, name) => {
-      if (name === 'user') return vars.user;
-      if (name === 'char') return vars.char;
-      if (!warnedMacros.has(name)) {
-        warnedMacros.add(name);
-        warnings.push({ code: 'unsupported_macro', path, detail: name });
-      }
-      return match; // 미지원 매크로는 조용히 지우지 않고 원문 보존(BACKLOG P0.5-D 원칙).
+    const result = evaluateSafeCbs(text, {
+      user: vars.user, char: vars.char,
+      persona: String((persona && persona.prompt) || ''),
+      variables: input && input.variables && typeof input.variables === 'object' ? input.variables : {},
     });
+    for (const warning of result.warnings) {
+      if (warnedMacros.has(warning.detail)) continue;
+      warnedMacros.add(warning.detail);
+      warnings.push({ ...warning, path });
+    }
+    return result.text; // 미지원 매크로는 조용히 지우지 않고 원문 보존.
   };
   const applyInnerFormat = (format, content, path) => {
     if (typeof format !== 'string' || !format) return content;

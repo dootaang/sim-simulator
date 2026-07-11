@@ -48,6 +48,7 @@ function checkEntry(entry, searchText, opts) {
   const tokens = estimateEntryTokens(entry);
   const base = { uid: entry.uid, entry, name: entry.name || (entry.keys && entry.keys[0]) || '', order: entry.order, tokens };
   if (entry.enabled === false) return { ...base, active: false, reason: 'disabled', detail: 'Entry is disabled.' };
+  if (!passesProbability(entry, opts)) return { ...base, active: false, reason: 'probability', detail: `Deterministic probability gate (${entry.probability}%).` };
   if (entry.constant) return { ...base, active: true, reason: 'constant', detail: 'Always active.' };
 
   const keys = Array.isArray(entry.keys) ? entry.keys.filter(Boolean) : [];
@@ -60,7 +61,7 @@ function checkEntry(entry, searchText, opts) {
       const r = regexMatches(searchText, key);
       if (!r.ok) { regexError = r.error; continue; }
       if (r.matched) { primary = key; break; }
-    } else if (includesKey(searchText, key, opts)) {
+    } else if (includesKey(searchText, key, { ...opts, caseSensitive: entry.caseSensitive ?? opts.caseSensitive })) {
       primary = key;
       break;
     }
@@ -73,7 +74,7 @@ function checkEntry(entry, searchText, opts) {
   if (entry.selective) {
     const secondaries = Array.isArray(entry.secondaryKeys) ? entry.secondaryKeys.filter(Boolean) : [];
     if (!secondaries.length) return { ...base, active: false, reason: 'secondary_missing_config', key: primary, detail: 'Selective entry has no secondary keys.' };
-    const secondary = secondaries.find((k) => includesKey(searchText, k, opts));
+    const secondary = secondaries.find((k) => includesKey(searchText, k, { ...opts, caseSensitive: entry.caseSensitive ?? opts.caseSensitive }));
     if (!secondary) return { ...base, active: false, reason: 'secondary_missing', key: primary, detail: 'Primary key matched, but no secondary key matched.' };
     return { ...base, active: true, reason: 'primary_secondary', key: primary, secondaryKey: secondary, detail: `Matched: ${primary} + ${secondary}` };
   }
@@ -81,11 +82,39 @@ function checkEntry(entry, searchText, opts) {
   return { ...base, active: true, reason: 'primary', key: primary, detail: `Matched: ${primary}` };
 }
 
+function passesProbability(entry, opts) {
+  const percent = Number(entry && entry.probability);
+  if (!Number.isFinite(percent) || percent >= 100) return true;
+  if (percent <= 0) return false;
+  const address = `${Number(opts && opts.seed || 0)}:${Number(opts && opts.turn || 0)}:${String(entry.uid || entry.name || '')}`;
+  let hash = 2166136261;
+  for (let i = 0; i < address.length; i += 1) { hash ^= address.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+  return ((hash >>> 0) % 10000) < Math.round(percent * 100);
+}
+
 function simulateActivation(lore, input, opts = {}) {
   const entries = (lore && lore.entries) || [];
   const scanDepth = Number(opts.scanDepth || lore.scanDepth || 10);
   const searchText = textFromMessages(input, scanDepth);
-  const checks = entries.map((e) => checkEntry(e, searchText, opts)).filter(Boolean);
+  let expandedText = searchText;
+  let checks = entries.map((e) => checkEntry(e, expandedText, opts)).filter(Boolean).map((item) => ({ ...item, activationPass: item.active ? 0 : null }));
+  if (lore && lore.recursive) {
+    const activated = new Set(checks.filter((item) => item.active).map((item) => item.uid));
+    for (let pass = 1; pass <= 4; pass += 1) {
+      const bodies = checks.filter((item) => activated.has(item.uid)).map((item) => String(item.entry.content || '')).join('\n');
+      const nextText = `${searchText}\n${bodies}`;
+      let changed = false;
+      checks = entries.map((entry) => {
+        const checked = checkEntry(entry, nextText, opts);
+        if (!checked) return null;
+        if (checked.active && !activated.has(checked.uid)) { activated.add(checked.uid); changed = true; return { ...checked, activationPass: pass }; }
+        const previous = checks.find((item) => item.uid === checked.uid);
+        return previous || { ...checked, activationPass: checked.active ? 0 : null };
+      }).filter(Boolean);
+      expandedText = nextText;
+      if (!changed) break;
+    }
+  }
   const active = checks.filter((r) => r.active).sort((a, b) => (a.order || 0) - (b.order || 0));
   const inactive = checks.filter((r) => !r.active);
   const budget = opts.tokenBudget != null ? opts.tokenBudget : lore.tokenBudget;
@@ -93,6 +122,7 @@ function simulateActivation(lore, input, opts = {}) {
   return {
     scanDepth,
     searchText,
+    expandedSearchText: expandedText,
     active,
     inactive,
     tokenBudget: Number(budget || 0),

@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { compilePrompt } = require('../core/prompt/compilePrompt.js');
+const { compareRisuAndSimPack } = require('../core/prompt/comparePrompt.js');
 const { normalizePromptPreset, createDefaultPreset } = require('../core/prompt/presetFactory.js');
 
 const FIXTURE_DIR = path.join(__dirname, 'fixtures', 'prompt-parity');
@@ -193,4 +194,17 @@ test('normalizePromptPreset — 관용 수용: 미지원 타입 제외·중복 i
 
 test('정규화를 거치지 않은 프리셋(blocks 없음)은 명시적으로 거부한다', () => {
   assert.throws(() => compilePrompt({ preset: { settings: {} }, card: { name: '아' } }), TypeError);
+});
+
+test('프롬프트 비교기는 Risu 원문을 바꾸지 않고 엔진 블록만 추가했음을 증명한다', () => {
+  const preset = createDefaultPreset({ compatibilityMode: 'risu' });
+  preset.blocks.find((block) => block.id === 'main').text = 'MAIN';
+  const result = compareRisuAndSimPack({
+    preset, card: { name: '실비아', description: '레인저' }, persona: null,
+    lore: { entries: [{ content: '마이른 마을' }] }, chat: [{ role: 'user', content: '안녕' }],
+    engineContext: { facts: '골드 500', availableActions: '대화', groundedMemory: '약속' },
+  });
+  assert.equal(result.additive, true);
+  assert.deepEqual(result.addedBlocks.map((block) => block.blockId), ['engine-facts', 'available-actions', 'grounded-memory']);
+  assert.equal(result.addedBlocks.every((block) => block.active), true);
 });

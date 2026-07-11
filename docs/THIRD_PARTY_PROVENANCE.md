@@ -29,6 +29,9 @@
 | 2026-07-12 | `hypav3.ts` 예산 선택(L500~820) — recent/similar/random 비율, 20% 기억 예산 | `app/core/memory/contextPlanner.js` — `planHypaV3` | 의미 재현 | 무작위 선택을 `Math.random` 대신 seed 기반으로 격리(결정론 재현 요구), frozen summary 사용 |
 | 2026-07-12 | `src/ts/persona.ts` — `exportUserPersona`, `importUserPersona` | `app/core/compat/personaPng.ts` | 파일 규격 상호운용 재구현 | PNG `tEXt:persona`의 base64 JSON을 읽고 쓰며, UI/DB 결합은 가져오지 않음 |
 | 2026-07-12 | `src/ts/storage/database.svelte.ts` — `downloadPreset`, `importPreset` | `app/core/compat/risuPreset.ts` | 파일 규격 상호운용 재구현 | RPack·deflate·MessagePack·AES-GCM 봉투와 PromptItem 매핑, 알 수 없는 preset 필드 보존 |
+| 2026-07-12 | `src/ts/process/scripts.ts` — `processScriptFull`의 4단계 순서 | `app/core/compat/regexPipeline.js` | 안전 부분집합 재구현 | editprocess를 editrequest로 정규화, 활성 콘텐츠·보수적 ReDoS 위험 차단, Lua/trigger 부작용 제외 |
+| 2026-07-12 | `src/ts/cbs.ts` — `user`, `char`, `getvar` | `app/core/compat/safeCbs.js` | 읽기 전용 부분집합 재구현 | user/char/persona/primitive getvar만 허용, setvar와 미지원 함수는 원문+경고 |
+| 2026-07-12 | `src/ts/process/modules.ts` — RisuModule 구조 | `app/core/compat/moduleResolver.js` | 데이터 모델 재구현 | scope/namespace 중복 해소, lore/regex/trigger/assets/toggle/background 매핑, CJS·MCP·저수준 실행 차단 |
 
 `msgpackr` 1.11.5(MIT)는 Risu preset의 MessagePack 상호운용에 사용한다.
 

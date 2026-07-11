@@ -4,6 +4,9 @@ import test from 'node:test';
 import { exportRisuPersonaPng, importRisuPersonaPng } from '../core/compat/personaPng';
 import { exportRisuPreset, importRisuPreset } from '../core/compat/risuPreset';
 import type { Persona, PromptPreset } from '../core/compat/contracts';
+import { createRisuCompatibilityEnvelope } from '../core/compat/risuCompatibility.js';
+import { exportUnmodifiedRisuSource, verifyUnmodifiedRoundTrip } from '../core/compat/roundTrip';
+import { createCompatibilityLibrary } from '../core/compat/browserLibrary';
 
 const ONE_PIXEL_PNG = Uint8Array.from(Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -60,3 +63,20 @@ test('Risu .risup은 PromptItem 의미와 알려지지 않은 preset 필드를 �
   assert.deepEqual(second.preset.blocks.map((block) => block.type), ['plain', 'description', 'chat', 'cache']);
 });
 
+test('카드 호환 봉투의 무편집 내보내기는 모르는 바이트까지 SHA-256 동일하다', async () => {
+  const source = new TextEncoder().encode(JSON.stringify({ spec: 'chara_card_v3', spec_version: '3.0', data: { name: 'X', description: 'Y', extensions: { future: { opaque: 7 } } } }));
+  const parsed = { format: 'json', source: 'future.json', spec: 'chara_card_v3', specVersion: '3.0', name: 'X', assets: [], card: JSON.parse(new TextDecoder().decode(source)), containerEntries: [], _sourceBytes: source };
+  const envelope = createRisuCompatibilityEnvelope(parsed, null);
+  assert.deepEqual(exportUnmodifiedRisuSource(envelope), source);
+  assert.equal((await verifyUnmodifiedRoundTrip(envelope)).ok, true);
+});
+
+test('페르소나·프롬프트 라이브러리는 여러 항목을 사본으로 보관한다', async () => {
+  const library = await createCompatibilityLibrary();
+  const persona: Persona = { contract: 'persona/0.1', id: 'a', name: 'A', prompt: 'A prompt', icon: '', note: '', embeddedModule: null, source: null, version: 1 };
+  const preset: PromptPreset = { contract: 'prompt-preset/0.1', id: 'p', name: 'P', compatibilityMode: 'risu', version: 1, blocks: [], settings: { assistantPrefill: '', sendNames: false, sendChatAsSystem: false }, raw: null };
+  await library.putPersona(persona); await library.putPreset(preset);
+  persona.name = 'mutated'; preset.name = 'mutated';
+  assert.equal((await library.listPersonas())[0].name, 'A');
+  assert.equal((await library.listPresets())[0].name, 'P');
+});

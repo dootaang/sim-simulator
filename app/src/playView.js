@@ -11,6 +11,9 @@ import { buildNpcClusters, preferredEmotion, selectAsset } from './npcGallery.js
 import { verifyNarrative } from '../core/memory/narrativeVerifier.ts';
 import { createBrowserPlaySessionPersistence } from '../core/session/browserPersistence.ts';
 import { exportRisuPersonaPng, importRisuPersonaPng } from '../core/compat/personaPng.ts';
+import { applyRegexStage, normalizeRegexScripts } from '../core/compat/regexPipeline.js';
+import { importRisuPreset } from '../core/compat/risuPreset.ts';
+import { createCompatibilityLibrary } from '../core/compat/browserLibrary.ts';
 
 let messages = [];
 let busy = false;
@@ -46,6 +49,56 @@ let lastPersistQuickSignature = '';
 let persistenceListenersInstalled = false;
 let persistenceLoadKey = '';
 let activePersona = null;
+let activePromptPreset = null;
+let compatibilityLibrary = null;
+let compatibilityLibraryLoading = null;
+let personaLibrary = [];
+let presetLibrary = [];
+
+function ensureCompatibilityLibrary(render) {
+  if (compatibilityLibrary || compatibilityLibraryLoading) return;
+  compatibilityLibraryLoading = createCompatibilityLibrary().then(async (library) => {
+    compatibilityLibrary = library;
+    [personaLibrary, presetLibrary] = await Promise.all([library.listPersonas(), library.listPresets()]);
+  }).catch(() => {}).finally(() => { compatibilityLibraryLoading = null; render(); });
+}
+
+function compatibilityRegexScripts(ctx) {
+  const parsed = ctx && ctx.parsed || {};
+  const card = parsed.card || {};
+  const data = card.data || card;
+  const risu = data.extensions && data.extensions.risuai || {};
+  const moduleRoot = parsed.module || card.module || (card.type === 'risuModule' ? card.module : {}) || {};
+  return normalizeRegexScripts([
+    { scope: 'character', scripts: Array.isArray(risu.customScripts) ? risu.customScripts : [] },
+    { scope: 'embedded', scripts: Array.isArray(moduleRoot.regex) ? moduleRoot.regex : [] },
+  ]).scripts;
+}
+
+function compatibilityCard(ctx) {
+  const card = ctx && ctx.parsed && ctx.parsed.card || {};
+  return card && typeof card === 'object' ? (card.data || card) : {};
+}
+
+function parseCompatibleResponse(raw, ctx) {
+  const scripts = compatibilityRegexScripts(ctx);
+  const output = applyRegexStage(String(raw || ''), scripts, 'editoutput');
+  const parsed = parseAssistantResponse(output.text);
+  parsed.narrative = applyRegexStage(parsed.narrative, scripts, 'editdisplay').text;
+  return parsed;
+}
+
+async function callCompatibleProvider(config, prompt, ctx) {
+  const scripts = compatibilityRegexScripts(ctx);
+  const compatiblePrompt = {
+    ...prompt,
+    system: applyRegexStage(prompt.system || '', scripts, 'editrequest').text,
+    messages: (prompt.messages || []).map((message) => ({ ...message, content: applyRegexStage(message.content || '', scripts, 'editrequest').text })),
+  };
+  const response = await callProvider(config, compatiblePrompt);
+  const prefill = String(prompt.assistantPrefill || '');
+  return prefill ? prefill + String(response || '') : response;
+}
 
 export function primaryCharacter(parsed, lore, groups = buildNpcClusters(parsed, lore).groups) {
   const name = String((parsed && parsed.name) || '시뮬봇');
@@ -79,6 +132,9 @@ function applySessionPayload(payload, ctx) {
   activePersona = payload.personaBinding && payload.personaBinding.snapshot
     ? JSON.parse(JSON.stringify(payload.personaBinding.snapshot))
     : null;
+  activePromptPreset = payload.promptPresetBinding && payload.promptPresetBinding.snapshot
+    ? JSON.parse(JSON.stringify(payload.promptPresetBinding.snapshot))
+    : null;
 }
 
 function currentPersonaBinding() {
@@ -86,7 +142,13 @@ function currentPersonaBinding() {
 }
 
 function buildCurrentSessionExport() {
-  return exportPlaySession({ messages, personaBinding: currentPersonaBinding(), savedAt: Date.now(), title: sceneLine() });
+  const promptPresetBinding = activePromptPreset ? {
+    id: activePromptPreset.id,
+    version: activePromptPreset.version,
+    hash: hashPromptPayload(activePromptPreset),
+    snapshot: JSON.parse(JSON.stringify(activePromptPreset)),
+  } : null;
+  return exportPlaySession({ messages, personaBinding: currentPersonaBinding(), promptPresetBinding, savedAt: Date.now(), title: sceneLine() });
 }
 
 function persistentPayloadHash(payload) {
@@ -108,6 +170,7 @@ function persistentQuickSignature() {
     memoryStatus,
     patchStatus,
     persona: activePersona && `${activePersona.id}:${activePersona.version}:${activePersona.name}:${activePersona.prompt}`,
+    promptPreset: activePromptPreset && `${activePromptPreset.id}:${activePromptPreset.version}:${hashPromptPayload(activePromptPreset)}`,
   });
 }
 
@@ -237,6 +300,7 @@ export function renderPlayView(container, ctx) {
     if (list) list.scrollTop = list.scrollHeight;
     if (persistenceReady && !busy) scheduleAutoSave();
   };
+  ensureCompatibilityLibrary(render);
   activeRender = render;
   const autoSaveKey = hashPromptPayload(getSchema());
   const needsPersistenceLoad = persistenceLoadKey !== autoSaveKey;
@@ -654,6 +718,7 @@ function promptRunOf(prompt, raw, parsed, appliedOk = 0, memoryDecisions = [], f
     promptHash: hashPromptPayload({ system: prompt.system, messages: prompt.messages }),
     model: settings.model || settings.provider,
     responseText: String(raw == null ? '' : raw),
+    blocks: (prompt.promptTrace || []).map((item) => ({ blockId: item.blockId, active: item.active })),
     proposedEvents: ((parsed && parsed.events) || []).map((event) => event.id),
     appliedOk,
     proposedMemory: ((parsed && parsed.memoryCandidates) || []).map((candidate) => ({ kind: candidate.kind, text: candidate.text })),
@@ -1046,8 +1111,8 @@ async function runManagementTurn(event, input, ctx, render) {
   try {
     const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges, eventType: event.id, decisionContext: decisionContextFor(event.id, result.entries) });
     lastPrompt = prompt;
-    const raw = await callProvider(providerConfig(settings), prompt);
-    const parsed = parseAssistantResponse(raw);
+    const raw = await callCompatibleProvider(providerConfig(settings), prompt, ctx);
+    const parsed = parseCompatibleResponse(raw, ctx);
     recordPromptRun(promptRunOf(prompt, raw, parsed));
     applyEmotion(parsed.emotion);
     pending.npcIds = applySpeakers(parsed);
@@ -1088,8 +1153,8 @@ async function runManagementBatch(items, input, ctx, render) {
   try {
     const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: resultTexts, flavorText, recentMessages: recentForNarration, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges, eventType: 'lodging_batch' });
     lastPrompt = prompt;
-    const raw = await callProvider(providerConfig(settings), prompt);
-    const parsed = parseAssistantResponse(raw);
+    const raw = await callCompatibleProvider(providerConfig(settings), prompt, ctx);
+    const parsed = parseCompatibleResponse(raw, ctx);
     recordPromptRun(promptRunOf(prompt, raw, parsed));
     applyEmotion(parsed.emotion);
     pending.npcIds = applySpeakers(parsed);
@@ -1258,6 +1323,10 @@ function renderSettings(ctx, render) {
     if (!file || busy) return;
     try {
       activePersona = importRisuPersonaPng(new Uint8Array(await file.arrayBuffer()), file.name);
+      if (compatibilityLibrary) {
+        await compatibilityLibrary.putPersona(activePersona);
+        personaLibrary = await compatibilityLibrary.listPersonas();
+      }
       messages.push({ role: 'ledger', chips: [{ ok: true, kind: 'system', text: `페르소나 연결 · ${activePersona.name} (이 세션에는 현재 버전이 고정됩니다)` }] });
       lastPersistQuickSignature = ''; scheduleAutoSave(0);
     } catch (error) {
@@ -1276,6 +1345,58 @@ function renderSettings(ctx, render) {
   const clearPersona = button('페르소나 해제', 'secondary-btn');
   clearPersona.disabled = busy || !activePersona;
   clearPersona.addEventListener('click', () => { activePersona = null; lastPersistQuickSignature = ''; scheduleAutoSave(0); render(); });
+  const personaSelect = namedSelect('personaLibrary');
+  appendOption(personaSelect, '', '페르소나 선택', !activePersona);
+  for (const persona of personaLibrary) appendOption(personaSelect, persona.id, `${persona.name} · v${persona.version}`, activePersona && activePersona.id === persona.id);
+  personaSelect.value = activePersona && personaLibrary.some((persona) => persona.id === activePersona.id) ? activePersona.id : '';
+  personaSelect.addEventListener('change', () => {
+    const selected = personaLibrary.find((persona) => persona.id === personaSelect.value);
+    if (selected) activePersona = JSON.parse(JSON.stringify(selected));
+    lastPersistQuickSignature = ''; scheduleAutoSave(0); render();
+  });
+  const clonePersona = button('페르소나 복제', 'secondary-btn');
+  clonePersona.disabled = busy || !activePersona || !compatibilityLibrary;
+  clonePersona.addEventListener('click', async () => {
+    const copy = JSON.parse(JSON.stringify(activePersona));
+    copy.id = `${copy.id}-copy-${Date.now().toString(36)}`; copy.name = `${copy.name} 복사본`; copy.version = 1;
+    await compatibilityLibrary.putPersona(copy); personaLibrary = await compatibilityLibrary.listPersonas(); activePersona = copy;
+    lastPersistQuickSignature = ''; scheduleAutoSave(0); render();
+  });
+
+  const presetFile = el('input');
+  presetFile.type = 'file'; presetFile.accept = '.risup,.risupreset'; presetFile.hidden = true;
+  const importPreset = button('Risu 프롬프트 가져오기', 'secondary-btn');
+  importPreset.disabled = busy;
+  importPreset.addEventListener('click', () => presetFile.click());
+  presetFile.addEventListener('change', async () => {
+    const file = presetFile.files && presetFile.files[0]; presetFile.value = '';
+    if (!file || busy) return;
+    try {
+      const imported = await importRisuPreset(new Uint8Array(await file.arrayBuffer()), file.name);
+      activePromptPreset = imported.preset;
+      if (compatibilityLibrary) {
+        await compatibilityLibrary.putPreset(activePromptPreset);
+        presetLibrary = await compatibilityLibrary.listPresets();
+      }
+      messages.push({ role: 'ledger', chips: [{ ok: true, kind: 'system', text: `Risu 프롬프트 연결 · ${activePromptPreset.name} · 블록 ${activePromptPreset.blocks.length}개` }] });
+      lastPersistQuickSignature = ''; scheduleAutoSave(0);
+    } catch (error) {
+      messages.push({ role: 'ledger', chips: [{ ok: false, kind: 'system', text: `Risu 프롬프트 가져오기 실패 · ${safeError(error)}` }] });
+    }
+    render();
+  });
+  const clearPreset = button('프롬프트 해제', 'secondary-btn');
+  clearPreset.disabled = busy || !activePromptPreset;
+  clearPreset.addEventListener('click', () => { activePromptPreset = null; lastPersistQuickSignature = ''; scheduleAutoSave(0); render(); });
+  const presetSelect = namedSelect('presetLibrary');
+  appendOption(presetSelect, '', '프롬프트 선택', !activePromptPreset);
+  for (const preset of presetLibrary) appendOption(presetSelect, preset.id, `${preset.name} · v${preset.version}`, activePromptPreset && activePromptPreset.id === preset.id);
+  presetSelect.value = activePromptPreset && presetLibrary.some((preset) => preset.id === activePromptPreset.id) ? activePromptPreset.id : '';
+  presetSelect.addEventListener('change', () => {
+    const selected = presetLibrary.find((preset) => preset.id === presetSelect.value);
+    if (selected) activePromptPreset = JSON.parse(JSON.stringify(selected));
+    lastPersistQuickSignature = ''; scheduleAutoSave(0); render();
+  });
 
   details.append(
     field('제공자', provider),
@@ -1290,8 +1411,14 @@ function renderSettings(ctx, render) {
     row(exportSession, importSession),
     importFile,
     notice(activePersona ? `연결된 페르소나: ${activePersona.name} · 세션 스냅샷 사용` : '연결된 페르소나 없음'),
+    field('페르소나 라이브러리', personaSelect),
     row(importPersona, exportPersona, clearPersona),
+    clonePersona,
     personaFile,
+    notice(activePromptPreset ? `연결된 Risu 프롬프트: ${activePromptPreset.name} · 블록 ${activePromptPreset.blocks.length}개 · 세션 스냅샷 사용` : '연결된 Risu 프롬프트 없음 · 시뮬 기본 프롬프트 사용'),
+    field('프롬프트 라이브러리', presetSelect),
+    row(importPreset, clearPreset),
+    presetFile,
     notice(persistenceStatus),
     settings.provider === 'vertex'
       ? notice('서비스 계정 JSON은 GCP 전체 권한을 가질 수 있는 강력한 자격증명입니다. 공용 PC에서 저장하지 말고 사용 후 삭제하세요.')
@@ -1410,6 +1537,30 @@ function renderTokenBox(ctx) {
       list.append(item);
     }
     section.append(list);
+    if (lastPrompt.promptTrace && lastPrompt.promptTrace.length) {
+      const trace = el('details', 'import-raw-details');
+      const heading = el('summary'); heading.textContent = `Risu 프롬프트 검사 · ${lastPrompt.promptTrace.filter((item) => item.active).length}/${lastPrompt.promptTrace.length} 블록 활성`;
+      const rows = el('div', 'engine-list');
+      for (const item of lastPrompt.promptTrace) {
+        const rowNode = el('div', 'engine-list-row');
+        rowNode.textContent = `${item.active ? '전송' : '제외'} · ${item.blockId} · ${item.role} · ${item.tokensEstimate || 0}토큰${item.reason && item.reason !== 'ok' ? ` · ${item.reason}` : ''}`;
+        rows.append(rowNode);
+      }
+      for (const warning of lastPrompt.promptWarnings || []) {
+        const rowNode = el('div', 'engine-list-row engine-warning'); rowNode.textContent = `경고 · ${warning.code} · ${warning.detail || warning.path || ''}`; rows.append(rowNode);
+      }
+      trace.append(heading, rows); section.append(trace);
+      if (lastPrompt.promptComparison) {
+        const comparison = el('details', 'import-raw-details');
+        const comparisonHeading = el('summary');
+        comparisonHeading.textContent = `프롬프트 비교 · Risu 원문 ${lastPrompt.promptComparison.risu.messages.length}개 / SimPack ${lastPrompt.promptComparison.simpack.messages.length}개`;
+        const result = el('p', lastPrompt.promptComparison.additive ? 'muted-line' : 'engine-warning');
+        result.textContent = lastPrompt.promptComparison.additive
+          ? `원문 블록 순서·역할 유지 · 엔진 전용 블록 ${lastPrompt.promptComparison.addedBlocks.filter((item) => item.active).length}개만 추가`
+          : '원문 블록에도 차이가 감지됨 — 프리셋을 검토하세요.';
+        comparison.append(comparisonHeading, result); section.append(comparison);
+      }
+    }
   }
   if (!ctx.lore) {
     const note = el('p', 'muted-line');
@@ -1491,8 +1642,8 @@ async function runCombatTurn(event, input, ctx, render) {
     if (fastCombat) fastCombatLog = [];
     const prompt = buildNarrationPrompt({ schema: getSchema(), state: getEngineState(), results: narrationResults, flavorText, recentMessages: recentForNarration, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges });
     lastPrompt = prompt;
-    const raw = await callProvider(providerConfig(settings), prompt);
-    const parsed = parseAssistantResponse(raw);
+    const raw = await callCompatibleProvider(providerConfig(settings), prompt, ctx);
+    const parsed = parseCompatibleResponse(raw, ctx);
     recordPromptRun(promptRunOf(prompt, raw, parsed));
     applyEmotion(parsed.emotion);
     pending.npcIds = applySpeakers(parsed);
@@ -1543,10 +1694,10 @@ async function startCombat(ctx, render) {
   try {
     const instruction = '이번 장면에 어울리는 적 명부로 start_encounter 사건 하나만 JSON으로 내라. 서사는 1~2문장만 허용한다.';
     const grounded = await groundedFor(instruction, turn);
-    const prompt = buildPrompt({ schema: getSchema(), state: getEngineState(), lore: ctx.lore, persona: activePersona, recentMessages: messages.slice(-4), userInput: instruction, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges, groundedMemory: grounded.text });
+    const prompt = buildPrompt({ schema: getSchema(), state: getEngineState(), lore: ctx.lore, card: compatibilityCard(ctx), persona: activePersona, promptPreset: activePromptPreset, recentMessages: messages.slice(-4), userInput: instruction, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges, groundedMemory: grounded.text });
     lastPrompt = prompt;
-    const raw = await callProvider(providerConfig(settings), prompt);
-    const parsed = parseAssistantResponse(raw);
+    const raw = await callCompatibleProvider(providerConfig(settings), prompt, ctx);
+    const parsed = parseCompatibleResponse(raw, ctx);
     applyEmotion(parsed.emotion);
     const speakerIds = applySpeakers(parsed);
     const event = parsed.events.find((item) => item.id === 'start_encounter');
@@ -1598,10 +1749,10 @@ async function openCannedScene(instruction, ctx, render) {
   try {
     const schema = getSchema();
     const grounded = await groundedFor(instruction, turn);
-    const prompt = buildPrompt({ schema, state: getEngineState(), lore: ctx.lore, persona: activePersona, recentMessages: messages.slice(-8), userInput: instruction, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges, groundedMemory: grounded.text });
+    const prompt = buildPrompt({ schema, state: getEngineState(), lore: ctx.lore, card: compatibilityCard(ctx), persona: activePersona, promptPreset: activePromptPreset, recentMessages: messages.slice(-8), userInput: instruction, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges, groundedMemory: grounded.text });
     lastPrompt = prompt;
-    const raw = await callProvider(providerConfig(settings), prompt);
-    const parsed = parseAssistantResponse(raw);
+    const raw = await callCompatibleProvider(providerConfig(settings), prompt, ctx);
+    const parsed = parseCompatibleResponse(raw, ctx);
     applyEmotion(parsed.emotion);
     const speakerIds = applySpeakers(parsed);
     const chips = [];
@@ -1643,6 +1794,7 @@ async function openCannedScene(instruction, ctx, render) {
 
 async function submitTurn(text, ctx, render) {
   if (busy) return;
+  text = applyRegexStage(String(text || ''), compatibilityRegexScripts(ctx), 'editinput').text;
   busy = true;
   conversationTurn += 1;
   const turn = conversationTurn;
@@ -1654,10 +1806,10 @@ async function submitTurn(text, ctx, render) {
     const schema = getSchema();
     const previousAssistant = messages.slice(0, -1).reverse().find((message) => message.role === 'assistant');
     const grounded = await groundedFor(text, turn);
-    const prompt = buildPrompt({ schema, state: getEngineState(), lore: ctx.lore, persona: activePersona, recentMessages: messages.slice(-9, -1), userInput: text, lastVerdicts: previousAssistant && previousAssistant.chips, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges, groundedMemory: grounded.text, currentMessageId: userRow.id });
+    const prompt = buildPrompt({ schema, state: getEngineState(), lore: ctx.lore, card: compatibilityCard(ctx), persona: activePersona, promptPreset: activePromptPreset, recentMessages: messages.slice(-9, -1), userInput: text, lastVerdicts: previousAssistant && previousAssistant.chips, emotions: emotions(), speakerCatalog: speakerCatalog(), recentChanges, groundedMemory: grounded.text, currentMessageId: userRow.id });
     lastPrompt = prompt;
-    const raw = await callProvider(providerConfig(settings), prompt);
-    const parsed = parseAssistantResponse(raw);
+    const raw = await callCompatibleProvider(providerConfig(settings), prompt, ctx);
+    const parsed = parseCompatibleResponse(raw, ctx);
     applyEmotion(parsed.emotion);
     const speakerIds = applySpeakers(parsed);
     const chips = [];
