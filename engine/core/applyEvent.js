@@ -109,8 +109,17 @@ function applyEvent(schema, state, event, rng) {
       return enemyAction(schema, next, params, rng, ok, fail);
     case 'enemy_turn':
       return enemyTurn(schema, next, params, rng, ok, fail);
-    case 'end_encounter':
-      return endEncounter(schema, next, params, rng, ok, fail);
+    case 'end_encounter': {
+      // 승리로 해금되는 의뢰는 "그 의뢰의 조우 전투"만 — 무관한 전투 승리로 열리면 안 된다.
+      const combatQuestId = next.combat && next.combat.questId;
+      const result = endEncounter(schema, next, params, rng, ok, fail);
+      const logEntry = result.log && result.log[0];
+      if (logEntry && logEntry.ok && logEntry.outcome === 'victory'
+        && result.state.pendingQuest && result.state.pendingQuest.questId === combatQuestId) {
+        result.state.pendingQuest.cleared = true;
+      }
+      return result;
+    }
     default:
       return fail('unknown_event', `Unknown event id: ${type}`);
   }
@@ -170,13 +179,15 @@ function attemptQuest(schema, state, params, rng, ok, fail) {
   if (!isRewardRange(range)) return fail('unknown_reward_tier', quest.rewardTier);
 
   if (state.pendingQuest && state.pendingQuest.day !== state.day) delete state.pendingQuest;
-  if (state.pendingQuest && state.pendingQuest.questId === questId) {
+  if (state.pendingQuest && state.pendingQuest.questId === questId && state.pendingQuest.cleared) {
     delete state.pendingQuest;
   } else {
     const encounter = rollQuestEncounter(schema, state, quest);
     if (encounter) {
       const started = startEncounter(schema, state, { enemies: encounter.enemies }, rng, (entry) => ({ state, log: [Object.assign({ ok: true, event: 'start_encounter' }, entry)] }), fail);
       if (!started.log[0].ok) return started;
+      // 이 전투가 어느 의뢰의 조우인지 태깅 — 무관한 전투 승리로 의뢰 판정이 열리는 누수 방지.
+      if (state.combat) state.combat.questId = questId;
       state.pendingQuest = { questId, day: state.day };
       return ok({ questId, name: quest.name || questId, encounter: encounter.encounter.id, enemies: started.log[0].enemies, text: `${quest.name || questId} 수행 중 ${encounter.encounter.name} 조우!` });
     }

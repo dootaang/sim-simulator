@@ -6544,8 +6544,15 @@ select:focus { border-color: var(--amber-line); }
             return enemyAction(schema2, next, params, rng2, ok, fail);
           case "enemy_turn":
             return enemyTurn(schema2, next, params, rng2, ok, fail);
-          case "end_encounter":
-            return endEncounter(schema2, next, params, rng2, ok, fail);
+          case "end_encounter": {
+            const combatQuestId = next.combat && next.combat.questId;
+            const result = endEncounter(schema2, next, params, rng2, ok, fail);
+            const logEntry = result.log && result.log[0];
+            if (logEntry && logEntry.ok && logEntry.outcome === "victory" && result.state.pendingQuest && result.state.pendingQuest.questId === combatQuestId) {
+              result.state.pendingQuest.cleared = true;
+            }
+            return result;
+          }
           default:
             return fail("unknown_event", `Unknown event id: ${type}`);
         }
@@ -6598,13 +6605,14 @@ select:focus { border-color: var(--amber-line); }
         const range = schema2 && schema2.rewards && schema2.rewards.gold && schema2.rewards.gold[quest.rewardTier];
         if (!isRewardRange(range)) return fail("unknown_reward_tier", quest.rewardTier);
         if (state2.pendingQuest && state2.pendingQuest.day !== state2.day) delete state2.pendingQuest;
-        if (state2.pendingQuest && state2.pendingQuest.questId === questId) {
+        if (state2.pendingQuest && state2.pendingQuest.questId === questId && state2.pendingQuest.cleared) {
           delete state2.pendingQuest;
         } else {
           const encounter = rollQuestEncounter(schema2, state2, quest);
           if (encounter) {
             const started = startEncounter(schema2, state2, { enemies: encounter.enemies }, rng2, (entry) => ({ state: state2, log: [Object.assign({ ok: true, event: "start_encounter" }, entry)] }), fail);
             if (!started.log[0].ok) return started;
+            if (state2.combat) state2.combat.questId = questId;
             state2.pendingQuest = { questId, day: state2.day };
             return ok({ questId, name: quest.name || questId, encounter: encounter.encounter.id, enemies: started.log[0].enemies, text: `${quest.name || questId} \uC218\uD589 \uC911 ${encounter.encounter.name} \uC870\uC6B0!` });
           }

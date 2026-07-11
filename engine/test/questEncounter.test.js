@@ -55,3 +55,40 @@ test('manual combat is opt-in in play view source', () => {
   const fs = require('node:fs'); const source = fs.readFileSync(require('node:path').join(__dirname, '../../app/src/playView.js'), 'utf8');
   assert.match(source, /simbot\.play\.manualCombat/); assert.match(source, /디버그: 수동 전투 개시/);
 });
+
+test('defeat or flee requires combat retry and blocks direct quest check', () => {
+  let current = applyEvent(schema, state(), { id: 'attempt_quest', params: { questId: 'hunt' } }, rng).state;
+  // 1. 패배 시나리오
+  current.player.dead = true; current.player.pools.hp.cur = 0;
+  current = applyEvent(schema, current, { id: 'end_encounter', params: {} }, rng).state;
+  // 패배 후 다시 attempt_quest를 호출하면, cleared가 없으므로 다시 조우(전투)가 시작되어야 함.
+  let retryResult = applyEvent(schema, current, { id: 'attempt_quest', params: { questId: 'hunt' } }, rng);
+  assert.equal(retryResult.state.combat.active, true);
+  assert.equal(retryResult.log[0].success, undefined); // 의뢰 본판정 미실행
+
+  // 2. 도주 시나리오
+  let current2 = applyEvent(schema, state(), { id: 'attempt_quest', params: { questId: 'hunt' } }, rng).state;
+  current2.combat.active = false; current2.combat.fled = true;
+  current2 = applyEvent(schema, current2, { id: 'end_encounter', params: {} }, rng).state;
+  // 도주 후 다시 attempt_quest를 호출하면, cleared가 없으므로 다시 조우(전투)가 시작되어야 함.
+  let retryResult2 = applyEvent(schema, current2, { id: 'attempt_quest', params: { questId: 'hunt' } }, rng);
+  assert.equal(retryResult2.state.combat.active, true);
+  assert.equal(retryResult2.log[0].success, undefined); // 의뢰 본판정 미실행
+});
+
+
+test('victory in an unrelated combat does not unlock a pending quest', () => {
+  // 의뢰 조우에서 도주 → 무관한 전투에서 승리해도 의뢰 본판정이 열리면 안 된다.
+  let current = applyEvent(schema, state(), { id: 'attempt_quest', params: { questId: 'hunt' } }, rng).state;
+  current.combat.active = false; current.combat.fled = true;
+  current = applyEvent(schema, current, { id: 'end_encounter', params: {} }, rng).state;
+  // 무관한 전투(LLM 자유 조우 상당) — questId 태그 없음
+  current = applyEvent(schema, current, { id: 'start_encounter', params: { enemies: [{ name: '들쥐', hp: 1 }] } }, rng).state;
+  for (const enemy of current.combat.enemies) { enemy.hp.cur = 0; enemy.dead = true; }
+  current.combat.cleared = true;
+  current = applyEvent(schema, current, { id: 'end_encounter', params: {} }, rng).state;
+  assert.equal(current.pendingQuest && current.pendingQuest.cleared, undefined);
+  // 재도전은 여전히 조우부터
+  const retry = applyEvent(schema, current, { id: 'attempt_quest', params: { questId: 'hunt' } }, rng);
+  assert.equal(retry.state.combat.active, true);
+});
