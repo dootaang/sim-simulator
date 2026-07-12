@@ -8,7 +8,7 @@
 - Repo: https://github.com/sqlite/sqlite-wasm
 - License: Apache-2.0
 - 사용 범위: 전용 Worker 안의 SQLite OO1 API와 OPFS VFS. `sqlite3.wasm` 및 공식 OPFS async proxy를 빌드 결과에 그대로 배포한다.
-- 우리 코드: `app/src/persistence/sqliteWorker.ts`, `app/core/session/browserPersistence.ts`
+- 우리 코드: `apps/web/src/workers/sqlite.worker.ts`, `packages/persistence/src/browser.ts`
 - Worker1/Promiser API는 2026-04-15부터 deprecated이므로 사용하지 않고, 공식 권고대로 라이브러리를 자체 Worker 안에서 직접 초기화한다.
 
 ## RisuAI
@@ -22,16 +22,10 @@
 
 | 날짜 | 원본 파일·함수 | 우리 파일 | 이식 방식 | 변경 내용 |
 |---|---|---|---|---|
-| 2026-07-12 | `src/ts/process/memory/hypav3.ts` — `simpleCC` | `app/core/memory/ranking.js` — `weightedScoreCombination` | 의미 재현(전체 복사 아님) | 제네릭→id 문자열 키, Map 순회를 결정론 정렬로 안정화 |
-| 2026-07-12 | `src/ts/process/memory/hypav3.ts` — `simpleRRF` | `app/core/memory/ranking.js` — `reciprocalRankFusion` | 의미 재현 | k 기본값 60 동일, tie-break에 id 사전순 추가(결정론) |
-| 2026-07-12 | `src/ts/process/memory/hypav3.ts` — `childToParentRRF` | `app/core/memory/ranking.js` — `childToParentRRF` | 의미 재현 | 동일 알고리즘, 부모 키를 문자열로 |
-| 2026-07-12 | `src/ts/process/memory/hypav3.ts` — `normalizeScores` | `app/core/memory/ranking.js` — `normalizeScores` | 의미 재현 | min==max 분기 동일 |
-| 2026-07-12 | `hypav3.ts` 예산 선택(L500~820) — recent/similar/random 비율, 20% 기억 예산 | `app/core/memory/contextPlanner.js` — `planHypaV3` | 의미 재현 | 무작위 선택을 `Math.random` 대신 seed 기반으로 격리(결정론 재현 요구), frozen summary 사용 |
-| 2026-07-12 | `src/ts/persona.ts` — `exportUserPersona`, `importUserPersona` | `app/core/compat/personaPng.ts` | 파일 규격 상호운용 재구현 | PNG `tEXt:persona`의 base64 JSON을 읽고 쓰며, UI/DB 결합은 가져오지 않음 |
-| 2026-07-12 | `src/ts/storage/database.svelte.ts` — `downloadPreset`, `importPreset` | `app/core/compat/risuPreset.ts` | 파일 규격 상호운용 재구현 | RPack·deflate·MessagePack·AES-GCM 봉투와 PromptItem 매핑, 알 수 없는 preset 필드 보존 |
-| 2026-07-12 | `src/ts/process/scripts.ts` — `processScriptFull`의 4단계 순서 | `app/core/compat/regexPipeline.js` | 안전 부분집합 재구현 | editprocess를 editrequest로 정규화, 활성 콘텐츠·보수적 ReDoS 위험 차단, Lua/trigger 부작용 제외 |
-| 2026-07-12 | `src/ts/cbs.ts` — `user`, `char`, `getvar` | `app/core/compat/safeCbs.js` | 읽기 전용 부분집합 재구현 | user/char/persona/primitive getvar만 허용, setvar와 미지원 함수는 원문+경고 |
-| 2026-07-12 | `src/ts/process/modules.ts` — RisuModule 구조 | `app/core/compat/moduleResolver.js` | 데이터 모델 재구현 | scope/namespace 중복 해소, lore/regex/trigger/assets/toggle/background 매핑, CJS·MCP·저수준 실행 차단 |
+| 2026-07-12 | `src/ts/process/memory/hypav3.ts` — 점수 결합·RRF·기억 예산 | `packages/memory/src/semantic.ts`, `packages/memory/src/index.ts` | 의미 재현(전체 복사 아님) | 결정론 tie-break, 근거 원장, 승인 상태를 추가 |
+| 2026-07-12 | `src/ts/persona.ts` — persona 규격 | `packages/risu/src/index.ts` | 파일 규격 상호운용 재구현 | UI/DB 결합은 가져오지 않음 |
+| 2026-07-12 | Risu preset·prompt 구조 | `packages/risu/src/index.ts` | 파일 규격 상호운용 재구현 | 알 수 없는 원본 필드를 보존 |
+| 2026-07-12 | `src/ts/process/scripts.ts`, `src/ts/cbs.ts`, `src/ts/process/modules.ts` | `packages/risu/src/lore.ts` | 안전 부분집합 재구현 | 읽기 전용·결정론 경로만 허용하고 실행형 부작용은 차단 |
 
 `msgpackr` 1.11.5(MIT)는 Risu preset의 MessagePack 상호운용에 사용한다.
 
@@ -44,7 +38,7 @@
 
 ## Voyage AI
 
-- Phase C 배선 완료(실측 대기). `app/core/memory/providers/voyage.ts` — REST `POST /v1/contextualizedembeddings`,
+- Phase C 배선 완료(실측 대기). `packages/memory/src/semantic.ts` — Voyage REST embeddings,
   input_type query/document, 입력 한도(inputs 1000·chunks 16000·tokens 120000), 429 bounded backoff, 캐시.
 - 공식 문서 기준 `voyage-context-3`(Risu 재현 기준) / `voyage-context-4`(최신 대안). 실측 전 우열 단정 안 함.
 - API 키는 코드·fixture·로그·리포트·세션 export에 기록하지 않음. `VOYAGE_API_KEY` + `--live-voyage` 이중 opt-in.

@@ -5,7 +5,7 @@
   import type { PlaySession } from '@simbot/session';
   import ChatPanel from './ChatPanel.svelte';
 
-  let { runtime, version, session = null }: { runtime: ProjectRuntime; version: number; session?: PlaySession|null } = $props();
+  let { runtime, version, session = null, portraitFor = () => null }: { runtime: ProjectRuntime; version: number; session?: PlaySession|null; portraitFor?: (npcId:string,emotion?:string)=>string|null } = $props();
   let active = $state('');
   let selection = $state<Record<string, unknown>>({});
   let lastLog = $state<unknown[]>([]);
@@ -34,7 +34,7 @@
           {#if evaluateCondition(widget.visibleWhen, context)}
             <Panel title={widget.title ? String(widget.title) : undefined}>
               {#if widget.widget === 'chat'}
-                {#if session}<ChatPanel {session} onchange={()=>revision+=1}/>{:else}<div class="chat"><p>플레이 세션을 준비하고 있습니다.</p>{#if lastLog.length}<pre>{JSON.stringify(lastLog, null, 2)}</pre>{/if}</div>{/if}
+                {#if session}<ChatPanel {session} {portraitFor} onchange={()=>revision+=1}/>{:else}<div class="chat"><p>플레이 세션을 준비하고 있습니다.</p>{#if lastLog.length}<pre>{JSON.stringify(lastLog, null, 2)}</pre>{/if}</div>{/if}
               {:else if widget.widget === 'action-group' || widget.widget === 'decision-card'}
                 <div class="actions">{#each asList(widget.actions) as action}<Button disabled={action.enabled === false} onclick={() => act(action)}>{String(action.label ?? action.id)}</Button>{/each}</div>
               {:else if ['card-list', 'map-nodes', 'inventory-grid', 'quest-board'].includes(String(widget.widget))}

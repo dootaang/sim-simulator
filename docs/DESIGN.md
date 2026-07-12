@@ -183,7 +183,7 @@ SimPack
 └─ unresolved: 충돌, 미지원 기능, 제작자 질문
 ```
 
-SimPack v0.2의 실행 계약은 `schema/simpack.v0.2.json`, TypeScript 계약은 `app/core/simpack/contracts.ts`, 컨테이너·migration·무결성 구현은 `app/core/simpack/simpack.js`가 소유한다. 편집기와 플레이어는 `runtimeProject.js`의 동일한 선택 결과를 소비한다. 장르별 폼은 이 공통 문서의 `content`, `runtime`, `screens`를 편집할 뿐 별도 저장 형식을 만들지 않는다.
+SimPack v0.2의 실행 계약은 `schema/simpack.v0.2.json`, TypeScript 계약은 `packages/contracts`, 컨테이너·migration·무결성 구현은 `packages/simpack`이 소유한다. 편집기와 플레이어는 `packages/runtime`의 동일한 선택 결과를 소비한다. 장르별 폼은 이 공통 문서의 `content`, `runtime`, `screens`를 편집할 뿐 별도 저장 형식을 만들지 않는다.
 
 ## 필수 제작자 도구
 

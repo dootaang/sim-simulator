@@ -1,37 +1,35 @@
-# 시뮬봇 시뮬레이터 (sim-simulator)
+# SimBot Simulator
 
-RisuAI 계열 봇카드(.charx / .png / .jpg / .json / .risum)를 가져와 캐릭터·상태·규칙·화면을 다듬고, 결정론적 시뮬레이션으로 플레이하는 **LLM 네이티브 노코드 시뮬 메이커 + 플레이어 런타임**입니다.
+봇 카드를 장기 세션용 시뮬레이션으로 만드는 노코드 메이커 겸 플레이어입니다. LLM은 서사를 쓰고, 수치·판정·선택지·상태는 결정론적 TypeScript 엔진이 소유합니다.
 
-현재 구현은 카드 탐색·컴파일·용사여관 및 범용 전투 런타임 단계이며, 장르 중립 모듈과 선언형 화면 구조로 점진적으로 전환하고 있습니다. 제품 정체성과 구현 경계는 [ADR 0001](docs/adr/0001-product-identity-and-platform-boundaries.md), 기술 설계 기준은 [DESIGN](docs/DESIGN.md), 작업 순서는 [BACKLOG](docs/BACKLOG.md)을 참조하세요.
+## 현재 구조
 
-- 카드 탐색은 완전 로컬입니다. 플레이 탭에서 BYOK를 설정한 경우에만, 사용자가 선택한 LLM 제공자(Gemini/OpenAI/Anthropic/Vertex AI/호환 서버)로 대화·발동 로어북·상태 요약이 전송됩니다.
-- Vertex AI 제공자는 서비스 계정 JSON으로 브라우저에서 OAuth 액세스 토큰을 발급한 뒤 Vertex Gemini `generateContent` API를 호출합니다. 서비스 계정 JSON은 강력한 자격증명이므로 공용 PC에 저장하지 말고 사용 후 삭제하세요.
-- 현재 버전에는 카드·프로젝트 재수출 및 공유 기능이 아직 없습니다.
-- 임포트 탭의 카드 MRI는 내장 모듈·Lua·기능 신호·에셋 명명법·컴파일 누락을 먼저 진단합니다. 이후 만든 게임 스키마 초안은 검증과 사용자 승인을 모두 통과해야 메모리상의 활성 엔진 스키마가 됩니다.
+- `apps/web` — Svelte 5 플레이어와 편집기
+- `packages/kernel` — 결정론적 RNG, 상태 생성, 모듈 레지스트리
+- `packages/modules` — 공통 RPG·전투·헌터·여관 장르 규칙
+- `packages/card` — JSON·PNG·CharX·Risum 카드 파서
+- `packages/compiler` — 근거 기반 SimPack 초안 컴파일러
+- `packages/risu` — 페르소나·프롬프트·로어북·안전 정규식 호환 계층
+- `packages/session` — 장기 채팅, 엔진 이벤트 검증, 기억 조립
+- `packages/memory` — 근거·유효기간·범위를 갖는 lexical/Voyage 혼합 검색
+- `packages/persistence` — SQLite WASM + OPFS Worker, IndexedDB fallback
+- `packages/simpack` — 이식 가능한 프로젝트 컨테이너
 
-## 사용
+## 개발
 
-호스팅된 페이지를 열거나, `app/dist/index.html`을 브라우저에서 직접(file://) 열어 카드를 드롭하세요.
-
-## 빌드
-
+```bash
+pnpm install
+pnpm check
+pnpm dev
 ```
-cd app
-npm install
-npm run build    # → app/dist/index.html (자기완결 단일 HTML)
-npm run deploy   # 빌드 + Firebase Hosting 배포 (firebase CLI 로그인 필요)
-```
 
-호스팅: https://simbot-simulator.web.app
+프로덕션 산출물은 `apps/web/dist`에 생성됩니다. `pnpm deploy`는 이 디렉터리를 Firebase Hosting에 배포합니다.
 
-## 구조
+## 안전 원칙
 
-- `app/core/` — 카드 파싱·로어북 정규화/활성화 코어 ([LorebookExtractor](https://github.com/dootaang) 계보, 수정 없이 복사)
-- `app/src/` — UI (Vanilla JS): 개요 / NPC 갤러리 / 로어북 / 활성화 시뮬 / 에셋 / 엔진 / 플레이 탭
-- `docs/adr/` — 제품·아키텍처 결정 기록
-- `docs/DESIGN.md` — 현재 플랫폼 설계 기준
-- `docs/BACKLOG.md` — 카드 표본 교차 분석을 반영한 구현 로드맵
+- 카드의 산문만으로 장르 실행 모듈을 자동 설치하지 않습니다.
+- LLM이 제안한 미등록 이벤트와 임의 수치는 적용하지 않습니다.
+- 엔진 결과만 승인 기억이 되며, 서사에서 추출한 기억은 승인 전까지 검색되지 않습니다.
+- Lua·CJS·MCP·저수준 trigger는 보존·진단할 수 있지만 자동 실행하지 않습니다.
 
-## 라이선스
-
-GPL-3.0-or-later — [LICENSE](LICENSE) 참조.
+라이선스와 외부 프로젝트의 출처는 [THIRD_PARTY_PROVENANCE.md](docs/THIRD_PARTY_PROVENANCE.md)를 참고하세요.
