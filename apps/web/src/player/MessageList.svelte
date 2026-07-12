@@ -4,6 +4,9 @@
   import { toFactLine } from './FactReceipt.svelte';
   let {session,version,firstMessage='',cardName,model,portraitFor,onchange}:{session:PlaySession;version:number;firstMessage?:string;cardName:string;model:string;portraitFor:(id:string,emotion?:string)=>string|null;onchange:()=>void}=$props();
   let editing=$state<string|null>(null),draft=$state(''),busy=$state(false),alternateIndex=$state(0),latest=$state<SessionSnapshot|null>(null);
+  // 대안 탐색 상태는 세션에 종속 — 채팅 전환·되돌리기로 대안이 사라지면 즉시 클램프하고 latest를 버린다.
+  // (같은 카드의 다른 채팅은 projectId가 같아 stale latest가 무결성 검사를 통과해 버릴 수 있음 — 교차 오염 차단)
+  $effect(()=>{void version;void session;const max=session.alternateCount;if(alternateIndex>max||latest&&latest.id!==session.id){alternateIndex=Math.min(alternateIndex,max);latest=null;}});
   let messages=$derived.by(()=>{void version;return session.messages;});
   let facts=$derived(session.lastLogs.map(toFactLine));
   function name(message:ChatMessage){return message.role==='user'?'사용자':cardName;}
