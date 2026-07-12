@@ -1237,9 +1237,9 @@ select:focus { border-color: var(--amber-line); }
     mod
   ));
 
-  // node_modules/fflate/lib/browser.cjs
+  // ../node_modules/.pnpm/fflate@0.8.3/node_modules/fflate/lib/browser.cjs
   var require_browser = __commonJS({
-    "node_modules/fflate/lib/browser.cjs"(exports) {
+    "../node_modules/.pnpm/fflate@0.8.3/node_modules/fflate/lib/browser.cjs"(exports) {
       "use strict";
       exports.deflate = deflate;
       exports.deflateSync = deflateSync;
@@ -14983,7 +14983,7 @@ ${Array.from(extras).join(" ")}` : text;
   // src/playView.js
   var import_regexPipeline = __toESM(require_regexPipeline());
 
-  // node_modules/fflate/esm/browser.js
+  // ../node_modules/.pnpm/fflate@0.8.3/node_modules/fflate/esm/browser.js
   var u8 = Uint8Array;
   var u16 = Uint16Array;
   var i32 = Int32Array;
@@ -15383,7 +15383,7 @@ ${Array.from(extras).join(" ")}` : text;
   } catch (e) {
   }
 
-  // node_modules/msgpackr/unpack.js
+  // ../node_modules/.pnpm/msgpackr@1.12.1/node_modules/msgpackr/unpack.js
   var decoder2;
   try {
     decoder2 = new TextDecoder();
@@ -15417,11 +15417,6 @@ ${Array.from(extras).join(" ")}` : text;
   var readStruct;
   var onLoadedStructures;
   var onSaveState;
-  try {
-    new Function("");
-  } catch (error) {
-    inlineObjectReadThreshold = Infinity;
-  }
   var Unpackr = class _Unpackr {
     constructor(options) {
       if (options) {
@@ -15853,10 +15848,17 @@ ${Array.from(extras).join(" ")}` : text;
   function createStructureReader(structure, firstId) {
     function readObject() {
       if (readObject.count++ > inlineObjectReadThreshold) {
-        let readObject2 = structure.read = new Function("r", "return function(){return " + (currentUnpackr.freezeData ? "Object.freeze" : "") + "({" + structure.map((key) => key === "__proto__" ? "__proto_:r()" : validName.test(key) ? key + ":r()" : "[" + JSON.stringify(key) + "]:r()").join(",") + "})}")(read);
+        let optimizedReadObject;
+        try {
+          optimizedReadObject = structure.read = new Function("r", "return function(){return " + (currentUnpackr.freezeData ? "Object.freeze" : "") + "({" + structure.map((key) => key === "__proto__" ? "__proto_:r()" : validName.test(key) ? key + ":r()" : "[" + JSON.stringify(key) + "]:r()").join(",") + "})}")(read);
+        } catch (error) {
+          inlineObjectReadThreshold = Infinity;
+          return readObject();
+        }
+        structure.read0 = optimizedReadObject;
         if (structure.highByte === 0)
           structure.read = createSecondByteReader(firstId, structure.read);
-        return readObject2();
+        return optimizedReadObject();
       }
       let object = {};
       for (let i2 = 0, l = structure.length; i2 < l; i2++) {
@@ -15870,6 +15872,7 @@ ${Array.from(extras).join(" ")}` : text;
       return object;
     }
     readObject.count = 0;
+    structure.read0 = readObject;
     if (structure.highByte === 0) {
       return createSecondByteReader(firstId, readObject);
     }
@@ -15918,24 +15921,38 @@ ${Array.from(extras).join(" ")}` : text;
         units.push(byte1);
       } else if ((byte1 & 224) === 192) {
         const byte2 = src[position++] & 63;
-        units.push((byte1 & 31) << 6 | byte2);
+        const codePoint = (byte1 & 31) << 6 | byte2;
+        if (codePoint < 128) {
+          units.push(65533);
+        } else {
+          units.push(codePoint);
+        }
       } else if ((byte1 & 240) === 224) {
         const byte2 = src[position++] & 63;
         const byte3 = src[position++] & 63;
-        units.push((byte1 & 31) << 12 | byte2 << 6 | byte3);
+        const codePoint = (byte1 & 31) << 12 | byte2 << 6 | byte3;
+        if (codePoint < 2048 || codePoint >= 55296 && codePoint <= 57343) {
+          units.push(65533);
+        } else {
+          units.push(codePoint);
+        }
       } else if ((byte1 & 248) === 240) {
         const byte2 = src[position++] & 63;
         const byte3 = src[position++] & 63;
         const byte4 = src[position++] & 63;
         let unit = (byte1 & 7) << 18 | byte2 << 12 | byte3 << 6 | byte4;
-        if (unit > 65535) {
+        if (unit < 65536 || unit > 1114111) {
+          units.push(65533);
+        } else if (unit > 65535) {
           unit -= 65536;
           units.push(unit >>> 10 & 1023 | 55296);
           unit = 56320 | unit & 1023;
+          units.push(unit);
+        } else {
+          units.push(unit);
         }
-        units.push(unit);
       } else {
-        units.push(byte1);
+        units.push(65533);
       }
       if (units.length >= 4096) {
         result += fromCharCode.apply(String, units);
@@ -16255,7 +16272,7 @@ ${Array.from(extras).join(" ")}` : text;
     }
     currentStructures[id] = structure;
     structure.read = createStructureReader(structure, firstByte);
-    return structure.read();
+    return (structure.read0 || structure.read)();
   };
   currentExtensions[0] = () => {
   };
@@ -16274,7 +16291,7 @@ ${Array.from(extras).join(" ")}` : text;
         if (length <= 40) {
           let out = view.getBigUint64(start);
           for (let i2 = start + 8; i2 < end; i2 += 8) {
-            out <<= BigInt(64n);
+            out <<= BigInt(64);
             out |= view.getBigUint64(i2);
           }
           return out;
@@ -16445,7 +16462,7 @@ ${Array.from(extras).join(" ")}` : text;
   var f32Array = new Float32Array(1);
   var u8Array = new Uint8Array(f32Array.buffer, 0, 4);
 
-  // node_modules/msgpackr/pack.js
+  // ../node_modules/.pnpm/msgpackr@1.12.1/node_modules/msgpackr/pack.js
   var textEncoder;
   try {
     textEncoder = new TextEncoder();
@@ -16567,9 +16584,12 @@ ${Array.from(extras).join(" ")}` : text;
           hasSharedUpdate = false;
         let encodingError;
         try {
-          if (packr.randomAccessStructure && value && value.constructor && value.constructor === Object)
-            writeStruct(value);
-          else
+          if (packr.randomAccessStructure && !packr.readOnlyStructures && value && typeof value === "object") {
+            if (value.constructor === Object) writeStruct(value);
+            else if (value.constructor !== Map && !Array.isArray(value) && !extensionClasses.some((extClass) => value instanceof extClass)) {
+              writeStruct(value.toJSON ? value.toJSON() : value);
+            } else pack2(value);
+          } else
             pack2(value);
           let lastBundle = bundledStrings2;
           if (bundledStrings2)
@@ -16630,6 +16650,7 @@ ${Array.from(extras).join(" ")}` : text;
               let newSharedData = prepareStructures(structures, packr);
               if (!encodingError) {
                 if (packr.saveStructures(newSharedData, newSharedData.isCompatible) === false) {
+                  structures.uninitialized = true;
                   return packr.pack(value, encodeOptions);
                 }
                 packr.lastNamedStructuresLength = sharedLength;

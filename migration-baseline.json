@@ -1,0 +1,34 @@
+{
+  "contract": "migration-baseline/0.1",
+  "createdAt": "2026-07-12T01:00:45.321Z",
+  "node": "v24.15.0",
+  "results": {
+    "engine-tests": {
+      "ok": true,
+      "status": 0,
+      "durationMs": 546
+    },
+    "app-tests": {
+      "ok": true,
+      "status": 0,
+      "durationMs": 1145
+    },
+    "app-typecheck": {
+      "ok": true,
+      "status": 0,
+      "durationMs": 767
+    },
+    "app-build": {
+      "ok": true,
+      "status": 0,
+      "durationMs": 370
+    }
+  },
+  "hashes": {
+    "schema/yongsa-inn.v0.json": "16bf166b6602a9e09a2e41a75bb3e42239ac7422c9c14974cdc3d8947ed309d3",
+    "schema/generic-combat.v0.json": "3736a83523b1f5058a6d4427f383f211288ae54baf4c553cb430eaac8dfb77a5",
+    "engine/test/fixtures/hero-inn.workflow.json": "dbfb38398a2467c4d908c13ef48a49e8100005ec827a1db4e043b482c0f0c38c",
+    "engine/test/fixtures/generic-combat.workflow.json": "d6c6a877b055b693a78be278ce6b9bfaf86f3c482a3ceed82de5b67e4558b548",
+    "examples/alternate-hunters-v2/project.json": "e46b2aae4c26c4c1bf4985c243f7ebb378defef871e6da2f04ef122485439bb3"
+  }
+}

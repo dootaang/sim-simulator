@@ -1,4 +1,4 @@
-// node_modules/@sqlite.org/sqlite-wasm/dist/index.mjs
+// ../node_modules/.pnpm/@sqlite.org+sqlite-wasm@3.53.0-build1/node_modules/@sqlite.org/sqlite-wasm/dist/index.mjs
 globalThis.sqlite3Worker1Promiser = function callee(config = callee.defaultConfig) {
   if (1 === arguments.length && "function" === typeof arguments[0]) {
     const f = config;
