@@ -108,6 +108,15 @@ importers:
         specifier: ^3.2.7
         version: 3.2.7(@types/node@24.13.3)(tsx@4.23.0)
 
+  packages/persistence:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/node@24.13.3)(tsx@4.23.0)
+
   packages/runtime:
     dependencies:
       '@simbot/kernel':
