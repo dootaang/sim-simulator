@@ -28,3 +28,16 @@ describe('프록시 안전성 — UI가 감싼 객체가 세션을 죽이지 않
   it('프록시로 감싼 card 옵션으로 세션을 만들 수 있다',()=>{expect(structuredClone as unknown).toBeTruthy();expect(()=>new PlaySession({id:'p',runtime:runtime(),preset:wrap(preset),card:wrap({name:'Guide'}),provider:{async complete(){return{text:'ok'};}}})).not.toThrow();});
   it('프록시로 감싼 스냅샷을 복구할 수 있다',async()=>{const session=new PlaySession({id:'p2',runtime:runtime(),preset,card:{name:'Guide'},provider:{async complete(){return{text:'ok'};}}});await session.send('x');const snap=session.snapshot();const target=new PlaySession({id:'p2',runtime:runtime(),preset,card:{name:'Guide'},provider:{async complete(){return{text:'ok'};}}});expect(()=>target.restore(wrap(snap))).not.toThrow();expect(target.turn).toBe(1);expect(target.messages).toHaveLength(2);});
 });
+describe('서사 검증 관문 — 지어낸 숫자 탐지',()=>{
+  it('엔진 근거에 없는 숫자를 말하면 issues에 잡히고, 서사 원문은 보존된다',async()=>{
+    const session=new PlaySession({id:'nv',runtime:runtime(),preset,card:{name:'Guide'},provider:{async complete(){return{text:'금고에 250만 골드가 쌓였다.'};}}});
+    await session.send('금고를 확인한다');
+    expect(session.narrativeIssues.map((i)=>i.code)).toContain('unsupported-number');
+    expect(session.messages.at(-1)?.content).toBe('금고에 250만 골드가 쌓였다.'); // 원문 보존(자르지 않는다)
+  });
+  it('엔진이 확정한 숫자만 말하면 문제 없다',async()=>{
+    const session=new PlaySession({id:'nv2',runtime:runtime(),preset,card:{name:'Guide'},provider:{async complete(){return{text:'별일 없이 하루가 지났다.'};}}});
+    await session.send('쉰다');
+    expect(session.narrativeIssues).toEqual([]);
+  });
+});
