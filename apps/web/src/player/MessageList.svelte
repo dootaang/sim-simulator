@@ -3,7 +3,8 @@
   import { alternateForward } from './card-library';
   import { toFactLine } from './FactReceipt.svelte';
   let {session,version,firstMessage='',cardName,model,portraitFor,onchange,onerror=()=>{}}:{session:PlaySession;version:number;firstMessage?:string;cardName:string;model:string;portraitFor:(id:string,emotion?:string)=>string|null;onchange:()=>void;onerror?:(message:string)=>void}=$props();
-  let editing=$state<string|null>(null),draft=$state(''),busy=$state(false),alternateIndex=$state(0),latest=$state<SessionSnapshot|null>(null),lastSessionId=$state('');
+  // 스냅샷은 반드시 $state.raw — $state Proxy를 restore에 넘기면 내부 structuredClone이 DataCloneError로 죽는다.
+  let editing=$state<string|null>(null),draft=$state(''),busy=$state(false),alternateIndex=$state(0),latest=$state.raw<SessionSnapshot|null>(null),lastSessionId=$state('');
   // 대안 탐색 상태는 세션에 종속 — 세션이 바뀌면 무조건 그 세션의 종단점으로 리셋, 대안이 사라지면 클램프하고
   // latest를 버린다. (같은 카드의 다른 채팅은 projectId가 같아 stale latest가 무결성 검사를 통과해 버릴 수 있음)
   $effect(()=>{void version;if(lastSessionId!==session.id){lastSessionId=session.id;alternateIndex=session.alternateCount;latest=null;return;}const max=session.alternateCount;if(alternateIndex>max||latest&&latest.id!==session.id){alternateIndex=Math.min(alternateIndex,max);latest=null;}});

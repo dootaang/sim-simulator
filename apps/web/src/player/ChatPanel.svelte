@@ -6,7 +6,7 @@
   let {session,onchange,portraitFor=()=>null}:{session:PlaySession;onchange:()=>void;portraitFor?:(npcId:string,emotion?:string)=>string|null}=$props();
   let input=$state(''),busy=$state(false),error=$state(''),revision=$state(0);
   // 턴 체크포인트 스택 — 전송 직전 상태를 쌓아두고, 되돌리기로 완전 복원(엔진 롤백을 플레이어 손에).
-  let checkpoints=$state<SessionSnapshot[]>([]);
+  let checkpoints=$state.raw<SessionSnapshot[]>([]); // $state Proxy를 restore에 넘기면 DataCloneError
   let messages=$derived.by(()=>{revision;return session.messages;}),speakers=$derived.by(()=>{revision;return session.lastSpeakers;}),logs=$derived.by(()=>{revision;return session.lastLogs;});
   async function send(){if(!input.trim()||busy)return;const value=input;input='';busy=true;error='';const before=session.snapshot();revision+=1;try{await session.send(value);checkpoints=[...checkpoints,before];onchange();}catch(reason){error=reason instanceof Error?reason.message:String(reason);}finally{busy=false;revision+=1;}}
   function undo(){if(busy||!checkpoints.length)return;const prev=checkpoints[checkpoints.length-1]!;session.restore(prev);checkpoints=checkpoints.slice(0,-1);error='';revision+=1;onchange();}
