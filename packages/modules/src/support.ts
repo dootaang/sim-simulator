@@ -5,6 +5,9 @@ export function list<T = RuntimeRecord>(value: unknown): T[] { return Array.isAr
 export function number(value: unknown, fallback = 0): number { const result=Number(value); return Number.isFinite(result)?result:fallback; }
 export function string(value: unknown): string { return typeof value === 'string' ? value : String(value ?? ''); }
 export function safeKey(value: string): boolean { return !!value && !['__proto__','prototype','constructor'].includes(value); }
+// 소유 키만 인덱싱 — 'toString'·'hasOwnProperty' 같은 상속 멤버가 존재검사를 우회해 rooms 등의
+// 내장 메서드를 그림자 씌우는 것 차단(감사 Major: 옛 safeOwnKey 가드 이관). safeKey(블랙리스트)와 병용.
+export function own(container: RuntimeRecord, key: string): unknown { return safeKey(key) && Object.prototype.hasOwnProperty.call(container, key) ? container[key] : undefined; }
 export function ok(context: Context, entry: RuntimeRecord = {}): DispatchResult { return { state:context.state, log:[{ok:true,event:context.event.id,...entry}] }; }
 export function fail(context: Context, reason: string, detail?: unknown): DispatchResult { return { state:context.state, log:[{ok:false,event:context.event.id,reason,...(detail == null?{}:{detail:string(detail)})}] }; }
 export function roll(value: unknown, context: Context): number { const values=list<unknown>(value); return values.length>=2?context.rng.int(number(values[0]),number(values[1])):number(record(value).value ?? value); }
