@@ -56,3 +56,10 @@
 
 - Risu DB·pluginStorage·DOM·API 키 저장·직접 채팅 수정 코드는 가져오지 않음(금지선).
 - `risu_agents.js`(1.1.9, `1E1D24D1…770CC`)·`multiagent-full-v0.8.4`(`E5A89828…EA7A4`)는 후속 에이전트 런타임 연구용으로만 기록, 이번 Phase C 미포함.
+
+### Cupcake Provider Manager
+
+- 소스: Cupcake Provider Manager(CPM) v1.35.11, RisuAI 커뮤니티 플러그인 `provider-manager-v1.35.11-프로덕션.js`.
+- 라이선스: 원본 파일에 표기 없음.
+- 이식 범위: 코드 복사 없이 공식 프로바이더 엔드포인트·인증 헤더·모델 카탈로그와 보조 모델 슬롯 개념을 확인해 `packages/session/src/providers/` 계약으로 독립 구현.
+- 제외: CPM 자체 프록시·자동 업데이트·IPC·텔레메트리·RisuAI 플러그인 런타임/DOM/DatabaseSubset 의존부.
