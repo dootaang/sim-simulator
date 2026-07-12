@@ -35,6 +35,9 @@ importers:
       '@simbot/card':
         specifier: workspace:*
         version: link:../../packages/card
+      '@simbot/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
       '@simbot/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -86,6 +89,22 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/node@24.13.3)(tsx@4.23.0)
+
+  packages/compiler:
+    dependencies:
+      '@simbot/card':
+        specifier: workspace:*
+        version: link:../card
+      '@simbot/simpack':
+        specifier: workspace:*
+        version: link:../simpack
     devDependencies:
       typescript:
         specifier: ^5.9.3
