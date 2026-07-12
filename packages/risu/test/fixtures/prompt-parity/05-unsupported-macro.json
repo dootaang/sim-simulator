@@ -1,0 +1,14 @@
+{
+  "comment": "지원하지 않는 매크로가 조용히 삭제되지 않고 원문에 남으며 warnings에 이름과 위치가 보고되는지 지킨다.",
+  "presetKind": "default",
+  "presetOverrides": { "assistantPrefill": "네," },
+  "input": {
+    "card": { "name": "아린", "description": "안녕 {{user}}, {{getvar::x}}!" },
+    "persona": { "contract": "persona/0.1", "id": "p1", "name": "페르", "prompt": "", "icon": "", "note": "", "embeddedModule": null, "source": null, "version": 1 }
+  },
+  "expected": {
+    "messages": [ { "role": "system", "content": "안녕 페르, {{getvar::x}}!" } ],
+    "assistantPrefill": "네,",
+    "warnings": [ { "code": "unsupported_macro", "path": "card.description", "detail": "getvar::x" } ]
+  }
+}

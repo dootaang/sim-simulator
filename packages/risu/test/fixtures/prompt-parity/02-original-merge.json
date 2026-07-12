@@ -1,0 +1,16 @@
+{
+  "comment": "카드 systemPrompt의 {{original}} 자리에 프리셋 main 원문이 들어가고 양쪽 원문이 모두 보존되는지 지킨다.",
+  "presetKind": "default",
+  "presetOverrides": { "mainText": "MAIN" },
+  "input": {
+    "card": { "name": "아린", "description": "D.", "systemPrompt": "SYS [{{original}}] {{char}}" }
+  },
+  "expected": {
+    "messages": [
+      { "role": "system", "content": "SYS [MAIN] 아린" },
+      { "role": "system", "content": "D." }
+    ],
+    "assistantPrefill": "",
+    "warnings": []
+  }
+}

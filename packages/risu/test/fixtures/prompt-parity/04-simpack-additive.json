@@ -1,0 +1,18 @@
+{
+  "comment": "SimPack 엔진 사실과 행동은 Risu 카드 원문 뒤에 별도 메시지로 더해질 뿐 원문을 덮어쓰지 않는지 지킨다.",
+  "presetKind": "simpack-additive",
+  "input": {
+    "card": { "name": "아린", "description": "여관 주인.", "systemPrompt": "카드 고유 규칙" },
+    "engineContext": { "facts": "엔진 사실", "availableActions": "가능 행동" }
+  },
+  "expected": {
+    "messages": [
+      { "role": "system", "content": "카드 고유 규칙" },
+      { "role": "system", "content": "여관 주인." },
+      { "role": "system", "content": "엔진 사실" },
+      { "role": "system", "content": "가능 행동" }
+    ],
+    "assistantPrefill": "",
+    "warnings": []
+  }
+}

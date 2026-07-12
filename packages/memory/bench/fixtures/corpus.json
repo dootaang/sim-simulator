@@ -1,0 +1,4779 @@
+{
+  "contract": "memory-benchmark-corpus/0.2",
+  "seed": 20260712,
+  "messages": [
+    {
+      "id": "m0001",
+      "turn": 1,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0002",
+      "turn": 2,
+      "role": "assistant",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0003",
+      "turn": 3,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 14이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0004",
+      "turn": 4,
+      "role": "assistant",
+      "content": "강한결(Kang)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0005",
+      "turn": 5,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0006",
+      "turn": 6,
+      "role": "assistant",
+      "content": "정산 결과 금고의 골드가 520,000원이 되었다.",
+      "entities": []
+    },
+    {
+      "id": "m0007",
+      "turn": 7,
+      "role": "assistant",
+      "content": "실비아(Silvia)는 지금 지하 수로에 있다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0008",
+      "turn": 8,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0009",
+      "turn": 9,
+      "role": "assistant",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0010",
+      "turn": 10,
+      "role": "assistant",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0011",
+      "turn": 11,
+      "role": "assistant",
+      "content": "세라와의 호감도가 32이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0012",
+      "turn": 12,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0013",
+      "turn": 13,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0014",
+      "turn": 14,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0015",
+      "turn": 15,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0016",
+      "turn": 16,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0017",
+      "turn": 17,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0018",
+      "turn": 18,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 14이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0019",
+      "turn": 19,
+      "role": "assistant",
+      "content": "미리안(Mirian)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0020",
+      "turn": 20,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0021",
+      "turn": 21,
+      "role": "assistant",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0022",
+      "turn": 22,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0023",
+      "turn": 23,
+      "role": "user",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0024",
+      "turn": 24,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0025",
+      "turn": 25,
+      "role": "user",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0026",
+      "turn": 26,
+      "role": "assistant",
+      "content": "아이리스와의 호감도가 14이 되었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0027",
+      "turn": 27,
+      "role": "assistant",
+      "content": "아이리스(Iris)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0028",
+      "turn": 28,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0029",
+      "turn": 29,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0030",
+      "turn": 30,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0031",
+      "turn": 31,
+      "role": "assistant",
+      "content": "강한결(Kang)는 지금 시장에 있다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0032",
+      "turn": 32,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0033",
+      "turn": 33,
+      "role": "assistant",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0034",
+      "turn": 34,
+      "role": "assistant",
+      "content": "실비아와의 호감도가 32이 되었다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0035",
+      "turn": 35,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0036",
+      "turn": 36,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0037",
+      "turn": 37,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0038",
+      "turn": 38,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0039",
+      "turn": 39,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0040",
+      "turn": 40,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0041",
+      "turn": 41,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 8이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0042",
+      "turn": 42,
+      "role": "assistant",
+      "content": "아이리스(Iris)는 지금 왕성 앞에 있다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0043",
+      "turn": 43,
+      "role": "assistant",
+      "content": "정산 결과 금고의 골드가 480,000원이 되었다.",
+      "entities": []
+    },
+    {
+      "id": "m0044",
+      "turn": 44,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0045",
+      "turn": 45,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0046",
+      "turn": 46,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0047",
+      "turn": 47,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0048",
+      "turn": 48,
+      "role": "assistant",
+      "content": "세라와의 호감도가 26이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0049",
+      "turn": 49,
+      "role": "assistant",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0050",
+      "turn": 50,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0051",
+      "turn": 51,
+      "role": "user",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0052",
+      "turn": 52,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0053",
+      "turn": 53,
+      "role": "assistant",
+      "content": "세라(Sera)는 지금 시장에 있다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0054",
+      "turn": 54,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0055",
+      "turn": 55,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 26이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0056",
+      "turn": 56,
+      "role": "assistant",
+      "content": "미리안(Mirian)와의 관계가 '지인' 단계로 접어들었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0057",
+      "turn": 57,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0058",
+      "turn": 58,
+      "role": "user",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0059",
+      "turn": 59,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0060",
+      "turn": 60,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0061",
+      "turn": 61,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0062",
+      "turn": 62,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0063",
+      "turn": 63,
+      "role": "assistant",
+      "content": "아이리스와의 호감도가 8이 되었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0064",
+      "turn": 64,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0065",
+      "turn": 65,
+      "role": "assistant",
+      "content": "실비아(Silvia)는 지금 여관에 있다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0066",
+      "turn": 66,
+      "role": "assistant",
+      "content": "실비아가 다음 보름달 뜨는 밤 여관 옥상에서 단둘이 만나자고 약속했다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0067",
+      "turn": 67,
+      "role": "user",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0068",
+      "turn": 68,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0069",
+      "turn": 69,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0070",
+      "turn": 70,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0071",
+      "turn": 71,
+      "role": "assistant",
+      "content": "실비아와의 호감도가 26이 되었다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0072",
+      "turn": 72,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0073",
+      "turn": 73,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0074",
+      "turn": 74,
+      "role": "user",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0075",
+      "turn": 75,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0076",
+      "turn": 76,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0077",
+      "turn": 77,
+      "role": "assistant",
+      "content": "미리안(Mirian)는 지금 길드에 있다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0078",
+      "turn": 78,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 20이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0079",
+      "turn": 79,
+      "role": "assistant",
+      "content": "강한결(Kang)와의 관계가 '지인' 단계로 접어들었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0080",
+      "turn": 80,
+      "role": "assistant",
+      "content": "미리안은 창고 옥상의 재고를 함께 정리해 주기로 했다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0081",
+      "turn": 81,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0082",
+      "turn": 82,
+      "role": "assistant",
+      "content": "정산 결과 금고의 골드가 610,000원이 되었다.",
+      "entities": []
+    },
+    {
+      "id": "m0083",
+      "turn": 83,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0084",
+      "turn": 84,
+      "role": "assistant",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0085",
+      "turn": 85,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0086",
+      "turn": 86,
+      "role": "assistant",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0087",
+      "turn": 87,
+      "role": "assistant",
+      "content": "세라와의 호감도가 20이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0088",
+      "turn": 88,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0089",
+      "turn": 89,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0090",
+      "turn": 90,
+      "role": "assistant",
+      "content": "강한결(Kang)는 지금 왕성 앞에 있다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0091",
+      "turn": 91,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0092",
+      "turn": 92,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0093",
+      "turn": 93,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0094",
+      "turn": 94,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 20이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0095",
+      "turn": 95,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0096",
+      "turn": 96,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0097",
+      "turn": 97,
+      "role": "assistant",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0098",
+      "turn": 98,
+      "role": "assistant",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0099",
+      "turn": 99,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0100",
+      "turn": 100,
+      "role": "assistant",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0101",
+      "turn": 101,
+      "role": "assistant",
+      "content": "아이리스와의 호감도가 20이 되었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0102",
+      "turn": 102,
+      "role": "assistant",
+      "content": "아이리스(Iris)와의 관계가 '지인' 단계로 접어들었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0103",
+      "turn": 103,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0104",
+      "turn": 104,
+      "role": "assistant",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0105",
+      "turn": 105,
+      "role": "assistant",
+      "content": "강한결이 은밀히 털어놓았다 — 사실 그는 다른 이름으로도 협회에 등록된 이중 등록 헌터라고.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0106",
+      "turn": 106,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0107",
+      "turn": 107,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0108",
+      "turn": 108,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0109",
+      "turn": 109,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0110",
+      "turn": 110,
+      "role": "assistant",
+      "content": "실비아와의 호감도가 20이 되었다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0111",
+      "turn": 111,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0112",
+      "turn": 112,
+      "role": "user",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0113",
+      "turn": 113,
+      "role": "assistant",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0114",
+      "turn": 114,
+      "role": "assistant",
+      "content": "세라(Sera)는 지금 지하 수로에 있다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0115",
+      "turn": 115,
+      "role": "assistant",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0116",
+      "turn": 116,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0117",
+      "turn": 117,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 14이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0118",
+      "turn": 118,
+      "role": "assistant",
+      "content": "강한결(Kang)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0119",
+      "turn": 119,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0120",
+      "turn": 120,
+      "role": "assistant",
+      "content": "정산 결과 금고의 골드가 590,000원이 되었다.",
+      "entities": []
+    },
+    {
+      "id": "m0121",
+      "turn": 121,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0122",
+      "turn": 122,
+      "role": "assistant",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0123",
+      "turn": 123,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0124",
+      "turn": 124,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0125",
+      "turn": 125,
+      "role": "assistant",
+      "content": "세라와의 호감도가 32이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0126",
+      "turn": 126,
+      "role": "assistant",
+      "content": "실비아(Silvia)는 지금 길드에 있다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0127",
+      "turn": 127,
+      "role": "user",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0128",
+      "turn": 128,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0129",
+      "turn": 129,
+      "role": "assistant",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0130",
+      "turn": 130,
+      "role": "assistant",
+      "content": "세라가 조용히 고백했다. 자신은 몰락한 귀족 가문의 마지막 후계라는 비밀을.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0131",
+      "turn": 131,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0132",
+      "turn": 132,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0133",
+      "turn": 133,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 14이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0134",
+      "turn": 134,
+      "role": "assistant",
+      "content": "미리안(Mirian)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0135",
+      "turn": 135,
+      "role": "assistant",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0136",
+      "turn": 136,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0137",
+      "turn": 137,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0138",
+      "turn": 138,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0139",
+      "turn": 139,
+      "role": "assistant",
+      "content": "미리안(Mirian)는 지금 온천 마을에 있다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0140",
+      "turn": 140,
+      "role": "user",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0141",
+      "turn": 141,
+      "role": "assistant",
+      "content": "아이리스와의 호감도가 14이 되었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0142",
+      "turn": 142,
+      "role": "assistant",
+      "content": "아이리스(Iris)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0143",
+      "turn": 143,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0144",
+      "turn": 144,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0145",
+      "turn": 145,
+      "role": "assistant",
+      "content": "아이리스가 다음 A급 게이트를 나와 파티로 함께 공략하기로 약속했다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0146",
+      "turn": 146,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0147",
+      "turn": 147,
+      "role": "user",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0148",
+      "turn": 148,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0149",
+      "turn": 149,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0150",
+      "turn": 150,
+      "role": "assistant",
+      "content": "실비아와의 호감도가 32이 되었다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0151",
+      "turn": 151,
+      "role": "user",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0152",
+      "turn": 152,
+      "role": "assistant",
+      "content": "강한결(Kang)는 지금 북부 관문에 있다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0153",
+      "turn": 153,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0154",
+      "turn": 154,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0155",
+      "turn": 155,
+      "role": "assistant",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0156",
+      "turn": 156,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0157",
+      "turn": 157,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 8이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0158",
+      "turn": 158,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0159",
+      "turn": 159,
+      "role": "assistant",
+      "content": "정산 결과 금고의 골드가 720,000원이 되었다.",
+      "entities": []
+    },
+    {
+      "id": "m0160",
+      "turn": 160,
+      "role": "assistant",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0161",
+      "turn": 161,
+      "role": "assistant",
+      "content": "강한결이 마정석 수익을 반씩 나누기로 약속했다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0162",
+      "turn": 162,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0163",
+      "turn": 163,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0164",
+      "turn": 164,
+      "role": "assistant",
+      "content": "아이리스(Iris)는 지금 북부 관문에 있다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0165",
+      "turn": 165,
+      "role": "assistant",
+      "content": "세라와의 호감도가 26이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0166",
+      "turn": 166,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0167",
+      "turn": 167,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0168",
+      "turn": 168,
+      "role": "assistant",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0169",
+      "turn": 169,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0170",
+      "turn": 170,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0171",
+      "turn": 171,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0172",
+      "turn": 172,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 26이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0173",
+      "turn": 173,
+      "role": "assistant",
+      "content": "미리안(Mirian)와의 관계가 '지인' 단계로 접어들었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0174",
+      "turn": 174,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0175",
+      "turn": 175,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0176",
+      "turn": 176,
+      "role": "assistant",
+      "content": "실비아가 사실은 이 여관을 빚 때문에 곧 넘겨야 할지도 모른다는 비밀을 털어놓았다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0177",
+      "turn": 177,
+      "role": "assistant",
+      "content": "세라(Sera)는 지금 여관에 있다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0178",
+      "turn": 178,
+      "role": "assistant",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0179",
+      "turn": 179,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0180",
+      "turn": 180,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0181",
+      "turn": 181,
+      "role": "assistant",
+      "content": "아이리스와의 호감도가 8이 되었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0182",
+      "turn": 182,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0183",
+      "turn": 183,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0184",
+      "turn": 184,
+      "role": "user",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0185",
+      "turn": 185,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0186",
+      "turn": 186,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0187",
+      "turn": 187,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0188",
+      "turn": 188,
+      "role": "assistant",
+      "content": "실비아와의 호감도가 26이 되었다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0189",
+      "turn": 189,
+      "role": "assistant",
+      "content": "아이리스는 게이트에서 죽은 동생의 유품을 아직 간직하고 있다는 비밀을 보여줬다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0190",
+      "turn": 190,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0191",
+      "turn": 191,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0192",
+      "turn": 192,
+      "role": "user",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0193",
+      "turn": 193,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0194",
+      "turn": 194,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0195",
+      "turn": 195,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0196",
+      "turn": 196,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 20이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0197",
+      "turn": 197,
+      "role": "assistant",
+      "content": "강한결(Kang)와의 관계가 '지인' 단계로 접어들었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0198",
+      "turn": 198,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0199",
+      "turn": 199,
+      "role": "assistant",
+      "content": "정산 결과 금고의 골드가 655,000원이 되었다.",
+      "entities": []
+    },
+    {
+      "id": "m0200",
+      "turn": 200,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0201",
+      "turn": 201,
+      "role": "assistant",
+      "content": "미리안(Mirian)는 지금 왕성 앞에 있다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0202",
+      "turn": 202,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0203",
+      "turn": 203,
+      "role": "assistant",
+      "content": "세라가 다음 무도회에 나를 파트너로 초대하겠다고 약속했다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0204",
+      "turn": 204,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0205",
+      "turn": 205,
+      "role": "assistant",
+      "content": "세라와의 호감도가 20이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0206",
+      "turn": 206,
+      "role": "assistant",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0207",
+      "turn": 207,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0208",
+      "turn": 208,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0209",
+      "turn": 209,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0210",
+      "turn": 210,
+      "role": "assistant",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0211",
+      "turn": 211,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0212",
+      "turn": 212,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 20이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0213",
+      "turn": 213,
+      "role": "assistant",
+      "content": "강한결(Kang)는 지금 온천 마을에 있다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0214",
+      "turn": 214,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0215",
+      "turn": 215,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0216",
+      "turn": 216,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0217",
+      "turn": 217,
+      "role": "assistant",
+      "content": "미리안이 실은 왕성 주방에서 쫓겨난 요리사였다는 과거를 고백했다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0218",
+      "turn": 218,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0219",
+      "turn": 219,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0220",
+      "turn": 220,
+      "role": "assistant",
+      "content": "아이리스와의 호감도가 20이 되었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0221",
+      "turn": 221,
+      "role": "assistant",
+      "content": "아이리스(Iris)와의 관계가 '지인' 단계로 접어들었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0222",
+      "turn": 222,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0223",
+      "turn": 223,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0224",
+      "turn": 224,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0225",
+      "turn": 225,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0226",
+      "turn": 226,
+      "role": "assistant",
+      "content": "아이리스(Iris)는 지금 왕성 앞에 있다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0227",
+      "turn": 227,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0228",
+      "turn": 228,
+      "role": "assistant",
+      "content": "실비아와의 호감도가 20이 되었다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0229",
+      "turn": 229,
+      "role": "assistant",
+      "content": "멧돼지 소탕 의뢰를 완료하고 협회에 보고했다.",
+      "entities": [
+        "kang",
+        "iris"
+      ]
+    },
+    {
+      "id": "m0230",
+      "turn": 230,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0231",
+      "turn": 231,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0232",
+      "turn": 232,
+      "role": "user",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0233",
+      "turn": 233,
+      "role": "assistant",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0234",
+      "turn": 234,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0235",
+      "turn": 235,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0236",
+      "turn": 236,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 14이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0237",
+      "turn": 237,
+      "role": "assistant",
+      "content": "강한결(Kang)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0238",
+      "turn": 238,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0239",
+      "turn": 239,
+      "role": "assistant",
+      "content": "정산 결과 금고의 골드가 810,000원이 되었다.",
+      "entities": []
+    },
+    {
+      "id": "m0240",
+      "turn": 240,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0241",
+      "turn": 241,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0242",
+      "turn": 242,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0243",
+      "turn": 243,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0244",
+      "turn": 244,
+      "role": "assistant",
+      "content": "세라와의 호감도가 32이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0245",
+      "turn": 245,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0246",
+      "turn": 246,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0247",
+      "turn": 247,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0248",
+      "turn": 248,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0249",
+      "turn": 249,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0250",
+      "turn": 250,
+      "role": "assistant",
+      "content": "실비아(Silvia)는 지금 온천 마을에 있다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0251",
+      "turn": 251,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 14이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0252",
+      "turn": 252,
+      "role": "assistant",
+      "content": "미리안(Mirian)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0253",
+      "turn": 253,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0254",
+      "turn": 254,
+      "role": "user",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0255",
+      "turn": 255,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0256",
+      "turn": 256,
+      "role": "user",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0257",
+      "turn": 257,
+      "role": "assistant",
+      "content": "A급 게이트 공략 의뢰를 아이리스와 함께 완수했다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0258",
+      "turn": 258,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0259",
+      "turn": 259,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0260",
+      "turn": 260,
+      "role": "assistant",
+      "content": "아이리스와의 호감도가 14이 되었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0261",
+      "turn": 261,
+      "role": "assistant",
+      "content": "아이리스(Iris)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0262",
+      "turn": 262,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0263",
+      "turn": 263,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0264",
+      "turn": 264,
+      "role": "assistant",
+      "content": "미리안(Mirian)는 지금 길드에 있다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0265",
+      "turn": 265,
+      "role": "user",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0266",
+      "turn": 266,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0267",
+      "turn": 267,
+      "role": "user",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0268",
+      "turn": 268,
+      "role": "assistant",
+      "content": "실비아와의 호감도가 32이 되었다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0269",
+      "turn": 269,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0270",
+      "turn": 270,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0271",
+      "turn": 271,
+      "role": "assistant",
+      "content": "바람이 문틈으로 새어들었다.",
+      "entities": []
+    },
+    {
+      "id": "m0272",
+      "turn": 272,
+      "role": "user",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0273",
+      "turn": 273,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0274",
+      "turn": 274,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0275",
+      "turn": 275,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 8이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0276",
+      "turn": 276,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0277",
+      "turn": 277,
+      "role": "assistant",
+      "content": "정산 결과 금고의 골드가 770,000원이 되었다.",
+      "entities": []
+    },
+    {
+      "id": "m0278",
+      "turn": 278,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0279",
+      "turn": 279,
+      "role": "user",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0280",
+      "turn": 280,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0281",
+      "turn": 281,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0282",
+      "turn": 282,
+      "role": "assistant",
+      "content": "세라와의 호감도가 26이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0283",
+      "turn": 283,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0284",
+      "turn": 284,
+      "role": "user",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0285",
+      "turn": 285,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0286",
+      "turn": 286,
+      "role": "assistant",
+      "content": "아이리스(Iris)는 지금 온천 마을에 있다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0287",
+      "turn": 287,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0288",
+      "turn": 288,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0289",
+      "turn": 289,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 26이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0290",
+      "turn": 290,
+      "role": "assistant",
+      "content": "미리안(Mirian)와의 관계가 '지인' 단계로 접어들었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0291",
+      "turn": 291,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0292",
+      "turn": 292,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0293",
+      "turn": 293,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0294",
+      "turn": 294,
+      "role": "assistant",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0295",
+      "turn": 295,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0296",
+      "turn": 296,
+      "role": "user",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    },
+    {
+      "id": "m0297",
+      "turn": 297,
+      "role": "assistant",
+      "content": "아이리스와의 호감도가 8이 되었다.",
+      "entities": [
+        "iris"
+      ]
+    },
+    {
+      "id": "m0298",
+      "turn": 298,
+      "role": "assistant",
+      "content": "세라(Sera)는 지금 길드에 있다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0299",
+      "turn": 299,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0300",
+      "turn": 300,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0301",
+      "turn": 301,
+      "role": "assistant",
+      "content": "동전을 세어 장부에 적었다.",
+      "entities": []
+    },
+    {
+      "id": "m0302",
+      "turn": 302,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0303",
+      "turn": 303,
+      "role": "user",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0304",
+      "turn": 304,
+      "role": "assistant",
+      "content": "실비아와의 호감도가 26이 되었다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0305",
+      "turn": 305,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0306",
+      "turn": 306,
+      "role": "user",
+      "content": "손님 몇이 들어와 자리를 잡았다.",
+      "entities": []
+    },
+    {
+      "id": "m0307",
+      "turn": 307,
+      "role": "assistant",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0308",
+      "turn": 308,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0309",
+      "turn": 309,
+      "role": "assistant",
+      "content": "실비아(Silvia)는 지금 왕성 앞에 있다.",
+      "entities": [
+        "silvia"
+      ]
+    },
+    {
+      "id": "m0310",
+      "turn": 310,
+      "role": "assistant",
+      "content": "검을 손질하며 숫돌을 갈았다.",
+      "entities": []
+    },
+    {
+      "id": "m0311",
+      "turn": 311,
+      "role": "assistant",
+      "content": "강한결와의 호감도가 20이 되었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0312",
+      "turn": 312,
+      "role": "assistant",
+      "content": "강한결(Kang)와의 관계가 '지인' 단계로 접어들었다.",
+      "entities": [
+        "kang"
+      ]
+    },
+    {
+      "id": "m0313",
+      "turn": 313,
+      "role": "user",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0314",
+      "turn": 314,
+      "role": "user",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0315",
+      "turn": 315,
+      "role": "user",
+      "content": "길드 게시판에 새 공고가 붙었다.",
+      "entities": []
+    },
+    {
+      "id": "m0316",
+      "turn": 316,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0317",
+      "turn": 317,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0318",
+      "turn": 318,
+      "role": "user",
+      "content": "멀리서 종소리가 울렸다.",
+      "entities": []
+    },
+    {
+      "id": "m0319",
+      "turn": 319,
+      "role": "assistant",
+      "content": "세라와의 호감도가 20이 되었다.",
+      "entities": [
+        "sera"
+      ]
+    },
+    {
+      "id": "m0320",
+      "turn": 320,
+      "role": "assistant",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0321",
+      "turn": 321,
+      "role": "assistant",
+      "content": "미리안(Mirian)는 지금 여관에 있다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0322",
+      "turn": 322,
+      "role": "assistant",
+      "content": "시장에서 향신료 냄새가 풍겼다.",
+      "entities": []
+    },
+    {
+      "id": "m0323",
+      "turn": 323,
+      "role": "assistant",
+      "content": "창밖으로 비가 그쳤다.",
+      "entities": []
+    },
+    {
+      "id": "m0324",
+      "turn": 324,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0325",
+      "turn": 325,
+      "role": "user",
+      "content": "난롯불이 탁탁 소리를 냈다.",
+      "entities": []
+    },
+    {
+      "id": "m0326",
+      "turn": 326,
+      "role": "assistant",
+      "content": "미리안와의 호감도가 20이 되었다.",
+      "entities": [
+        "mirian"
+      ]
+    },
+    {
+      "id": "m0327",
+      "turn": 327,
+      "role": "user",
+      "content": "주방에서 스튜 끓는 냄새가 났다.",
+      "entities": []
+    },
+    {
+      "id": "m0328",
+      "turn": 328,
+      "role": "assistant",
+      "content": "테이블을 닦고 잔을 정리했다.",
+      "entities": []
+    },
+    {
+      "id": "m0329",
+      "turn": 329,
+      "role": "assistant",
+      "content": "지도를 펼쳐 경로를 훑었다.",
+      "entities": []
+    }
+  ],
+  "records": [
+    {
+      "id": "r0001",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0003"
+      ],
+      "sourceEventIndexes": [
+        1
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 3,
+      "validFromTurn": 3,
+      "validToTurn": 40,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0002",
+      "kind": "relation",
+      "text": "강한결(Kang)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0004"
+      ],
+      "sourceEventIndexes": [
+        2
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 4,
+      "validFromTurn": 4,
+      "validToTurn": 78,
+      "supersedes": [],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0003",
+      "kind": "engine-fact",
+      "text": "정산 결과 금고의 골드가 520,000원이 되었다.",
+      "sourceMessageIds": [
+        "m0006"
+      ],
+      "sourceEventIndexes": [
+        3
+      ],
+      "entities": [],
+      "createdTurn": 6,
+      "validFromTurn": 6,
+      "validToTurn": 42,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0004",
+      "kind": "event",
+      "text": "실비아(Silvia)는 지금 지하 수로에 있다.",
+      "sourceMessageIds": [
+        "m0007"
+      ],
+      "sourceEventIndexes": [
+        4
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 7,
+      "validFromTurn": 7,
+      "validToTurn": 64,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0005",
+      "kind": "relation",
+      "text": "세라와의 호감도가 32이 되었다.",
+      "sourceMessageIds": [
+        "m0011"
+      ],
+      "sourceEventIndexes": [
+        5
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 11,
+      "validFromTurn": 11,
+      "validToTurn": 47,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0006",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0018"
+      ],
+      "sourceEventIndexes": [
+        6
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 18,
+      "validFromTurn": 18,
+      "validToTurn": 54,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0007",
+      "kind": "relation",
+      "text": "미리안(Mirian)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0019"
+      ],
+      "sourceEventIndexes": [
+        7
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 19,
+      "validFromTurn": 19,
+      "validToTurn": 55,
+      "supersedes": [],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0008",
+      "kind": "relation",
+      "text": "아이리스와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0026"
+      ],
+      "sourceEventIndexes": [
+        8
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 26,
+      "validFromTurn": 26,
+      "validToTurn": 62,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0009",
+      "kind": "relation",
+      "text": "아이리스(Iris)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0027"
+      ],
+      "sourceEventIndexes": [
+        9
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 27,
+      "validFromTurn": 27,
+      "validToTurn": 101,
+      "supersedes": [],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0010",
+      "kind": "event",
+      "text": "강한결(Kang)는 지금 시장에 있다.",
+      "sourceMessageIds": [
+        "m0031"
+      ],
+      "sourceEventIndexes": [
+        10
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 31,
+      "validFromTurn": 31,
+      "validToTurn": 89,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0011",
+      "kind": "relation",
+      "text": "실비아와의 호감도가 32이 되었다.",
+      "sourceMessageIds": [
+        "m0034"
+      ],
+      "sourceEventIndexes": [
+        11
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 34,
+      "validFromTurn": 34,
+      "validToTurn": 70,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0012",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 8이 되었다.",
+      "sourceMessageIds": [
+        "m0041"
+      ],
+      "sourceEventIndexes": [
+        12
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 41,
+      "validFromTurn": 41,
+      "validToTurn": 77,
+      "supersedes": [
+        "r0001"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0013",
+      "kind": "event",
+      "text": "아이리스(Iris)는 지금 왕성 앞에 있다.",
+      "sourceMessageIds": [
+        "m0042"
+      ],
+      "sourceEventIndexes": [
+        13
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 42,
+      "validFromTurn": 42,
+      "validToTurn": 163,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0014",
+      "kind": "engine-fact",
+      "text": "정산 결과 금고의 골드가 480,000원이 되었다.",
+      "sourceMessageIds": [
+        "m0043"
+      ],
+      "sourceEventIndexes": [
+        14
+      ],
+      "entities": [],
+      "createdTurn": 43,
+      "validFromTurn": 43,
+      "validToTurn": 81,
+      "supersedes": [
+        "r0003"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0015",
+      "kind": "relation",
+      "text": "세라와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0048"
+      ],
+      "sourceEventIndexes": [
+        15
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 48,
+      "validFromTurn": 48,
+      "validToTurn": 86,
+      "supersedes": [
+        "r0005"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0016",
+      "kind": "event",
+      "text": "세라(Sera)는 지금 시장에 있다.",
+      "sourceMessageIds": [
+        "m0053"
+      ],
+      "sourceEventIndexes": [
+        16
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 53,
+      "validFromTurn": 53,
+      "validToTurn": 113,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0017",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0055"
+      ],
+      "sourceEventIndexes": [
+        17
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 55,
+      "validFromTurn": 55,
+      "validToTurn": 93,
+      "supersedes": [
+        "r0006"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0018",
+      "kind": "relation",
+      "text": "미리안(Mirian)와의 관계가 '지인' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0056"
+      ],
+      "sourceEventIndexes": [
+        18
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 56,
+      "validFromTurn": 56,
+      "validToTurn": 133,
+      "supersedes": [
+        "r0007"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0019",
+      "kind": "relation",
+      "text": "아이리스와의 호감도가 8이 되었다.",
+      "sourceMessageIds": [
+        "m0063"
+      ],
+      "sourceEventIndexes": [
+        19
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 63,
+      "validFromTurn": 63,
+      "validToTurn": 100,
+      "supersedes": [
+        "r0008"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0020",
+      "kind": "event",
+      "text": "실비아(Silvia)는 지금 여관에 있다.",
+      "sourceMessageIds": [
+        "m0065"
+      ],
+      "sourceEventIndexes": [
+        20
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 65,
+      "validFromTurn": 65,
+      "validToTurn": 125,
+      "supersedes": [
+        "r0004"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0021",
+      "kind": "promise",
+      "text": "실비아가 다음 보름달 뜨는 밤 여관 옥상에서 단둘이 만나자고 약속했다.",
+      "sourceMessageIds": [
+        "m0066"
+      ],
+      "sourceEventIndexes": [
+        21
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 66,
+      "validFromTurn": 66,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.9,
+      "knowledgeScope": "entity:silvia",
+      "status": "approved"
+    },
+    {
+      "id": "r0022",
+      "kind": "relation",
+      "text": "실비아와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0071"
+      ],
+      "sourceEventIndexes": [
+        22
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 71,
+      "validFromTurn": 71,
+      "validToTurn": 109,
+      "supersedes": [
+        "r0011"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0023",
+      "kind": "event",
+      "text": "미리안(Mirian)는 지금 길드에 있다.",
+      "sourceMessageIds": [
+        "m0077"
+      ],
+      "sourceEventIndexes": [
+        23
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 77,
+      "validFromTurn": 77,
+      "validToTurn": 138,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0024",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0078"
+      ],
+      "sourceEventIndexes": [
+        24
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 78,
+      "validFromTurn": 78,
+      "validToTurn": 116,
+      "supersedes": [
+        "r0012"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0025",
+      "kind": "relation",
+      "text": "강한결(Kang)와의 관계가 '지인' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0079"
+      ],
+      "sourceEventIndexes": [
+        25
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 79,
+      "validFromTurn": 79,
+      "validToTurn": 117,
+      "supersedes": [
+        "r0002"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0026",
+      "kind": "promise",
+      "text": "미리안은 창고 옥상의 재고를 함께 정리해 주기로 했다.",
+      "sourceMessageIds": [
+        "m0080"
+      ],
+      "sourceEventIndexes": [
+        26
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 80,
+      "validFromTurn": 80,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.4,
+      "knowledgeScope": "entity:mirian",
+      "status": "approved"
+    },
+    {
+      "id": "r0027",
+      "kind": "engine-fact",
+      "text": "정산 결과 금고의 골드가 610,000원이 되었다.",
+      "sourceMessageIds": [
+        "m0082"
+      ],
+      "sourceEventIndexes": [
+        27
+      ],
+      "entities": [],
+      "createdTurn": 82,
+      "validFromTurn": 82,
+      "validToTurn": 119,
+      "supersedes": [
+        "r0014"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0028",
+      "kind": "relation",
+      "text": "세라와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0087"
+      ],
+      "sourceEventIndexes": [
+        28
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 87,
+      "validFromTurn": 87,
+      "validToTurn": 124,
+      "supersedes": [
+        "r0015"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0029",
+      "kind": "event",
+      "text": "강한결(Kang)는 지금 왕성 앞에 있다.",
+      "sourceMessageIds": [
+        "m0090"
+      ],
+      "sourceEventIndexes": [
+        29
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 90,
+      "validFromTurn": 90,
+      "validToTurn": 151,
+      "supersedes": [
+        "r0010"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0030",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0094"
+      ],
+      "sourceEventIndexes": [
+        30
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 94,
+      "validFromTurn": 94,
+      "validToTurn": 132,
+      "supersedes": [
+        "r0017"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0031",
+      "kind": "relation",
+      "text": "아이리스와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0101"
+      ],
+      "sourceEventIndexes": [
+        31
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 101,
+      "validFromTurn": 101,
+      "validToTurn": 140,
+      "supersedes": [
+        "r0019"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0032",
+      "kind": "relation",
+      "text": "아이리스(Iris)와의 관계가 '지인' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0102"
+      ],
+      "sourceEventIndexes": [
+        32
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 102,
+      "validFromTurn": 102,
+      "validToTurn": 141,
+      "supersedes": [
+        "r0009"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0033",
+      "kind": "secret",
+      "text": "강한결이 은밀히 털어놓았다 — 사실 그는 다른 이름으로도 협회에 등록된 이중 등록 헌터라고.",
+      "sourceMessageIds": [
+        "m0105"
+      ],
+      "sourceEventIndexes": [
+        33
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 105,
+      "validFromTurn": 105,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.95,
+      "knowledgeScope": "user",
+      "status": "approved"
+    },
+    {
+      "id": "r0034",
+      "kind": "relation",
+      "text": "실비아와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0110"
+      ],
+      "sourceEventIndexes": [
+        34
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 110,
+      "validFromTurn": 110,
+      "validToTurn": 149,
+      "supersedes": [
+        "r0022"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0035",
+      "kind": "event",
+      "text": "세라(Sera)는 지금 지하 수로에 있다.",
+      "sourceMessageIds": [
+        "m0114"
+      ],
+      "sourceEventIndexes": [
+        35
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 114,
+      "validFromTurn": 114,
+      "validToTurn": 176,
+      "supersedes": [
+        "r0016"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0036",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0117"
+      ],
+      "sourceEventIndexes": [
+        36
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 117,
+      "validFromTurn": 117,
+      "validToTurn": 156,
+      "supersedes": [
+        "r0024"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0037",
+      "kind": "relation",
+      "text": "강한결(Kang)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0118"
+      ],
+      "sourceEventIndexes": [
+        37
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 118,
+      "validFromTurn": 118,
+      "validToTurn": 196,
+      "supersedes": [
+        "r0025"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0038",
+      "kind": "engine-fact",
+      "text": "정산 결과 금고의 골드가 590,000원이 되었다.",
+      "sourceMessageIds": [
+        "m0120"
+      ],
+      "sourceEventIndexes": [
+        38
+      ],
+      "entities": [],
+      "createdTurn": 120,
+      "validFromTurn": 120,
+      "validToTurn": 158,
+      "supersedes": [
+        "r0027"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0039",
+      "kind": "relation",
+      "text": "세라와의 호감도가 32이 되었다.",
+      "sourceMessageIds": [
+        "m0125"
+      ],
+      "sourceEventIndexes": [
+        39
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 125,
+      "validFromTurn": 125,
+      "validToTurn": 164,
+      "supersedes": [
+        "r0028"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0040",
+      "kind": "event",
+      "text": "실비아(Silvia)는 지금 길드에 있다.",
+      "sourceMessageIds": [
+        "m0126"
+      ],
+      "sourceEventIndexes": [
+        40
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 126,
+      "validFromTurn": 126,
+      "validToTurn": 249,
+      "supersedes": [
+        "r0020"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0041",
+      "kind": "secret",
+      "text": "세라가 조용히 고백했다. 자신은 몰락한 귀족 가문의 마지막 후계라는 비밀을.",
+      "sourceMessageIds": [
+        "m0130"
+      ],
+      "sourceEventIndexes": [
+        41
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 130,
+      "validFromTurn": 130,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.9,
+      "knowledgeScope": "user",
+      "status": "approved"
+    },
+    {
+      "id": "r0042",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0133"
+      ],
+      "sourceEventIndexes": [
+        42
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 133,
+      "validFromTurn": 133,
+      "validToTurn": 171,
+      "supersedes": [
+        "r0030"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0043",
+      "kind": "relation",
+      "text": "미리안(Mirian)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0134"
+      ],
+      "sourceEventIndexes": [
+        43
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 134,
+      "validFromTurn": 134,
+      "validToTurn": 172,
+      "supersedes": [
+        "r0018"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0044",
+      "kind": "event",
+      "text": "미리안(Mirian)는 지금 온천 마을에 있다.",
+      "sourceMessageIds": [
+        "m0139"
+      ],
+      "sourceEventIndexes": [
+        44
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 139,
+      "validFromTurn": 139,
+      "validToTurn": 200,
+      "supersedes": [
+        "r0023"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0045",
+      "kind": "relation",
+      "text": "아이리스와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0141"
+      ],
+      "sourceEventIndexes": [
+        45
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 141,
+      "validFromTurn": 141,
+      "validToTurn": 180,
+      "supersedes": [
+        "r0031"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0046",
+      "kind": "relation",
+      "text": "아이리스(Iris)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0142"
+      ],
+      "sourceEventIndexes": [
+        46
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 142,
+      "validFromTurn": 142,
+      "validToTurn": 220,
+      "supersedes": [
+        "r0032"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0047",
+      "kind": "promise",
+      "text": "아이리스가 다음 A급 게이트를 나와 파티로 함께 공략하기로 약속했다.",
+      "sourceMessageIds": [
+        "m0145"
+      ],
+      "sourceEventIndexes": [
+        47
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 145,
+      "validFromTurn": 145,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.85,
+      "knowledgeScope": "entity:iris",
+      "status": "approved"
+    },
+    {
+      "id": "r0048",
+      "kind": "relation",
+      "text": "실비아와의 호감도가 32이 되었다.",
+      "sourceMessageIds": [
+        "m0150"
+      ],
+      "sourceEventIndexes": [
+        48
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 150,
+      "validFromTurn": 150,
+      "validToTurn": 187,
+      "supersedes": [
+        "r0034"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0049",
+      "kind": "event",
+      "text": "강한결(Kang)는 지금 북부 관문에 있다.",
+      "sourceMessageIds": [
+        "m0152"
+      ],
+      "sourceEventIndexes": [
+        49
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 152,
+      "validFromTurn": 152,
+      "validToTurn": 212,
+      "supersedes": [
+        "r0029"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0050",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 8이 되었다.",
+      "sourceMessageIds": [
+        "m0157"
+      ],
+      "sourceEventIndexes": [
+        50
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 157,
+      "validFromTurn": 157,
+      "validToTurn": 195,
+      "supersedes": [
+        "r0036"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0051",
+      "kind": "engine-fact",
+      "text": "정산 결과 금고의 골드가 720,000원이 되었다.",
+      "sourceMessageIds": [
+        "m0159"
+      ],
+      "sourceEventIndexes": [
+        51
+      ],
+      "entities": [],
+      "createdTurn": 159,
+      "validFromTurn": 159,
+      "validToTurn": 198,
+      "supersedes": [
+        "r0038"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0052",
+      "kind": "promise",
+      "text": "강한결이 마정석 수익을 반씩 나누기로 약속했다.",
+      "sourceMessageIds": [
+        "m0161"
+      ],
+      "sourceEventIndexes": [
+        52
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 161,
+      "validFromTurn": 161,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.7,
+      "knowledgeScope": "entity:kang",
+      "status": "approved"
+    },
+    {
+      "id": "r0053",
+      "kind": "event",
+      "text": "아이리스(Iris)는 지금 북부 관문에 있다.",
+      "sourceMessageIds": [
+        "m0164"
+      ],
+      "sourceEventIndexes": [
+        53
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 164,
+      "validFromTurn": 164,
+      "validToTurn": 225,
+      "supersedes": [
+        "r0013"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0054",
+      "kind": "relation",
+      "text": "세라와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0165"
+      ],
+      "sourceEventIndexes": [
+        54
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 165,
+      "validFromTurn": 165,
+      "validToTurn": 204,
+      "supersedes": [
+        "r0039"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0055",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0172"
+      ],
+      "sourceEventIndexes": [
+        55
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 172,
+      "validFromTurn": 172,
+      "validToTurn": 211,
+      "supersedes": [
+        "r0042"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0056",
+      "kind": "relation",
+      "text": "미리안(Mirian)와의 관계가 '지인' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0173"
+      ],
+      "sourceEventIndexes": [
+        56
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 173,
+      "validFromTurn": 173,
+      "validToTurn": 251,
+      "supersedes": [
+        "r0043"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0057",
+      "kind": "secret",
+      "text": "실비아가 사실은 이 여관을 빚 때문에 곧 넘겨야 할지도 모른다는 비밀을 털어놓았다.",
+      "sourceMessageIds": [
+        "m0176"
+      ],
+      "sourceEventIndexes": [
+        57
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 176,
+      "validFromTurn": 176,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.8,
+      "knowledgeScope": "user",
+      "status": "approved"
+    },
+    {
+      "id": "r0058",
+      "kind": "event",
+      "text": "세라(Sera)는 지금 여관에 있다.",
+      "sourceMessageIds": [
+        "m0177"
+      ],
+      "sourceEventIndexes": [
+        58
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 177,
+      "validFromTurn": 177,
+      "validToTurn": 297,
+      "supersedes": [
+        "r0035"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0059",
+      "kind": "relation",
+      "text": "아이리스와의 호감도가 8이 되었다.",
+      "sourceMessageIds": [
+        "m0181"
+      ],
+      "sourceEventIndexes": [
+        59
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 181,
+      "validFromTurn": 181,
+      "validToTurn": 219,
+      "supersedes": [
+        "r0045"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0060",
+      "kind": "relation",
+      "text": "실비아와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0188"
+      ],
+      "sourceEventIndexes": [
+        60
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 188,
+      "validFromTurn": 188,
+      "validToTurn": 227,
+      "supersedes": [
+        "r0048"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0061",
+      "kind": "secret",
+      "text": "아이리스는 게이트에서 죽은 동생의 유품을 아직 간직하고 있다는 비밀을 보여줬다.",
+      "sourceMessageIds": [
+        "m0189"
+      ],
+      "sourceEventIndexes": [
+        61
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 189,
+      "validFromTurn": 189,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.75,
+      "knowledgeScope": "user",
+      "status": "approved"
+    },
+    {
+      "id": "r0062",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0196"
+      ],
+      "sourceEventIndexes": [
+        62
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 196,
+      "validFromTurn": 196,
+      "validToTurn": 235,
+      "supersedes": [
+        "r0050"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0063",
+      "kind": "relation",
+      "text": "강한결(Kang)와의 관계가 '지인' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0197"
+      ],
+      "sourceEventIndexes": [
+        63
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 197,
+      "validFromTurn": 197,
+      "validToTurn": 236,
+      "supersedes": [
+        "r0037"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0064",
+      "kind": "engine-fact",
+      "text": "정산 결과 금고의 골드가 655,000원이 되었다.",
+      "sourceMessageIds": [
+        "m0199"
+      ],
+      "sourceEventIndexes": [
+        64
+      ],
+      "entities": [],
+      "createdTurn": 199,
+      "validFromTurn": 199,
+      "validToTurn": 238,
+      "supersedes": [
+        "r0051"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0065",
+      "kind": "event",
+      "text": "미리안(Mirian)는 지금 왕성 앞에 있다.",
+      "sourceMessageIds": [
+        "m0201"
+      ],
+      "sourceEventIndexes": [
+        65
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 201,
+      "validFromTurn": 201,
+      "validToTurn": 263,
+      "supersedes": [
+        "r0044"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0066",
+      "kind": "promise",
+      "text": "세라가 다음 무도회에 나를 파트너로 초대하겠다고 약속했다.",
+      "sourceMessageIds": [
+        "m0203"
+      ],
+      "sourceEventIndexes": [
+        66
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 203,
+      "validFromTurn": 203,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.6,
+      "knowledgeScope": "entity:sera",
+      "status": "approved"
+    },
+    {
+      "id": "r0067",
+      "kind": "relation",
+      "text": "세라와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0205"
+      ],
+      "sourceEventIndexes": [
+        67
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 205,
+      "validFromTurn": 205,
+      "validToTurn": 243,
+      "supersedes": [
+        "r0054"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0068",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0212"
+      ],
+      "sourceEventIndexes": [
+        68
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 212,
+      "validFromTurn": 212,
+      "validToTurn": 250,
+      "supersedes": [
+        "r0055"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0069",
+      "kind": "event",
+      "text": "강한결(Kang)는 지금 온천 마을에 있다.",
+      "sourceMessageIds": [
+        "m0213"
+      ],
+      "sourceEventIndexes": [
+        69
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 213,
+      "validFromTurn": 213,
+      "validToTurn": null,
+      "supersedes": [
+        "r0049"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0070",
+      "kind": "secret",
+      "text": "미리안이 실은 왕성 주방에서 쫓겨난 요리사였다는 과거를 고백했다.",
+      "sourceMessageIds": [
+        "m0217"
+      ],
+      "sourceEventIndexes": [
+        70
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 217,
+      "validFromTurn": 217,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0.65,
+      "knowledgeScope": "user",
+      "status": "approved"
+    },
+    {
+      "id": "r0071",
+      "kind": "relation",
+      "text": "아이리스와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0220"
+      ],
+      "sourceEventIndexes": [
+        71
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 220,
+      "validFromTurn": 220,
+      "validToTurn": 259,
+      "supersedes": [
+        "r0059"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0072",
+      "kind": "relation",
+      "text": "아이리스(Iris)와의 관계가 '지인' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0221"
+      ],
+      "sourceEventIndexes": [
+        72
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 221,
+      "validFromTurn": 221,
+      "validToTurn": 260,
+      "supersedes": [
+        "r0046"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0073",
+      "kind": "event",
+      "text": "아이리스(Iris)는 지금 왕성 앞에 있다.",
+      "sourceMessageIds": [
+        "m0226"
+      ],
+      "sourceEventIndexes": [
+        73
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 226,
+      "validFromTurn": 226,
+      "validToTurn": 285,
+      "supersedes": [
+        "r0053"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0074",
+      "kind": "relation",
+      "text": "실비아와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0228"
+      ],
+      "sourceEventIndexes": [
+        74
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 228,
+      "validFromTurn": 228,
+      "validToTurn": 267,
+      "supersedes": [
+        "r0060"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0075",
+      "kind": "event",
+      "text": "멧돼지 소탕 의뢰를 완료하고 협회에 보고했다.",
+      "sourceMessageIds": [
+        "m0229"
+      ],
+      "sourceEventIndexes": [
+        75
+      ],
+      "entities": [
+        "kang",
+        "iris"
+      ],
+      "createdTurn": 229,
+      "validFromTurn": 229,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0076",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0236"
+      ],
+      "sourceEventIndexes": [
+        76
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 236,
+      "validFromTurn": 236,
+      "validToTurn": 274,
+      "supersedes": [
+        "r0062"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0077",
+      "kind": "relation",
+      "text": "강한결(Kang)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0237"
+      ],
+      "sourceEventIndexes": [
+        77
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 237,
+      "validFromTurn": 237,
+      "validToTurn": 311,
+      "supersedes": [
+        "r0063"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0078",
+      "kind": "engine-fact",
+      "text": "정산 결과 금고의 골드가 810,000원이 되었다.",
+      "sourceMessageIds": [
+        "m0239"
+      ],
+      "sourceEventIndexes": [
+        78
+      ],
+      "entities": [],
+      "createdTurn": 239,
+      "validFromTurn": 239,
+      "validToTurn": 276,
+      "supersedes": [
+        "r0064"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0079",
+      "kind": "relation",
+      "text": "세라와의 호감도가 32이 되었다.",
+      "sourceMessageIds": [
+        "m0244"
+      ],
+      "sourceEventIndexes": [
+        79
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 244,
+      "validFromTurn": 244,
+      "validToTurn": 281,
+      "supersedes": [
+        "r0067"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0080",
+      "kind": "event",
+      "text": "실비아(Silvia)는 지금 온천 마을에 있다.",
+      "sourceMessageIds": [
+        "m0250"
+      ],
+      "sourceEventIndexes": [
+        80
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 250,
+      "validFromTurn": 250,
+      "validToTurn": 308,
+      "supersedes": [
+        "r0040"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0081",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0251"
+      ],
+      "sourceEventIndexes": [
+        81
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 251,
+      "validFromTurn": 251,
+      "validToTurn": 288,
+      "supersedes": [
+        "r0068"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0082",
+      "kind": "relation",
+      "text": "미리안(Mirian)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0252"
+      ],
+      "sourceEventIndexes": [
+        82
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 252,
+      "validFromTurn": 252,
+      "validToTurn": 289,
+      "supersedes": [
+        "r0056"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0083",
+      "kind": "event",
+      "text": "A급 게이트 공략 의뢰를 아이리스와 함께 완수했다.",
+      "sourceMessageIds": [
+        "m0257"
+      ],
+      "sourceEventIndexes": [
+        83
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 257,
+      "validFromTurn": 257,
+      "validToTurn": null,
+      "supersedes": [],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0084",
+      "kind": "relation",
+      "text": "아이리스와의 호감도가 14이 되었다.",
+      "sourceMessageIds": [
+        "m0260"
+      ],
+      "sourceEventIndexes": [
+        84
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 260,
+      "validFromTurn": 260,
+      "validToTurn": 296,
+      "supersedes": [
+        "r0071"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0085",
+      "kind": "relation",
+      "text": "아이리스(Iris)와의 관계가 '서먹함' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0261"
+      ],
+      "sourceEventIndexes": [
+        85
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 261,
+      "validFromTurn": 261,
+      "validToTurn": null,
+      "supersedes": [
+        "r0072"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0086",
+      "kind": "event",
+      "text": "미리안(Mirian)는 지금 길드에 있다.",
+      "sourceMessageIds": [
+        "m0264"
+      ],
+      "sourceEventIndexes": [
+        86
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 264,
+      "validFromTurn": 264,
+      "validToTurn": 320,
+      "supersedes": [
+        "r0065"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0087",
+      "kind": "relation",
+      "text": "실비아와의 호감도가 32이 되었다.",
+      "sourceMessageIds": [
+        "m0268"
+      ],
+      "sourceEventIndexes": [
+        87
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 268,
+      "validFromTurn": 268,
+      "validToTurn": 303,
+      "supersedes": [
+        "r0074"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0088",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 8이 되었다.",
+      "sourceMessageIds": [
+        "m0275"
+      ],
+      "sourceEventIndexes": [
+        88
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 275,
+      "validFromTurn": 275,
+      "validToTurn": 310,
+      "supersedes": [
+        "r0076"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0089",
+      "kind": "engine-fact",
+      "text": "정산 결과 금고의 골드가 770,000원이 되었다.",
+      "sourceMessageIds": [
+        "m0277"
+      ],
+      "sourceEventIndexes": [
+        89
+      ],
+      "entities": [],
+      "createdTurn": 277,
+      "validFromTurn": 277,
+      "validToTurn": null,
+      "supersedes": [
+        "r0078"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0090",
+      "kind": "relation",
+      "text": "세라와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0282"
+      ],
+      "sourceEventIndexes": [
+        90
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 282,
+      "validFromTurn": 282,
+      "validToTurn": 318,
+      "supersedes": [
+        "r0079"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0091",
+      "kind": "event",
+      "text": "아이리스(Iris)는 지금 온천 마을에 있다.",
+      "sourceMessageIds": [
+        "m0286"
+      ],
+      "sourceEventIndexes": [
+        91
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 286,
+      "validFromTurn": 286,
+      "validToTurn": null,
+      "supersedes": [
+        "r0073"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0092",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0289"
+      ],
+      "sourceEventIndexes": [
+        92
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 289,
+      "validFromTurn": 289,
+      "validToTurn": 325,
+      "supersedes": [
+        "r0081"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "superseded"
+    },
+    {
+      "id": "r0093",
+      "kind": "relation",
+      "text": "미리안(Mirian)와의 관계가 '지인' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0290"
+      ],
+      "sourceEventIndexes": [
+        93
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 290,
+      "validFromTurn": 290,
+      "validToTurn": null,
+      "supersedes": [
+        "r0082"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0094",
+      "kind": "relation",
+      "text": "아이리스와의 호감도가 8이 되었다.",
+      "sourceMessageIds": [
+        "m0297"
+      ],
+      "sourceEventIndexes": [
+        94
+      ],
+      "entities": [
+        "iris"
+      ],
+      "createdTurn": 297,
+      "validFromTurn": 297,
+      "validToTurn": null,
+      "supersedes": [
+        "r0084"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0095",
+      "kind": "event",
+      "text": "세라(Sera)는 지금 길드에 있다.",
+      "sourceMessageIds": [
+        "m0298"
+      ],
+      "sourceEventIndexes": [
+        95
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 298,
+      "validFromTurn": 298,
+      "validToTurn": null,
+      "supersedes": [
+        "r0058"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0096",
+      "kind": "relation",
+      "text": "실비아와의 호감도가 26이 되었다.",
+      "sourceMessageIds": [
+        "m0304"
+      ],
+      "sourceEventIndexes": [
+        96
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 304,
+      "validFromTurn": 304,
+      "validToTurn": null,
+      "supersedes": [
+        "r0087"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0097",
+      "kind": "event",
+      "text": "실비아(Silvia)는 지금 왕성 앞에 있다.",
+      "sourceMessageIds": [
+        "m0309"
+      ],
+      "sourceEventIndexes": [
+        97
+      ],
+      "entities": [
+        "silvia"
+      ],
+      "createdTurn": 309,
+      "validFromTurn": 309,
+      "validToTurn": null,
+      "supersedes": [
+        "r0080"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0098",
+      "kind": "relation",
+      "text": "강한결와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0311"
+      ],
+      "sourceEventIndexes": [
+        98
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 311,
+      "validFromTurn": 311,
+      "validToTurn": null,
+      "supersedes": [
+        "r0088"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0099",
+      "kind": "relation",
+      "text": "강한결(Kang)와의 관계가 '지인' 단계로 접어들었다.",
+      "sourceMessageIds": [
+        "m0312"
+      ],
+      "sourceEventIndexes": [
+        99
+      ],
+      "entities": [
+        "kang"
+      ],
+      "createdTurn": 312,
+      "validFromTurn": 312,
+      "validToTurn": null,
+      "supersedes": [
+        "r0077"
+      ],
+      "importance": 0.5,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0100",
+      "kind": "relation",
+      "text": "세라와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0319"
+      ],
+      "sourceEventIndexes": [
+        100
+      ],
+      "entities": [
+        "sera"
+      ],
+      "createdTurn": 319,
+      "validFromTurn": 319,
+      "validToTurn": null,
+      "supersedes": [
+        "r0090"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0101",
+      "kind": "event",
+      "text": "미리안(Mirian)는 지금 여관에 있다.",
+      "sourceMessageIds": [
+        "m0321"
+      ],
+      "sourceEventIndexes": [
+        101
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 321,
+      "validFromTurn": 321,
+      "validToTurn": null,
+      "supersedes": [
+        "r0086"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    },
+    {
+      "id": "r0102",
+      "kind": "relation",
+      "text": "미리안와의 호감도가 20이 되었다.",
+      "sourceMessageIds": [
+        "m0326"
+      ],
+      "sourceEventIndexes": [
+        102
+      ],
+      "entities": [
+        "mirian"
+      ],
+      "createdTurn": 326,
+      "validFromTurn": 326,
+      "validToTurn": null,
+      "supersedes": [
+        "r0092"
+      ],
+      "importance": 0,
+      "knowledgeScope": "public",
+      "status": "approved"
+    }
+  ]
+}

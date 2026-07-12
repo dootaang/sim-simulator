@@ -1,0 +1,21 @@
+{
+  "comment": "카드의 description/personality/scenario/systemPrompt 원문이 한 글자도 빠지지 않는지 지킨다.",
+  "presetKind": "default",
+  "input": {
+    "card": {
+      "name": "아린",
+      "description": "여관 주인.",
+      "personality": "신중하지만 다정하다.",
+      "scenario": "비 오는 밤의 여관.",
+      "systemPrompt": "규칙 원문을 그대로 따른다."
+    }
+  },
+  "expected": {
+    "messages": [
+      { "role": "system", "content": "규칙 원문을 그대로 따른다." },
+      { "role": "system", "content": "여관 주인.\n\nDescription of 아린: 신중하지만 다정하다.\n\nCircumstances and context of the dialogue: 비 오는 밤의 여관." }
+    ],
+    "assistantPrefill": "",
+    "warnings": []
+  }
+}

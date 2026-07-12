@@ -1,0 +1,2 @@
+import{describe,expect,it}from'vitest';import{presentNarrativeIssues}from'./narrative-issues.ts';
+describe('서사 경고 표시',()=>{it('탐지해도 줄바꿈과 긴 원문을 한 글자도 자르지 않는다',()=>{const original='첫 문단 999골드.\n\n둘째 문단의 아주 긴 서사 원문.';expect(presentNarrativeIssues(original,[{code:'unsupported-number',detail:'999'}]).content).toBe(original);});it('거부된 사건 주장은 강한 경고로 구분한다',()=>{expect(presentNarrativeIssues('성공했다.',[{code:'failed-event-claim'}]).warning).toMatchObject({label:'거부된 사건 서술',strong:true});});});

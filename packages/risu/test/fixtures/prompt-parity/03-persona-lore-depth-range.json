@@ -1,0 +1,30 @@
+{
+  "comment": "페르소나와 로어북이 선언 순서로 나오고, 최근 4개 대화만 선택한 뒤 author note가 depth 2 위치에 삽입되는지 지킨다.",
+  "presetKind": "depth",
+  "presetOverrides": { "chatRangeStart": -4, "authorNoteDepth": 2 },
+  "input": {
+    "card": { "name": "아린", "description": "D." },
+    "persona": { "contract": "persona/0.1", "id": "p1", "name": "페르", "prompt": "유저는 {{user}}.", "icon": "", "note": "", "embeddedModule": null, "source": null, "version": 1 },
+    "lore": { "entries": [ { "content": "L1" }, { "content": "L2" } ] },
+    "chat": [
+      { "role": "user", "content": "u1" }, { "role": "assistant", "content": "a1" },
+      { "role": "user", "content": "u2" }, { "role": "assistant", "content": "a2" },
+      { "role": "user", "content": "u3" }, { "role": "assistant", "content": "a3" }
+    ],
+    "authorNote": { "content": "AN", "depth": 2 }
+  },
+  "expected": {
+    "messages": [
+      { "role": "system", "content": "D." },
+      { "role": "system", "content": "유저는 페르." },
+      { "role": "system", "content": "L1\n\nL2" },
+      { "role": "user", "content": "u2" },
+      { "role": "assistant", "content": "a2" },
+      { "role": "system", "content": "AN" },
+      { "role": "user", "content": "u3" },
+      { "role": "assistant", "content": "a3" }
+    ],
+    "assistantPrefill": "",
+    "warnings": []
+  }
+}

@@ -4,3 +4,4 @@ function validate(value:MemoryRecord){if(!value.id||!value.text.trim())throw new
 export function memoryRecord(input:{id:string;text:string;turn:number;scope?:KnowledgeScope;evidence:EvidenceReference[];status?:MemoryRecord['status']}):MemoryRecord{return{id:input.id,text:input.text,validFromTurn:input.turn,validToTurn:null,scope:input.scope??{kind:'public'},evidence:input.evidence,status:input.status??'candidate'};}
 export * from './semantic.ts';
 export * from './narrative-verifier.ts';
+export * from './providers/fixed.ts';
