@@ -63,3 +63,4 @@
 - 라이선스: 원본 파일에 표기 없음.
 - 이식 범위: 코드 복사 없이 공식 프로바이더 엔드포인트·인증 헤더·모델 카탈로그와 보조 모델 슬롯 개념을 확인해 `packages/session/src/providers/` 계약으로 독립 구현.
 - 제외: CPM 자체 프록시·자동 업데이트·IPC·텔레메트리·RisuAI 플러그인 런타임/DOM/DatabaseSubset 의존부.
+- GitHub Copilot 필수 헤더값(`Editor-Version: vscode/1.115.0`, `Editor-Plugin-Version: copilot-chat/0.43.2026040705`, `Copilot-Integration-Id: vscode-chat`, `X-Initiator: user`, `Openai-Intent: conversation-edits`)은 CPM이 실제로 전송하는 기본값과 동일하게 맞췄다. Copilot API가 에디터 신원 헤더를 요구하므로 임의값으로는 요청이 거부된다.

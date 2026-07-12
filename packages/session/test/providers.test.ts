@@ -13,3 +13,26 @@ describe('CPM 계열 공식 엔드포인트',()=>{it.each([
   ['openrouter','https://openrouter.ai/api/v1/chat/completions'],['deepseek','https://api.deepseek.com/v1/chat/completions'],['vercel','https://ai-gateway.vercel.sh/v1/chat/completions'],['nanogpt','https://nano-gpt.com/api/v1/chat/completions'],['cerebras','https://api.cerebras.ai/v1/chat/completions']
 ] as const)('%s가 Bearer 인증으로 산문을 호출한다',async(providerId,endpoint)=>{let seenUrl='',auth='';const provider=createProvider({provider:providerId,model:'m',apiKey:'provider-key'},async(url,init)=>{seenUrl=String(url);auth=String((init?.headers as Record<string,string>).authorization);return new Response(JSON.stringify({choices:[{message:{content:'산문 응답'}}]}),{status:200});});expect((await provider.complete({prompt,format:'prose'})).text).toBe('산문 응답');expect(seenUrl).toBe(endpoint);expect(auth).toBe('Bearer provider-key');});
 it('Copilot OAuth 토큰을 단기 토큰으로 교환해 채팅한다',async()=>{const calls:string[]=[];const provider=createProvider({provider:'copilot',model:'gpt-4.1',apiKey:'gho_abcdefghijklmno'},async(url,init)=>{calls.push(String(url));if(String(url).includes('copilot_internal')){expect((init?.headers as Record<string,string>).authorization).toContain('gho_');return new Response(JSON.stringify({token:'tid=short-secret-token',expires_at:Math.floor(Date.now()/1000)+900}),{status:200});}expect((init?.headers as Record<string,string>).authorization).toBe('Bearer tid=short-secret-token');expect((init?.headers as Record<string,string>)['Copilot-Integration-Id']).toBe('vscode-chat');return new Response(JSON.stringify({choices:[{message:{content:'코파일럿 답변'}}]}),{status:200});});expect((await provider.complete({prompt,format:'prose'})).text).toBe('코파일럿 답변');expect(calls).toEqual(['https://api.github.com/copilot_internal/v2/token','https://api.githubcopilot.com/chat/completions']);});});
+
+describe('Copilot 필수 에디터 헤더',()=>{
+  // Copilot API는 Editor-Version/Editor-Plugin-Version이 없으면 요청을 거부한다.
+  // CPM(v1.35.11)이 실제로 보내는 헤더 집합과 일치해야 첫 요청이 성공한다.
+  it('토큰 교환·채팅·모델 목록 모두에 에디터 신원 헤더를 보낸다',async()=>{
+    const seen:Array<Record<string,string>>=[];
+    const fetchImpl=(async(url:string|URL,init?:RequestInit)=>{
+      seen.push({url:String(url),...(init?.headers as Record<string,string>??{})});
+      if(String(url).includes('copilot_internal'))return new Response(JSON.stringify({token:'tid=abc;exp=1',expires_at:Math.floor(Date.now()/1000)+3600,endpoints:{api:'https://api.individual.githubcopilot.com'}}),{status:200});
+      return new Response(JSON.stringify({choices:[{message:{content:'좋은 아침 [ysp_gold::+5]'}}]}),{status:200});
+    }) as unknown as typeof fetch;
+    const provider=createProvider({provider:'copilot',model:'gpt-4.1',apiKey:'gho_test_token_1234567890'},fetchImpl);
+    const result=await provider.complete({prompt:{messages:[{role:'user',content:'안녕'}]} as never,format:'prose'});
+    expect(result.text).toContain('[ysp_gold::+5]');
+    const token=seen.find(x=>(x.url??'').includes('copilot_internal'))!,chat=seen.find(x=>(x.url??'').includes('/chat/completions'))!;
+    expect(token['Editor-Version']).toBe('vscode/1.115.0');
+    expect(chat['Editor-Version']).toBe('vscode/1.115.0');
+    expect(chat['Editor-Plugin-Version']).toContain('copilot-chat/');
+    expect(chat['Copilot-Integration-Id']).toBe('vscode-chat');
+    expect(chat['X-Initiator']).toBe('user');
+    expect(chat.url).toContain('api.individual.githubcopilot.com'); // 토큰 응답의 endpoints.api를 따른다
+  });
+});
