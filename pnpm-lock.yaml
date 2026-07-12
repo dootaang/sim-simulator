@@ -35,6 +35,9 @@ importers:
       '@simbot/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@simbot/risu':
+        specifier: workspace:*
+        version: link:../../packages/risu
       '@simbot/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
