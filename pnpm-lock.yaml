@@ -87,6 +87,15 @@ importers:
       '@simbot/card':
         specifier: workspace:*
         version: link:../card
+      '@simbot/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@simbot/risu':
+        specifier: workspace:*
+        version: link:../risu
+      '@simbot/session':
+        specifier: workspace:*
+        version: link:../session
       '@simbot/simpack':
         specifier: workspace:*
         version: link:../simpack

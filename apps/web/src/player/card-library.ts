@@ -1,5 +1,6 @@
 import { parseCard, type CardFormat, type ParsedCard } from '@simbot/card';
 import type { SessionRepository } from '@simbot/persistence';
+import type { CompileResult } from '@simbot/compiler';
 
 export interface CardLibraryEntry { projectId:string; name:string; format:CardFormat; bytes:string; addedAt:number; }
 export interface CardLibraryMeta { projectId:string; name:string; format:CardFormat; addedAt:number; }
@@ -16,7 +17,9 @@ export class CardLibrary {
   async saveCard(parsed:ParsedCard,projectId:string,nameSuffix=''){if(parsed.sourceBytes.length>MAX_PERSISTED_BYTES)return false;const entry:CardLibraryEntry={projectId,name:`${parsed.name||projectId}${nameSuffix}`,format:parsed.format,bytes:bytesToBase64(parsed.sourceBytes),addedAt:Date.now()};await repo<CardLibraryEntry>(this.repository).put({id:`cardlib:${projectId}`,schemaHash:'cardlib',title:entry.name,updatedAt:entry.addedAt,payload:entry});const index=await this.index();index.cards=index.cards.filter(card=>card.projectId!==projectId);const meta:CardLibraryMeta={projectId:entry.projectId,name:entry.name,format:entry.format,addedAt:entry.addedAt};index.cards.unshift(meta);await this.saveIndex(index);return true;}
   async listCards(){return (await this.index()).cards;}
   async loadCard(projectId:string){const row=await repo<CardLibraryEntry>(this.repository).get(`cardlib:${projectId}`);return row?parseCard(base64ToBytes(row.payload.bytes),row.payload.name):null;}
-  async removeCard(projectId:string){await this.repository.delete(`cardlib:${projectId}`);const index=await this.index();index.cards=index.cards.filter(card=>card.projectId!==projectId);await this.saveIndex(index);}
+  async saveCompilation(projectId:string,result:CompileResult){await repo<CompileResult>(this.repository).put({id:`cardlib:${projectId}:compiler`,schemaHash:'cardlib-compiler',title:'Engine compilation',updatedAt:Date.now(),payload:structuredClone(result)});}
+  async loadCompilation(projectId:string){return (await repo<CompileResult>(this.repository).get(`cardlib:${projectId}:compiler`))?.payload??null;}
+  async removeCard(projectId:string){await this.repository.delete(`cardlib:${projectId}`);await this.repository.delete(`cardlib:${projectId}:compiler`);const index=await this.index();index.cards=index.cards.filter(card=>card.projectId!==projectId);await this.saveIndex(index);}
   private async index(){const row=await repo<CardLibraryIndex>(this.repository).get(INDEX_ID);return row?.payload.contract==='simbot-card-library/0.1'?structuredClone(row.payload):{contract:'simbot-card-library/0.1' as const,cards:[]};}
   private async saveIndex(payload:CardLibraryIndex){await repo<CardLibraryIndex>(this.repository).put({id:INDEX_ID,schemaHash:'cardlib',title:'Card library',updatedAt:Date.now(),payload});}
 }
