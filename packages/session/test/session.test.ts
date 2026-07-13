@@ -25,7 +25,7 @@ describe('Risu-style alternatives and continuation',()=>{
   it('keeps a bounded prompt and engine evidence ledger in the saved snapshot',async()=>{
     const repository=createMemoryRepository<SessionSnapshot>(),session=new PlaySession({id:'audit-ledger',runtime:runtime(),preset,card:{name:'Guide'},repository,provider:{async complete(){return{text:'done',events:[{id:'progression/gain',params:{source:'train'}}]};}}});
     await session.send('train');const run=session.promptRuns[0]!;
-    expect(run.prompt.messages.length).toBeGreaterThan(0);expect(run.stateBefore).not.toEqual(run.stateAfter);expect(run.logs).toEqual(expect.arrayContaining([expect.objectContaining({ok:true})]));
+    expect(run.prompt!.messages.length).toBeGreaterThan(0);expect(run.stateBefore).not.toEqual(run.stateAfter);expect(run.logs).toEqual(expect.arrayContaining([expect.objectContaining({ok:true})]));
     expect((await repository.get('audit-ledger'))?.payload.promptRuns?.[0]?.id).toBe(run.id);
   });
 });

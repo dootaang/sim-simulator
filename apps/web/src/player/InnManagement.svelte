@@ -1,7 +1,8 @@
 <script lang="ts">
   import type {ProjectRuntime} from '@simbot/runtime';
+  import type {PlaySession} from '@simbot/session';
   import Icon from '@simbot/ui/Icon.svelte';
-  let {runtime,version,onchange}:{runtime:ProjectRuntime;version:number;onchange:()=>void}=$props();
+  let {runtime,version,session=null,onchange}:{runtime:ProjectRuntime;version:number;session?:PlaySession|null;onchange:()=>void}=$props();
   let lastLog=$state<Record<string,unknown>[]>([]),quantities=$state<Record<string,number>>({}),wages=$state<Record<string,number>>({});
   let engineState=$derived.by(()=>{version;return runtime.state;}),schema=$derived(runtime.project.schema);
   const rows=(value:unknown)=>Array.isArray(value)?value.filter(item=>item&&typeof item==='object') as Record<string,unknown>[]:[];
@@ -10,7 +11,7 @@
   let traffic=$derived.by(()=>{version;const value=select('inn/traffic');return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};}),quests=$derived.by(()=>{version;return rows(select('inn/quests'));}),rooms=$derived.by(()=>{version;return rows(select('inn/rooms'));});
   let lodging=$derived(rows(traffic.lodging)),mail=$derived(rows(traffic.mail)),waves=$derived(rows(traffic.waves));
   let facilities=$derived(entities('facility')),npcs=$derived(entities('npc')),resources=$derived(rows(schema.resources).filter(value=>value.id!=='gold'));
-  function run(id:string,params:Record<string,unknown>={}){lastLog=runtime.dispatch(id,params).log as Record<string,unknown>[];onchange();}
+  async function run(id:string,params:Record<string,unknown>={}){lastLog=(session?await session.dispatchEngineEvent(id,params):runtime.dispatch(id,params)).log as Record<string,unknown>[];onchange();}
   function purchase(){const items=resources.map(value=>({resource:value.id,qty:Math.trunc(quantities[String(value.id)]??0)})).filter(value=>value.qty>0);if(items.length)run('purchase_batch',{items});}
   function staffEntry(id:string){return rows(engineState.staff).find(value=>value.npcId===id);}
 </script>

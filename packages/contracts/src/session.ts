@@ -1,6 +1,5 @@
-import type { JsonObject, SessionId } from './json.ts';
-import type { EngineEvent } from './engine.ts';
+import type { JsonObject } from './json.ts';
 
-export interface SessionMessage { readonly id: string; readonly index: number; readonly role: 'system' | 'user' | 'assistant'; readonly content: string; readonly createdAt: string; }
-export interface SessionEvent { readonly index: number; readonly event: EngineEvent; readonly log: readonly JsonObject[]; readonly stateHash: string; }
-export interface SessionBundle { readonly contract: 'simbot-session/0.1'; readonly id: SessionId; readonly projectId: string; readonly schemaHash: string; readonly messages: readonly SessionMessage[]; readonly events: readonly SessionEvent[]; readonly snapshots: readonly JsonObject[]; readonly memory: readonly JsonObject[]; }
+export interface EngineJournalEvent { readonly index:number;readonly parentIndex:number;readonly event:{readonly id:string;readonly params:JsonObject};readonly ok:boolean;readonly log:readonly JsonObject[];readonly stateHash:string;readonly rng:number; }
+export interface EngineJournalHead { readonly index:number;readonly stateHash:string;readonly rng:number; }
+export interface EngineJournalData { readonly contract:'simbot-event-journal/0.1';readonly schemaHash:string;readonly initial:{readonly state:JsonObject;readonly rng:number};readonly snapshotInterval:number;readonly events:readonly EngineJournalEvent[];readonly cursor:number;readonly head:EngineJournalHead; }

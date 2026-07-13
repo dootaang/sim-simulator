@@ -19,7 +19,7 @@
   let screens=$derived(project.screens.filter((item)=>evaluateCondition(item.visibleWhen,context)));
   let screen=$derived(screens.find((item)=>item.id===(active||project.navigation[0]?.screenId))??screens[0]);
   function source(widget:Record<string,unknown>){revision;const value=widget.source;if(typeof value==='string'&&value.startsWith('engine:')){try{return runtime.select(value.slice(7));}catch{return null;}}if(typeof value==='string'&&value.startsWith('state.'))return value.split('.').slice(1).reduce<unknown>((current,key)=>current&&typeof current==='object'&&key!=='__proto__'&&key!=='constructor'&&key!=='prototype'&&Object.prototype.hasOwnProperty.call(current,key)?(current as Record<string,unknown>)[key]:undefined,runtime.state);return value;}
-  function act(action:Record<string,unknown>){const event=(action.event??action)as Record<string,unknown>,id=String(event.id??'');if(!id)return;const params=resolveValue(event.params??{},context)as Record<string,unknown>;lastLog=runtime.dispatch(id,params).log;revision+=1;}
+  async function act(action:Record<string,unknown>){const event=(action.event??action)as Record<string,unknown>,id=String(event.id??'');if(!id)return;const params=resolveValue(event.params??{},context)as Record<string,unknown>;lastLog=(session?await session.dispatchEngineEvent(id,params):runtime.dispatch(id,params)).log;revision+=1;}
   function asList(value:unknown):Record<string,unknown>[]{if(Array.isArray(value))return value as Record<string,unknown>[];if(value&&typeof value==='object')return Object.entries(value).map(([id,item])=>item&&typeof item==='object'?{id,...item as Record<string,unknown>}:{id,value:item});return[];}
   function choiceText(value:unknown){if(value==null)return undefined;if(['string','number','boolean'].includes(typeof value))return String(value);return structuredEntries(value).map((entry)=>`${entry.key}: ${entry.value}`).join(' · ');}
   function choices(widget:Record<string,unknown>){return asList(widget.choices??widget.actions).map((choice)=>{const detail=choiceText(choice.description??choice.desc),effects=choiceText(choice.effects??choice.effect);return{label:String(choice.label??choice.name??choice.id??'선택'),...(detail?{description:detail}:{}),...(effects?{effects}:{}),disabled:choice.enabled===false,action:choice};});}
@@ -35,7 +35,7 @@
           {#if widget.widget==='chat'}
             {#if session}<ChatPanel {session} {portraitFor} onchange={()=>revision+=1}/>{:else}<div class="chat"><p>플레이 세션을 준비하고 있습니다.</p>{#if lastLog.length}<dl class="structured">{#each structuredEntries(lastLog) as entry}<div><dt>{entry.key}</dt><dd>{entry.value}</dd></div>{/each}</dl>{/if}</div>{/if}
           {:else if widget.widget==='inn-management'}
-            <InnManagement {runtime} {version} onchange={()=>revision+=1}/>
+            <InnManagement {runtime} {version} {session} onchange={()=>revision+=1}/>
           {:else if widget.widget==='action-group'}
             <div class="actions">{#each asList(widget.actions) as action}<Button disabled={action.enabled===false} onclick={()=>act(action)}>{String(action.label??action.id)}</Button>{/each}</div>
           {:else if widget.widget==='decision-card'}
