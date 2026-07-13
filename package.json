@@ -10,6 +10,7 @@
     "typecheck":"pnpm -r --if-present typecheck",
     "build":"pnpm -r --if-present build",
     "check":"pnpm typecheck && pnpm test && pnpm build",
+    "verify":"pnpm check && pnpm test:e2e",
     "test:e2e":"pnpm --filter @simbot/web test:e2e",
     "dev":"pnpm --filter @simbot/web dev",
     "deploy":"pnpm --filter @simbot/web build && firebase deploy --only hosting"
