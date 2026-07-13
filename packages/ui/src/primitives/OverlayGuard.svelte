@@ -9,5 +9,5 @@
   <div class="dialog" bind:this={dialog} role="dialog" aria-modal="true" aria-label={label} tabindex="-1" onkeydown={keydown} onclick={(event)=>{if(closeOnBackdrop&&event.target===event.currentTarget)onclose();}}>{@render children()}</div>
 </div>
 <style>
-  .overlay{position:fixed;inset:0;display:grid;background:#07090db8;backdrop-filter:blur(4px)}.overlay.strong{background:#07090dd9;backdrop-filter:blur(5px)}.dialog{box-sizing:border-box;width:100%;height:100%;display:grid;place-items:center;padding:18px;outline:0}@media(max-width:700px){.dialog{padding:0}}@media(min-width:1000px){.overlay.dock{background:transparent;backdrop-filter:none;pointer-events:none}.overlay.dock .dialog{place-items:stretch end;padding:0}.overlay.dock .dialog :global(*){pointer-events:auto}}
+  .overlay{position:fixed;inset:0;display:grid;background:#07090db8;backdrop-filter:blur(4px)}.overlay.strong{background:#07090dd9;backdrop-filter:blur(5px)}.dialog{box-sizing:border-box;width:100%;height:100%;min-width:0;min-height:0;display:grid;place-items:center;padding:18px;overflow:hidden;outline:0}@media(max-width:700px){.dialog{padding:0}}@media(min-width:1000px){.overlay.dock{background:transparent;backdrop-filter:none;pointer-events:none}.overlay.dock .dialog{place-items:stretch end;padding:0}.overlay.dock .dialog :global(*){pointer-events:auto}}
 </style>
