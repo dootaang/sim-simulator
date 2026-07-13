@@ -26,7 +26,7 @@
 </script>
 
 <aside class="side" class:open style:display={open?'flex':undefined}>
-  <header><strong>{profile.card.name}</strong><button class="edit-card" onclick={onedit} title="봇 편집"><Icon name="pencil" size={14}/></button><span class="passport-count">{passport.grades.exact.length}/{passport.grades.approx.length}/{passport.grades.preserved.length}</span><div class="tabs"><button class:active={tab==='chat'} onclick={()=>tab='chat'} title="채팅"><Icon name="message"/></button><button class:active={tab==='basic'} onclick={()=>tab='basic'} title="카드 정보"><Icon name="user"/></button><button class:active={tab==='passport'} onclick={()=>tab='passport'} title="호환성 여권"><Icon name="badge"/></button></div></header>
+  <header><strong>{profile.card.name}</strong><button class="edit-card" onclick={onedit} title="봇카드와 스크립트 편집"><Icon name="pencil" size={14}/><span>봇 편집</span></button><span class="passport-count">{passport.grades.exact.length}/{passport.grades.approx.length}/{passport.grades.preserved.length}</span><div class="tabs"><button class:active={tab==='chat'} onclick={()=>tab='chat'} title="채팅"><Icon name="message"/></button><button class:active={tab==='basic'} onclick={()=>tab='basic'} title="카드 정보"><Icon name="user"/></button><button class:active={tab==='passport'} onclick={()=>tab='passport'} title="호환성 여권"><Icon name="badge"/></button></div></header>
   {#if tab==='chat'}
     <section class="content chats">
       <button class="new" onclick={oncreate}><Icon name="plus"/> 새 채팅</button>
@@ -45,5 +45,5 @@
   .inspect{width:calc(100% - 20px);display:flex;align-items:center;justify-content:center;gap:6px;margin:4px 10px;padding:7px;border:1px solid #46516a;border-radius:6px;background:#222938;color:#a9c2f5}
   .compile{width:calc(100% - 20px);display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 10px 4px;padding:8px;border:1px solid #6a8550;border-radius:6px;background:#283321;color:#c7e7aa}.compile:disabled{opacity:.55}
   .simulate{width:calc(100% - 20px);display:flex;align-items:center;justify-content:center;gap:6px;margin:5px 10px;padding:8px;border:1px solid #80652f;border-radius:6px;background:#302817;color:#ebc66f}
-  .edit-card{float:right;display:grid;place-items:center;margin-right:8px;padding:3px;border:0;background:transparent;color:#8f97a5}.edit-card:hover{color:#dce6fb}
+  .edit-card{float:right;display:inline-flex;align-items:center;gap:4px;margin-right:8px;padding:3px 6px;border:1px solid #3b414c;border-radius:5px;background:#22262e;color:#aeb6c4;font-size:10px}.edit-card:hover{border-color:#6c98f4;color:#dce6fb}
 </style>

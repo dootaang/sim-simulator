@@ -11,7 +11,7 @@ export interface CardDocumentAsset{
 export interface CardDocumentDraft{
   name:string;description:string;personality:string;scenario:string;firstMessage:string;alternateGreetings:string[];
   creatorNotes:string;systemPrompt:string;postHistoryInstructions:string;tags:string[];backgroundHtml:string;
-  lorebook:CardLoreEntry[];regexScripts:RegexScript[];assets:CardDocumentAsset[];
+  lorebook:CardLoreEntry[];regexScripts:RegexScript[];triggerScripts:Record<string,unknown>[];assets:CardDocumentAsset[];
 }
 export interface CardDocument{
   contract:'lucky-card-document/0.1';source:ParsedCard;draft:CardDocumentDraft;original:CardDocumentDraft;
@@ -35,11 +35,11 @@ function assetFrom(value:CardAsset,index:number):CardDocumentAsset{return{id:`as
 function readDraft(parsed:ParsedCard):{draft:CardDocumentDraft;moduleRoot:Record<string,unknown>|null}{
   const root=object(parsed.card),data=object(root.data??root),extensions=object(data.extensions),risu=object(extensions.risuai),moduleRoot=parsed.modules?.[0]?.raw?clone(parsed.modules[0].raw):null;
   const moduleLore=Array.isArray(moduleRoot?.lorebook)?moduleRoot.lorebook:null,book=object(data.character_book),cardLore=Array.isArray(book.entries)?book.entries:[];
-  const lore=(moduleLore??cardLore).map(loreFrom),regexScripts=clone(parsed.modules?.flatMap(module=>module.regex)??[]);
+  const lore=(moduleLore??cardLore).map(loreFrom),regexScripts=clone(parsed.modules?.flatMap(module=>module.regex)??[]),triggerSource=moduleRoot?.trigger??risu.triggerScript??risu.triggerscript,triggerScripts=Array.isArray(triggerSource)?clone(triggerSource.map(object)):[];
   return{moduleRoot,draft:{name:String(data.name??root.name??parsed.name),description:String(data.description??''),personality:String(data.personality??''),scenario:String(data.scenario??''),
     firstMessage:String(data.first_mes??data.firstMessage??''),alternateGreetings:strings(data.alternate_greetings??data.alternateGreetings),creatorNotes:String(data.creator_notes??''),
     systemPrompt:String(data.system_prompt??''),postHistoryInstructions:String(data.post_history_instructions??''),tags:strings(data.tags),
-    backgroundHtml:String(risu.backgroundHTML??moduleRoot?.backgroundEmbedding??''),lorebook:lore,regexScripts,assets:parsed.assets.map(assetFrom)}};
+    backgroundHtml:String(risu.backgroundHTML??moduleRoot?.backgroundEmbedding??''),lorebook:lore,regexScripts,triggerScripts,assets:parsed.assets.map(assetFrom)}};
 }
 
 export function createCardDocument(parsed:ParsedCard):CardDocument{

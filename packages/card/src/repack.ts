@@ -14,8 +14,8 @@ export function buildEditedRoots(document:CardDocument){
   const root=clone(document.cardRoot),data=object(root.data??root),draft=document.draft;
   data.name=draft.name;data.description=draft.description;data.personality=draft.personality;data.scenario=draft.scenario;data.first_mes=draft.firstMessage;data.alternate_greetings=[...draft.alternateGreetings];data.creator_notes=draft.creatorNotes;data.system_prompt=draft.systemPrompt;data.post_history_instructions=draft.postHistoryInstructions;data.tags=[...draft.tags];
   const book=object(data.character_book);book.entries=draft.lorebook.map(loreCard);data.character_book=book;data.assets=draft.assets.flatMap((asset,index)=>!asset.deleted&&asset.origin==='card'?[assetMeta(asset,document.source.format,index)]:[]);
-  const extensions=object(data.extensions),risu=object(extensions.risuai);risu.backgroundHTML=draft.backgroundHtml;extensions.risuai=risu;data.extensions=extensions;if(root.data)root.data=data;
-  const moduleRoot=document.moduleRoot?clone(document.moduleRoot):null;if(moduleRoot){moduleRoot.lorebook=draft.lorebook.map(loreRisu);moduleRoot.regex=clone(draft.regexScripts);moduleRoot.backgroundEmbedding=draft.backgroundHtml;}
+  const extensions=object(data.extensions),risu=object(extensions.risuai);risu.backgroundHTML=draft.backgroundHtml;if(!document.moduleRoot)risu.triggerScript=clone(draft.triggerScripts);extensions.risuai=risu;data.extensions=extensions;if(root.data)root.data=data;
+  const moduleRoot=document.moduleRoot?clone(document.moduleRoot):null;if(moduleRoot){moduleRoot.lorebook=draft.lorebook.map(loreRisu);moduleRoot.regex=clone(draft.regexScripts);moduleRoot.trigger=clone(draft.triggerScripts);moduleRoot.backgroundEmbedding=draft.backgroundHtml;}
   return{root,moduleRoot};
 }
 function rpackMain(original:Uint8Array,root:Record<string,unknown>){const oldLength=new DataView(original.buffer,original.byteOffset+2,4).getUint32(0,true),encoded=encodeRisuBytes(strToU8(JSON.stringify(root))),length=new Uint8Array(4);new DataView(length.buffer).setUint32(0,encoded.length,true);return joinBytes(original.subarray(0,2),length,encoded,original.subarray(6+oldLength));}

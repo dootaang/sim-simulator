@@ -8,6 +8,7 @@ describe('Risu 표시 파이프라인',()=>{
   it('위험한 출력과 파괴적 패턴을 무력화하고 특수 치환 토큰을 문자로 둔다',()=>{const malicious=applyRegexScripts('x',[{in:'x',out:'<script>x</script><img src="javascript:x" onerror="x">',type:'editdisplay'}],'display');expect(malicious).not.toMatch(/script|javascript:|onerror/i);expect(applyRegexScripts('aaaa!',[{in:'(a+)+',out:'x',type:'editdisplay'}],'display')).toBe('aaaa!');expect(applyRegexScripts('before x after',[{in:'x',out:'$&-$`-$\'-$1',type:'editdisplay'}],'display')).toBe('before $&-$`-$\'-$1 after');});
   it('Risu editrequest 스크립트를 모델 요청 단계에 적용한다',()=>{expect(applyRegexScripts('before',[{in:'before',out:'after',type:'editrequest'}],'process')).toBe('after');});
   it('CBS는 미지 함수를 잔재 없이 통과시키고 eval 없는 산술 결과를 낸다',()=>{expect(parseCbs('a{{unknown::x}}b',{variables:{}})).toBe('ab');expect(calcString('(2+3)*4')).toBe('20');expect(parseCbs('{{#if {{greater::3::2}}}}yes{{:else}}no{{/if}}',{variables:{}})).toBe('yes');});
+  it('배경 CBS는 화면 너비를 계산하고 배경 에셋 매크로를 다음 단계까지 보존한다',()=>{const rendered=parseCbs('{{#if {{? {{screen_width}} > 768 }} }}wide{{:else}}small{{/if}} {{bg::room}}',{variables:{},screenWidth:1200});expect(rendered).toBe('wide {{bg::room}}');});
 });
 
 describe('Risu raw assets in HTML attributes',()=>{
