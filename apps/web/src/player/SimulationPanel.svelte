@@ -4,12 +4,13 @@
   import Icon from '@simbot/ui/Icon.svelte';
   import OverlayGuard from '@simbot/ui/OverlayGuard.svelte';
   import ScreenRenderer from './ScreenRenderer.svelte';
-  let {runtime,version,session,portraitFor,onchange=()=>{},onclose}:{runtime:ProjectRuntime;version:number;session:PlaySession;portraitFor:(npcId:string,emotion?:string)=>string|null;onchange?:()=>void;onclose:()=>void}=$props();
+  import type {SimulationActionHandler} from './simulation-action';
+  let {runtime,version,session,portraitFor,busy=false,onaction,onchange=()=>{},onclose}:{runtime:ProjectRuntime;version:number;session:PlaySession;portraitFor:(npcId:string,emotion?:string)=>string|null;busy?:boolean;onaction:SimulationActionHandler;onchange?:()=>void;onclose:()=>void}=$props();
 </script>
 <OverlayGuard label="시뮬레이션" {onclose} dock>
   <div class="panel">
     <header><div><b>시뮬레이션</b><small>엔진이 직접 계산하고 기록하는 게임 화면</small></div><button aria-label="닫기" onclick={onclose}><Icon name="close"/></button></header>
-    <main><ScreenRenderer {runtime} {version} {session} {portraitFor} {onchange}/></main>
+    <main><ScreenRenderer {runtime} {version} {session} {portraitFor} {busy} {onaction} {onchange}/></main>
   </div>
 </OverlayGuard>
 <style>

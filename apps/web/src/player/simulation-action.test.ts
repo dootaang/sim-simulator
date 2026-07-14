@@ -1,0 +1,2 @@
+import{describe,expect,it}from'vitest';import{declaredActionMode}from'./simulation-action';
+describe('simulation action presentation policy',()=>{it('keeps narration policy in the screen declaration instead of guessing from event ids',()=>{expect(declaredActionMode({event:{id:'upgrade'},mode:'ledger'})).toBe('ledger');expect(declaredActionMode({event:{id:'upgrade'},narrate:false})).toBe('ledger');expect(declaredActionMode({event:{id:'upgrade'}})).toBe('narrated');});});
