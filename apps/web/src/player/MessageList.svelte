@@ -25,11 +25,19 @@
   function assetOptions(){const value=session.runtime.state.npcs,outfits:Record<string,number>={};if(value&&typeof value==='object'&&!Array.isArray(value))for(const[id,npc]of Object.entries(value as Record<string,unknown>)){const outfit=npc&&typeof npc==='object'&&!Array.isArray(npc)?Number((npc as Record<string,unknown>).outfit):Number.NaN;if(Number.isInteger(outfit))outfits[id]=outfit;}const declared=session.runtime.project.content.activeModules;return{outfits,activeModules:[...(session.runtime.project.moduleIds??[]),...(Array.isArray(declared)?declared.map(String):[])]};}
   // 렌더는 상태를 바꾸지 않는다(M-S0). 진단 기록도 마찬가지 — diagnostics는 평범한 배열에 담고
   // UI 알림은 마이크로태스크로 미룬다. 같은 사건은 재렌더로 쌓이지 않는다(수집기가 중복을 지운다).
+  //
+  // 에셋 실패는 세 가지를 구분해야 한다. 별도 에셋 모듈 이미지는 이름만 먼저 있고 바이트는 나중에 온다.
+  // 그걸 전부 asset_missing으로 적으면 "곧 뜰 이미지"를 실패로 못 박고, 이미지가 뜬 뒤에도 기록이 남는다
+  // — 하필 감정 스프라이트가 정확히 이 경로다. 진행 중인 일은 진행 중이라고 적고, 뜨면 철회한다.
   function report(message:ChatMessage,warning:{code:string;macro:string;name:string}){
     const where={card:cardName,chat:session.id,message:message.index};
-    if(warning.code==='asset_missing'){const found=explainAssetLookup(warning.name,assets,assetOptions());
-      diagnostics.record({...where,kind:'asset',code:'asset_missing',summary:`에셋 해석 실패: ${warning.name}`,detail:{'명령':`{{${warning.macro}::${warning.name}}}`,'시도한 이름':found.tried.join(', '),'변형 그룹':found.variantGroup,'있는 변형':found.variantsAvailable.length?found.variantsAvailable.join(', '):'(없음)','엔진 의상':found.outfitOwner?`${found.outfitOwner} = ${found.outfit}`:'(미지정)','결과':'asset_missing'}});
-      return;}
+    if(warning.code==='asset_missing'){
+      const found=explainAssetLookup(warning.name,assets,assetOptions()),pending=found.resolved!==null; // 이름은 찾았다 = 아직 불러오는 중
+      const key=`asset:${session.id}:${warning.name}`;
+      if(!pending){diagnostics.record({...where,key,kind:'asset',code:'asset_missing',summary:`에셋을 찾지 못함: ${warning.name}`,detail:{'명령':`{{${warning.macro}::${warning.name}}}`,'시도한 이름':found.tried.join(', '),'변형 그룹':found.variantGroup,'있는 변형':found.variantsAvailable.length?found.variantsAvailable.join(', '):'(카드에 없음)','엔진 의상':found.outfitOwner?`${found.outfitOwner} = ${found.outfit}`:'(미지정)','결과':'asset_missing'}});return;}
+      diagnostics.record({...where,key,kind:'asset',code:'asset_loading',status:'pending',summary:`에셋 불러오는 중: ${warning.name}`,detail:{'찾은 에셋':found.resolved,'엔진 의상':found.outfitOwner?`${found.outfitOwner} = ${found.outfit}`:'(미지정)','결과':'모듈에서 이미지 데이터를 가져오는 중 — 뜨면 이 기록은 사라진다'}});
+      return;
+    }
     if(warning.code==='cbs_budget_exceeded'){diagnostics.record({...where,kind:'cbs',code:'cbs_budget_exceeded',summary:`CBS 예산 초과: ${warning.macro}`,detail:{'상한 종류':warning.macro,'실제 > 상한':warning.name,'결과':'파싱을 접고 원문을 표시함'}});return;}
     diagnostics.record({...where,kind:'asset',code:warning.code,summary:`${warning.macro} 처리 실패: ${warning.name}`,detail:{'명령':warning.macro,'이름':warning.name}});
   }

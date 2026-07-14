@@ -1,12 +1,17 @@
 <script lang="ts">
   import Icon from '@simbot/ui/Icon.svelte';
   import {diagnostics,diagnosticLabel,type DiagnosticEvent} from './diagnostics.svelte.ts';
-  let {secrets=[],onclose}:{secrets?:readonly string[];onclose:()=>void}=$props();
+  let {chat=null,onclose}:{chat?:string|null;onclose:()=>void}=$props();
   let copied=$state(false);
-  let events=$derived([...diagnostics.events].reverse());
+  // 카드를 옮겨 다니면 사건이 섞인다. 기본은 "지금 이 채팅" — 복사본을 받는 쪽도 어느 게 현재 문제인지
+  // 고를 필요가 없어야 한다. 전체 보기는 한 번 눌러서 켠다.
+  let scoped=$state(true);
+  let scope=$derived(scoped&&chat?chat:null);
+  let events=$derived([...diagnostics.events].filter(event=>!scope||event.chat===scope).reverse());
+  let hidden=$derived(diagnostics.count-events.length);
   const time=(at:number)=>new Date(at).toLocaleTimeString('ko-KR',{hour12:false});
   const rows=(event:DiagnosticEvent)=>Object.entries(event.detail);
-  async function copy(){await navigator.clipboard.writeText(diagnostics.copyText(secrets));copied=true;setTimeout(()=>copied=false,1500);}
+  async function copy(){await navigator.clipboard.writeText(diagnostics.copyText(scope??undefined));copied=true;setTimeout(()=>copied=false,1500);}
 </script>
 
 <div class="scrim" role="presentation" onclick={onclose}></div>
@@ -14,19 +19,20 @@
   <header>
     <div><strong><Icon name="badge" size={14}/> 진단</strong><span>{events.length}건 · 최근 {events.length?time(events[0]!.at):'—'}</span></div>
     <div class="actions">
-      <button class="primary" disabled={!events.length} onclick={copy}>{copied?'복사됨':'전체 복사'}</button>
+      <button class="primary" disabled={!events.length} onclick={copy}>{copied?'복사됨':'복사'}</button>
       <button disabled={!events.length} onclick={()=>diagnostics.clear()}>비우기</button>
       <button class="icon" onclick={onclose} aria-label="닫기"><Icon name="close" size={14}/></button>
     </div>
   </header>
-  <p class="note">여기 담기는 건 실패한 처리 단계뿐입니다. 카드 원문·이미지·API 키는 복사본에 들어가지 않습니다.</p>
+  {#if chat}<div class="scope"><button class:on={scoped} onclick={()=>scoped=true}>이 채팅</button><button class:on={!scoped} onclick={()=>scoped=false}>전체{#if hidden&&scoped} · +{hidden}{/if}</button></div>{/if}
+  <p class="note">여기 담기는 건 실패했거나 진행 중인 처리 단계뿐입니다. 카드 원문·이미지·API 키는 화면에도 복사본에도 들어가지 않습니다.</p>
   {#if !events.length}
     <div class="empty"><p>기록된 문제가 없습니다.</p><p class="hint">이미지가 안 뜨거나 시뮬레이션이 반응하지 않을 때 다시 열어보세요. 실패한 단계가 여기 남습니다.</p></div>
   {:else}
     <ol>
       {#each events as event}
         <li class={event.kind}>
-          <div class="head"><span class="kind">{diagnosticLabel[event.kind]}</span><b>{event.summary}</b><time>{time(event.at)}</time></div>
+          <div class="head"><span class="kind">{diagnosticLabel[event.kind]}</span><b>{event.summary}</b>{#if event.status==='pending'}<span class="pending">진행 중</span>{/if}<time>{time(event.at)}</time></div>
           <div class="where">{event.card}{event.message===null?'':` · 메시지 ${event.message}`}<code>{event.code}</code></div>
           <dl>{#each rows(event) as [key,value]}<div><dt>{key}</dt><dd>{value===null?'(없음)':String(value)}</dd></div>{/each}</dl>
         </li>
@@ -52,6 +58,11 @@
   ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.5rem;}
   li{padding:.6rem;border:1px solid var(--line,#252a36);border-left:3px solid var(--accent,#f0b429);border-radius:.4rem;background:rgba(255,255,255,.02);}
   li.provider,li.simulation{border-left-color:#e05c5c;}
+  li:has(.pending){border-left-color:#4a7fb5;opacity:.75;}
+  .pending{font-size:.65rem;padding:.1rem .35rem;border-radius:.25rem;background:rgba(74,127,181,.25);color:#8ab6e8;}
+  .scope{display:flex;gap:.25rem;}
+  .scope button{flex:1;padding:.3rem;font-size:.72rem;border:1px solid var(--line,#252a36);border-radius:.35rem;background:transparent;color:inherit;cursor:pointer;opacity:.55;}
+  .scope button.on{opacity:1;background:rgba(255,255,255,.07);}
   .head{display:flex;align-items:center;gap:.4rem;}
   .head b{flex:1;font-size:.85rem;font-weight:600;}
   .kind{font-size:.65rem;padding:.1rem .35rem;border-radius:.25rem;background:rgba(255,255,255,.08);}
