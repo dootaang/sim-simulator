@@ -15,3 +15,6 @@ WORKORDER-*.md
 HANDOFF-*.md
 CLAUDE-TASK-*.md
 PENTA-REVIEW.md
+
+# Claude/Codex 자동 교대 감독기의 로컬 우편함·실행 로그
+/.ai-coordination/
