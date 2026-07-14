@@ -12,3 +12,7 @@ export * from './cbs.ts';
 export * from './security/budget.ts';
 export * from './tokens.ts';
 export * from './trigger-runtime.ts';
+export * from './worker/contract.ts';
+export * from './worker/execute.ts';
+export * from './worker/entry.ts';
+export * from './worker/client.ts';

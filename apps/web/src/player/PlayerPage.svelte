@@ -1,6 +1,6 @@
 <script lang="ts">
   import { browserStorageStatus,createBrowserRepository,createMemoryRepository,type BrowserStorageStatus,type SessionRepository,type WorkerPort } from '@simbot/persistence';
-  import { cardToRuntimeProject,decodeRisuPresetFile,defaultCardPreset,enginePreset,extractRegexScripts,importRisuPreset,mergeRegexScripts,normalizeAssetName,translateYspTags,type CardPassport,type CardRuntimeProfile,type Persona,type PromptPreset,type RegexScript } from '@simbot/risu';
+  import { RisuRuntimeWorkerClient,cardToRuntimeProject,decodeRisuPresetFile,defaultCardPreset,enginePreset,extractRegexScripts,importRisuPreset,mergeRegexScripts,normalizeAssetName,translateYspTags,type CardPassport,type CardRuntimeProfile,type Persona,type PromptPreset,type RegexScript,type RuntimeWorkerPort } from '@simbot/risu';
   import { exportRisuPersonaPng,importRisuPersonaPng,indexZipAssets,parseCard,readIndexedZipEntry,type CardAsset,type ParsedCard,type ZipAssetIndex } from '@simbot/card';
   import {compileCard,type CompileResult} from '@simbot/compiler';
   import { ChatStore,MAX_SESSION_IMPORT_BYTES,PlaySession,catalogFor,createProvider,fetchModels,createVoyageProvider,parseSessionBackup,type AuxConfig,type ChatIndex,type ModelProvider,type ProviderConfig,type ProviderId,type SessionSnapshot } from '@simbot/session';
@@ -40,6 +40,7 @@
   let repository:SessionRepository<SessionSnapshot>=createMemoryRepository(),library:CardLibrary|null=null,presetLibrary:PresetLibrary|null=null,personaLibrary:PersonaLibrary|null=null,chatStore:ChatStore|null=null,fileInput:HTMLInputElement,moduleInput:HTMLInputElement,relinkProjectId:string|null=null;
   type SettingsTab='model'|'prompt'|'persona'|'other';
   let settings=$state<Settings>(readSettings()),models=$state(catalogFor(readSettings().provider)),showSettings=$state(false),inspectorOpen=$state(false),diagnosticsOpen=$state(false),simulationOpen=$state(false),simPinned=$state(typeof localStorage!=='undefined'&&localStorage.getItem('simbot.sim.pinned')==='1'),editorOpen=$state(false),settingsTab=$state<SettingsTab>('model'),sideOpen=$state(false),compact=$state(typeof window!=='undefined'&&innerWidth<1000),runtime=$state<ProjectRuntime>(demo()),session=$state<PlaySession|null>(null),version=$state(0),scrollRequest=$state(0),error=$state(''),busy=$state(false),legacy=$state(false),booting=$state(true),controller:AbortController|null=null,storageStatus=$state.raw<BrowserStorageStatus>({supported:false,persistent:null,requested:false,usage:null,quota:null,error:null});
+  let cardRuntimeClient:RisuRuntimeWorkerClient|null=null;
   // $state는 객체를 Proxy로 감싸는데 structuredClone은 Proxy를 복제하지 못한다(엔진·세션이 내부에서 clone함).
   // 통째로 재할당만 하는 값들은 반드시 $state.raw로 둘 것 — 안 그러면 카드 임포트가 DataCloneError로 죽는다.
   const emptyPersona=():Persona=>({contract:'persona/0.1',id:`persona-${crypto.randomUUID()}`,name:'주인장',prompt:'',icon:'',note:'',embeddedModule:null,source:null,version:1});
@@ -72,6 +73,14 @@
   const trace=createTurnTracer();
   $effect(()=>{void version;trace(session,profile?.card.name??'(카드 없음)');});
   $effect(()=>{diagnostics.setSecrets([settings.apiKey,settings.voyageKey,...Object.values(settings.auxSlots??{}).map(slot=>slot?.apiKey)]);});
+  // 아직 카드 트리거를 플레이에 연결하지 않는다. 다만 세션 경계는 지금 확정해 두어, 이후 실행을 켜도
+  // 이전 채팅의 늦은 응답이 새 채팅 상태에 섞일 수 없게 한다. Worker 자체는 첫 execute 때 지연 생성된다.
+  $effect(()=>{const current=session;if(!current){cardRuntimeClient?.dispose('session_closed');cardRuntimeClient=null;return;}
+    const cardName=profile?.card.name??'(카드 없음)',chat=current.id;
+    cardRuntimeClient?.dispose('session_changed');
+    cardRuntimeClient=new RisuRuntimeWorkerClient(()=>new Worker(new URL('../workers/card-runtime.worker.ts',import.meta.url),{type:'module',name:`card-runtime:${chat}`})as unknown as RuntimeWorkerPort,{onWarning:(warning)=>diagnostics.record({level:warning.code==='runtime_worker_error'?'error':'warn',kind:'trigger',code:warning.code,summary:`카드 실행 격리 경고: ${warning.code}`,detail:{'요청':warning.requestId,'내용':warning.message},card:cardName,chat,message:current.messages.length-1,turn:current.turn})});
+    return()=>{cardRuntimeClient?.dispose('session_changed');cardRuntimeClient=null;};
+  });
   // 화면의 오류 토스트는 닫으면 사라진다. 사고 기록은 남아야 한다 — 같은 오류를 진단에도 적는다.
   // 기록은 평범한 배열에 담기고 UI 알림만 미뤄지므로 이 effect가 렌더 루프를 만들지 않는다.
   $effect(()=>{const message=error;if(!message)return;

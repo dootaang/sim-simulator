@@ -3,8 +3,8 @@
 // 트리거·CBS·정규식이 리스와 동일하게 한 저장소를 공유한다. Lua(triggerlua)·LLM·이미지 효과는
 // port 헤더가 기본 무해화한다(M-D capability 게이트에서 개방).
 import { runTrigger } from './port/triggers.ts';
-import { setTriggerPortEnv } from './port/trigger-env.ts';
-import { setCbsPortEnv } from './port/parser.ts';
+import { withTriggerPortEnv } from './port/trigger-env.ts';
+import { withCbsPortEnv } from './port/parser.ts';
 
 export interface CardTriggerScript { comment?: string; type: string; conditions?: unknown[]; effect?: unknown[] }
 export type CardTriggerMode = 'start' | 'manual' | 'output' | 'input' | 'display' | 'request';
@@ -35,28 +35,28 @@ export async function runCardTriggers(input: CardTriggerInput): Promise<CardTrig
   const chat = { message: (input.messages ?? []).map((message) => ({ role: message.role, data: message.data })), scriptstate: scriptStateOf(input.variables) };
   const char: Record<string, unknown> = { type: 'character', name: input.charName ?? 'Character', chats: [chat], chatPage: 0, triggerscript: [...active], defaultVariables: input.defaultVariables ?? '', lowLevelAccess: false };
   const database = { characters: [char], templateDefaultVariables: '' };
-  setTriggerPortEnv({
+  const triggerEnv={
     getDatabase: () => database,
     getCurrentCharacter: () => char,
     getCurrentChat: () => chat,
-    setCurrentCharacter: (value) => { Object.assign(char, value); },
+    setCurrentCharacter: (value: Record<string, unknown>) => { Object.assign(char, value); },
     setDatabase: () => {},
     getModuleTriggers: () => [...moduleActive],
     alert: input.alert ?? (() => {}),
-  });
+  };
   // 트리거 내부의 risuChatParser({{getvar}} 등)도 같은 변수·이름을 보게 한다.
-  setCbsPortEnv({
-    getChatVar: (key) => String((chat.scriptstate as Record<string, string>)[`$${key}`] ?? ''),
-    setChatVar: (key, value) => { (chat.scriptstate as Record<string, string>)[`$${key}`] = value; },
-    getGlobalChatVar: (key) => String((chat.scriptstate as Record<string, string>)[`$${key}`] ?? ''),
+  const cbsEnv={
+    getChatVar: (key: string) => String((chat.scriptstate as Record<string, string>)[`$${key}`] ?? ''),
+    setChatVar: (key: string, value: string) => { (chat.scriptstate as Record<string, string>)[`$${key}`] = value; },
+    getGlobalChatVar: (key: string) => String((chat.scriptstate as Record<string, string>)[`$${key}`] ?? ''),
     getUserName: () => input.userName ?? 'User',
     getModules: () => (input.activeModules ?? []).map((namespace) => ({ namespace, name: namespace })),
     database: () => database,
-  });
+  };
   type TriggerReturn = { displayData?: string; stopSending?: boolean; tempVars?: Record<string, string> } | null | undefined;
   let result: TriggerReturn = null;
   const tempVars: Record<string, string> = {}; // 업스트림은 호출자가 넘긴 이 객체에 display setvar를 쓰고 그대로 돌려준다
-  try { result = (await (runTrigger as unknown as (...args: unknown[]) => Promise<TriggerReturn>)(char, input.mode, { chat, displayMode: input.mode === 'display', displayData: input.displayData, manualName: input.manualName, tempVars })); }
+  try { result = await withTriggerPortEnv(triggerEnv,()=>withCbsPortEnv(cbsEnv,()=>(runTrigger as unknown as (...args: unknown[]) => Promise<TriggerReturn>)(char, input.mode, { chat, displayMode: input.mode === 'display', displayData: input.displayData, manualName: input.manualName, tempVars }))); }
   catch { result = null; /* 트리거 실패는 본문을 해치지 않는다 — 업스트림도 display 트리거 예외를 삼킨다 */ }
   const variables: Record<string, string> = { ...input.variables };
   for (const [key, value] of Object.entries((chat.scriptstate as Record<string, unknown>) ?? {})) if (key.startsWith('$')) variables[key.slice(1)] = String(value);

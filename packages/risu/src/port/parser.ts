@@ -31,6 +31,7 @@ let env: CbsPortEnv = defaultEnv;
 export function getCbsPortEnv(): CbsPortEnv { return env; }
 export function restoreCbsPortEnv(previous: CbsPortEnv) { env = previous; setChatVarBridge({ get: env.getChatVar, getGlobal: env.getGlobalChatVar }); }
 export function setCbsPortEnv(next: Partial<CbsPortEnv>) { env = { ...defaultEnv, ...next }; setChatVarBridge({ get: env.getChatVar, getGlobal: env.getGlobalChatVar }); }
+export async function withCbsPortEnv<T>(next:Partial<CbsPortEnv>,work:()=>Promise<T>|T):Promise<T>{const previous=getCbsPortEnv();setCbsPortEnv(next);try{return await work();}finally{restoreCbsPortEnv(previous);}}
 // 업스트림 전역 이름을 env로 잇는 브릿지 — 발췌 본문이 그대로 컴파일되게 한다.
 const getChatVar = (key: string) => env.getChatVar(key);
 const setChatVar = (key: string, value: string) => env.setChatVar(key, value);

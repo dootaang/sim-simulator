@@ -25,3 +25,5 @@ const defaultEnv: TriggerPortEnv = {
 let env: TriggerPortEnv = defaultEnv;
 export function setTriggerPortEnv(next: Partial<TriggerPortEnv>) { env = { ...defaultEnv, ...next }; }
 export function triggerPortEnv(): TriggerPortEnv { return env; }
+export function restoreTriggerPortEnv(previous:TriggerPortEnv){env=previous;}
+export async function withTriggerPortEnv<T>(next:Partial<TriggerPortEnv>,work:()=>Promise<T>|T):Promise<T>{const previous=env;setTriggerPortEnv(next);try{return await work();}finally{restoreTriggerPortEnv(previous);}}
