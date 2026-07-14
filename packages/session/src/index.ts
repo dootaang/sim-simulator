@@ -7,6 +7,8 @@ import{SessionJournal,fnv1a,stableHash,stableStringify}from'./journal.ts';
 import {auxProviderFor,type AuxConfig} from './providers/auxiliary.ts';
 export * from './openai-compatible.ts';
 export * from './journal.ts';
+export{maskSecrets}from'./providers/openai.ts'; // 진단 복사본에 키가 새지 않게 — 마스킹 로직은 하나만 존재해야 한다
+
 export { createVoyageProvider } from '@simbot/memory';
 
 // 카드 태그 채널이 dispatch할 수 있는 이벤트의 명시적 허용목록(방어 심층).

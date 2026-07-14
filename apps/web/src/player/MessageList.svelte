@@ -3,6 +3,8 @@
   import type { CardAsset } from '@simbot/card';
   import Icon from '@simbot/ui/Icon.svelte';
   import {prepareDisplayContent,renderDisplayContent} from './display-macros';
+  import {explainAssetLookup} from '@simbot/risu';
+  import {diagnostics} from './diagnostics.svelte.ts';
   import { toFactLine } from './FactReceipt.svelte';
   import { presentNarrativeIssues } from './narrative-issues';
   import {buildNpcClusters,extractAssetSpeakers} from './npc-gallery';
@@ -21,7 +23,17 @@
   function name(message:ChatMessage){return message.role==='user'?userName:cardName;}
   export function displayMacros(content:string,user:string,char:string){return content.replace(/{{\s*user\s*}}/gi,user).replace(/{{\s*char\s*}}/gi,char);}
   function assetOptions(){const value=session.runtime.state.npcs,outfits:Record<string,number>={};if(value&&typeof value==='object'&&!Array.isArray(value))for(const[id,npc]of Object.entries(value as Record<string,unknown>)){const outfit=npc&&typeof npc==='object'&&!Array.isArray(npc)?Number((npc as Record<string,unknown>).outfit):Number.NaN;if(Number.isInteger(outfit))outfits[id]=outfit;}const declared=session.runtime.project.content.activeModules;return{outfits,activeModules:[...(session.runtime.project.moduleIds??[]),...(Array.isArray(declared)?declared.map(String):[])]};}
-  function rendered(message:ChatMessage){const result=renderDisplayContent(message.content,userName,cardName,assets,session.regexScripts,session.cbsVariables,message.index,session.messages.length-1,assetOptions());for(const warning of result.warnings)if(warning.code==='asset_missing')onassetneeded(warning.name);return result.html;}
+  // 렌더는 상태를 바꾸지 않는다(M-S0). 진단 기록도 마찬가지 — diagnostics는 평범한 배열에 담고
+  // UI 알림은 마이크로태스크로 미룬다. 같은 사건은 재렌더로 쌓이지 않는다(수집기가 중복을 지운다).
+  function report(message:ChatMessage,warning:{code:string;macro:string;name:string}){
+    const where={card:cardName,chat:session.id,message:message.index};
+    if(warning.code==='asset_missing'){const found=explainAssetLookup(warning.name,assets,assetOptions());
+      diagnostics.record({...where,kind:'asset',code:'asset_missing',summary:`에셋 해석 실패: ${warning.name}`,detail:{'명령':`{{${warning.macro}::${warning.name}}}`,'시도한 이름':found.tried.join(', '),'변형 그룹':found.variantGroup,'있는 변형':found.variantsAvailable.length?found.variantsAvailable.join(', '):'(없음)','엔진 의상':found.outfitOwner?`${found.outfitOwner} = ${found.outfit}`:'(미지정)','결과':'asset_missing'}});
+      return;}
+    if(warning.code==='cbs_budget_exceeded'){diagnostics.record({...where,kind:'cbs',code:'cbs_budget_exceeded',summary:`CBS 예산 초과: ${warning.macro}`,detail:{'상한 종류':warning.macro,'실제 > 상한':warning.name,'결과':'파싱을 접고 원문을 표시함'}});return;}
+    diagnostics.record({...where,kind:'asset',code:warning.code,summary:`${warning.macro} 처리 실패: ${warning.name}`,detail:{'명령':warning.macro,'이름':warning.name}});
+  }
+  function rendered(message:ChatMessage){const result=renderDisplayContent(message.content,userName,cardName,assets,session.regexScripts,session.cbsVariables,message.index,session.messages.length-1,assetOptions());for(const warning of result.warnings){report(message,warning);if(warning.code==='asset_missing')onassetneeded(warning.name);}return result.html;}
   function cancel(){editing=null;draft='';}
   async function save(message:ChatMessage){if(draft.trim()&&draft!==message.content)await session.editMessage(message.id,draft);cancel();onchange();}
   async function toggleEdit(message:ChatMessage){if(editing===message.id){await save(message);return;}editing=message.id;draft=message.content;}

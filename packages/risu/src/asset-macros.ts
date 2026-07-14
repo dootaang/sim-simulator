@@ -61,3 +61,15 @@ export function compactAssetMacrosForPrompt(content:string,assets:readonly Asset
   return{content:resolved,warnings};
 }
 export function stripPromptImageMarkup(content:string):string{let text=String(content??'').replace(/<img\b[^>]*>/gi,'');for(let pass=0;pass<4;pass++)text=text.replace(/<(div|span|figure)\b[^>]*>\s*<\/\1>/gi,'');return text.replace(/\n{3,}/g,'\n\n').trim();}
+
+// 진단 전용 — 에셋 이름 해석이 실패했을 때 "무엇을 시도했는가"를 사람이 읽을 수 있게 되짚는다.
+// 렌더 경로에서는 부르지 않는다(실패 시에만). 이게 없으면 사용자는 "이미지가 안 떠요"까지만 말할 수 있고,
+// 그 다음은 매번 카드를 뜯어봐야 한다.
+export interface AssetLookupExplanation{reference:string;tried:string[];variantGroup:string;variantsAvailable:number[];resolved:string|null;outfitOwner:string|null;outfit:number|null}
+export function explainAssetLookup(reference:string,assets:readonly AssetMacroAsset[],options:AssetResolveOptions={}):AssetLookupExplanation{
+  const tried=[...new Set(aliases(reference).filter(Boolean))],wanted=tried.at(-1)??normalizeAssetName(reference);
+  const variants=assets.map(variantOf).filter(value=>value.variant!==null&&value.base===wanted);
+  const owner=Object.entries(options.outfits??{}).filter((entry):entry is[string,number]=>Number.isInteger(entry[1])).sort((a,b)=>normalizeAssetName(b[0]).length-normalizeAssetName(a[0]).length).find(([id])=>{const key=normalizeAssetName(id);return wanted===key||wanted.startsWith(`${key}_`)||wanted.startsWith(`${key}-`);});
+  const resolved=resolveNamedAsset(reference,assets,options);
+  return{reference,tried,variantGroup:wanted,variantsAvailable:variants.map(value=>value.variant!).sort((a,b)=>a-b),resolved:resolved?.name??null,outfitOwner:owner?.[0]??null,outfit:owner?.[1]??null};
+}
