@@ -103,6 +103,8 @@ isu`. 이식 파일은 업스트림 경로를 미러링해 diff 추적한다.
 - `packages/risu/src/port/cbs.ts` ← `src/ts/cbs.ts` **통이식(무수정)** — 원본이 의존성 주입(CBSRegisterArg)으로 설계돼 import 교체만 했다. CBS 함수 170종.
 - `packages/risu/src/port/parser.ts` ← `src/ts/parser/parser.svelte.ts`의 CBS 코어 발췌(matcher 배선·blockStartMatcher/blockEndMatcher(#if/#when/#each/#func)·risuChatParser 루프). DB·스토어·플랫폼 전역은 CbsPortEnv 브릿지.
 - `packages/risu/src/port/infunctions.ts` ← `src/ts/process/infunctions.ts` 통이식(calcString 등). chatVar는 `chatvar-bridge.ts`로 치환.
+- `packages/risu/src/port/triggers.ts` ← `src/ts/process/triggers.ts` **통이식** (트리거 v1 선언형 조건/효과 + v2 코드 효과). DB·스토어·UI 결합은 `trigger-env.ts`(TriggerPortEnv)로 치환. **위험 표면은 헤더에서 무해화**: LLM 호출(`requestChatData`)·이미지 생성(`generateAIImage`)·인레이 저장(`writeInlayImage`)·명령 매크로(`processMultiCommand`)·임베딩(`HypaProcesser`)·Lua(`runScripted`)는 안전 no-op — capability 게이트는 M-D에서 연다.
+- `packages/risu/src/trigger-runtime.ts` — 우리 세션 경계 façade. 트리거의 `chat.scriptstate['$key']` ↔ 세션 `cbsVariables` 왕복 동기화. 업스트림 안전 계약 준수: display 모드는 `displayAllowList`의 v2 효과만 실행하고 v1 `setvar`는 차단(렌더가 상태를 바꾸지 못함), display의 변수 변경은 휘발성(`ephemeral`)으로만 반환.
 - 유지한 우리 계약: 에셋 매크로는 값이 되지 않고 보존(오버라이드 훅), user/char/screenwidth 등 세션 컨텍스트 값, 미해석 `{{…}}` 소거, 모듈 네임스페이스 정규화 매칭.
 - 폐기한 자체 계약: `#if`의 `:else`(업스트림은 #when 전용 — 테스트 갱신).
 - `packages/risu/src/port/scripts.ts` ← `src/ts/process/scripts.ts`의 `processScriptFull` 전체 의미론(order/actions 메타, `@@emo`/`@@inject`/`@@move_top`/`@@move_bottom`/`@@repeat_back`, `$n`·끝 개행, 치환 후 CBS 재파싱). DB·Svelte 스토어·Lua·트리거·플러그인·dynamicAssets 결합은 `RisuScriptEnv` 훅으로 치환. 캐시(processScriptCache)는 세션 구조 차이로 미이식(후속 성능 항목).

@@ -7,7 +7,7 @@ export type loreBook = Record<string, any>;
 export type RisuModule = Record<string, any>;
 export type LLMModel = Record<string, any>;
 // svelte get(store) 호환 미니 스토어 — cbs.ts의 trigger_id가 사용한다.
-export interface MiniStore<T> { value: T; subscribe: (run: (value: T) => void) => () => void }
-export function miniStore<T>(value: T): MiniStore<T> { return { value, subscribe(run) { run(this.value); return () => {}; } }; }
+export interface MiniStore<T> { value: T; subscribe: (run: (value: T) => void) => () => void; set: (value: T) => void }
+export function miniStore<T>(value: T): MiniStore<T> { return { value, subscribe(run) { run(this.value); return () => {}; }, set(next: T) { this.value = next; } }; }
 export function get<T>(store: MiniStore<T>): T { return store.value; }
 export const CurrentTriggerIdStore = miniStore('');
