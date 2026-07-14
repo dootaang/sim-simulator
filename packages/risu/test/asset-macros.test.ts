@@ -31,3 +31,12 @@ describe('맨 이름 에셋 — 모델이 매크로 없이 <img src="이름">을
     expect(resolveAssetMacros(url,assets).content).toBe(url);
   });
 });
+
+describe('꼬리 _ 폴백 (ADR 0004 경과 조치)', () => {
+  it("'silvia_smile_'을 기존 에셋 'silvia_smile_apron'이 아니라 정확한 그룹 이름 'silvia_smile'로 해석한다", () => {
+    const assets = [{ name: 'silvia_smile', type: 'image', mime: 'image/png', bytes: new Uint8Array([1]) }];
+    const out = resolveAssetMacros('{{raw::silvia_smile_}}', assets);
+    expect(out.content).toContain('data:image/png');
+    expect(out.warnings).toEqual([]);
+  });
+});
