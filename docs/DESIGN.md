@@ -77,6 +77,8 @@ registerModule({
 - 모듈 버전별 migration과 contract test를 필수로 둔다.
 - Kernel은 모듈에 상태 복제본을 전달하고 실패·예외·계약 위반 시 상태와 RNG 위치를 함께 되돌린다.
 
+2026-07-14 현재 내장 모듈은 `id`, `version`, `dependencies`, `stateAccess`, `events`, `selectors` 계약을 사용한다. 등록된 17개 모듈에는 이벤트 60개와 selector 21개가 있지만 `processes`는 0개이고, migration은 비어 있으며, `promptFacts` 제공자도 없다. 위 초안의 세 항목은 완료된 현황이 아니라 계속 지켜야 할 목표 계약이다.
+
 ## 화면 계약 초안
 
 ```json
@@ -97,9 +99,11 @@ registerModule({
 }
 ```
 
-초기 위젯 레지스트리는 `speaker-stage`, `chat`, `stat-strip`, `gauge`, `entity-card`, `action-group`, `decision-card`, `quest-board`, `inventory-grid`, `facility-grid`, `map-nodes`, `combat-hud`, `timeline` 정도로 제한한다.
+목표 위젯 레지스트리는 `speaker-stage`, `chat`, `stat-strip`, `gauge`, `entity-card`, `action-group`, `decision-card`, `quest-board`, `inventory-grid`, `facility-grid`, `map-nodes`, `combat-hud`, `timeline` 정도로 제한한다.
 
-현재 구현은 위 목록에 `table`, `slot-grid`, `detail-panel`, `calendar`, `crafting-queue`, `sidebar`를 더한 고정 레지스트리를 사용한다. 위젯은 raw 프로젝트 코드를 실행하지 않고 selector 결과와 정적 props만 받으며, 버튼은 엔진 event 관문을 그대로 통과한다.
+2026-07-14 현재 전용 상호작용 컴포넌트로 구현된 것은 `chat`, `inn-management`, `action-group`, `decision-card`, `speaker-stage`다. `card-list`, `map-nodes`, `inventory-grid`, `quest-board`는 공용 선택 목록 스킨이고, `gauge`, `stat-strip`, `entity-card`는 selector 결과의 `kind`로 추론해 표시한다. 그 밖의 `facility-grid`, `combat-hud`, `timeline`, `table`, `slot-grid`, `detail-panel`, `calendar`, `crafting-queue`, `sidebar` 등은 전용 위젯이 아니라 구조화 데이터 폴백으로 보일 뿐이다. 따라서 화면 문서에 이름을 쓸 수 있다는 사실을 사용자용 UI가 구현됐다는 근거로 삼지 않는다.
+
+위젯은 raw 프로젝트 코드를 실행하지 않고 selector 결과와 정적 props만 받으며, 버튼은 엔진 event 관문을 그대로 통과한다.
 
 조건 표현은 임의 JavaScript가 아닌 허용 목록 기반 AST를 사용한다. `and`, `or`, `not`, `eq`, `gte`, `add`, `mul`, `min`, `max`, `hasTag`와 허가된 selector 참조부터 시작한다. 숙박 배정이나 전투 계산처럼 복잡한 알고리즘은 코드 모듈에 두고 제작자는 숫자와 테이블을 편집한다.
 
