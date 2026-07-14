@@ -5,6 +5,7 @@
 import { runTrigger } from './port/triggers.ts';
 import { withTriggerPortEnv } from './port/trigger-env.ts';
 import { withCbsPortEnv } from './port/parser.ts';
+import { RuntimeBudgetExceeded } from './security/runtime-budget.ts';
 
 export interface CardTriggerScript { comment?: string; type: string; conditions?: unknown[]; effect?: unknown[] }
 export type CardTriggerMode = 'start' | 'manual' | 'output' | 'input' | 'display' | 'request';
@@ -57,7 +58,7 @@ export async function runCardTriggers(input: CardTriggerInput): Promise<CardTrig
   let result: TriggerReturn = null;
   const tempVars: Record<string, string> = {}; // 업스트림은 호출자가 넘긴 이 객체에 display setvar를 쓰고 그대로 돌려준다
   try { result = await withTriggerPortEnv(triggerEnv,()=>withCbsPortEnv(cbsEnv,()=>(runTrigger as unknown as (...args: unknown[]) => Promise<TriggerReturn>)(char, input.mode, { chat, displayMode: input.mode === 'display', displayData: input.displayData, manualName: input.manualName, tempVars }))); }
-  catch { result = null; /* 트리거 실패는 본문을 해치지 않는다 — 업스트림도 display 트리거 예외를 삼킨다 */ }
+  catch(error) { if(error instanceof RuntimeBudgetExceeded)throw error;result = null; /* 트리거 실패는 본문을 해치지 않는다 — 업스트림도 display 트리거 예외를 삼킨다 */ }
   const variables: Record<string, string> = { ...input.variables };
   for (const [key, value] of Object.entries((chat.scriptstate as Record<string, unknown>) ?? {})) if (key.startsWith('$')) variables[key.slice(1)] = String(value);
   return { displayData: (result?.displayData ?? input.displayData) ?? null, stopSending: !!result?.stopSending, variables, ephemeral: { ...tempVars, ...(result?.tempVars ?? {}) } };

@@ -6,6 +6,7 @@ import { risuChatParser } from '../port/parser.ts';
 import { calcString } from '../port/infunctions.ts';
 import { get, CurrentTriggerIdStore, miniStore } from '../port/risu-stubs.ts';
 import { triggerPortEnv as __env } from './trigger-env.ts';
+import { runtimeExecutionBudget } from '../security/runtime-budget.ts';
 type Chat = Record<string, any>; type character = Record<string, any>; type OpenAIChat = Record<string, any>;
 const getDatabase = () => __env().getDatabase();
 const DBState = { get db() { return __env().getDatabase(); } };
@@ -1237,6 +1238,7 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
     
     
     for(const trigger of triggers){
+        runtimeExecutionBudget()?.op('trigger')
         let tempVars:Record<string, number> = {}
 
         if(trigger.effect[0]?.type === 'triggercode' || trigger.effect[0]?.type === 'triggerlua'){
@@ -1334,6 +1336,7 @@ export async function runTrigger(char:character,mode:triggerMode, arg:{
 
         for(let index = 0; index < trigger.effect.length; index++){
             const effect = trigger.effect[index]
+            runtimeExecutionBudget()?.op(effect?.type ?? 'unknown')
             if(mode === 'display' && !displayAllowList.includes(effect.type)){
                 continue
             }
