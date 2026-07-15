@@ -15,6 +15,8 @@ WORKORDER-*.md
 HANDOFF-*.md
 CLAUDE-TASK-*.md
 PENTA-REVIEW.md
+# 카나리아 측정 보고서 — 제3자 카드 이름·내부 측정치가 들어가므로 로컬 전용
+/REPORT-RUNTIME-CANARY-*.md
 
 # Claude/Codex 자동 교대 감독기의 로컬 우편함·실행 로그
 /.ai-coordination/
