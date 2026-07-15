@@ -1,6 +1,6 @@
 import type { ParsedCard } from '@simbot/card';
 import { inspectGameRuntimeSchema } from '@simbot/contracts';
-import { screenPresetsFor } from '@simbot/modules';
+import { genreTemplates,screenPresetsFor } from '@simbot/modules';
 import type { ModelProvider } from '@simbot/session';
 import { createSimPack, sha256Hex, type SimPackProject } from '@simbot/simpack';
 import { buildCompilerPrompt,buildRepairPrompt } from './compiler-prompt.ts';
@@ -15,9 +15,9 @@ export interface CompileResult{compilerVersion:'0.2';schema:Record<string,unknow
 export interface CompileCardOptions{parsed:ParsedCard;provider:ModelProvider;signal?:AbortSignal;}
 function parseOutput(text:string){const clean=text.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');const start=clean.indexOf('{'),end=clean.lastIndexOf('}');if(start<0||end<=start)throw new Error('compiler_json_invalid');const value=JSON.parse(clean.slice(start,end+1)) as unknown;if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('compiler_schema_invalid');return value as Record<string,unknown>;}
 const KNOWN_MODULES=new Set(['core.stats','core.inventory','core.equipment','core.progression','core.jobs','core.location','core.time','core.factions','rpg.quests','rpg.shop','rpg.crafting','rpg.loot','rpg.party','combat.turnbased','genre.inn','genre.inn.traffic','genre.hunter']);
-function resolveModules(source:string,diagnosis:ReturnType<typeof diagnoseCard>){
-  const inn=/ysp_checkin|ysp_checkout|\btraffic_wave\b|\bcheckin\b|\bcheckout\b|\blodging\b/i.test(source)||(/객실|숙박|투숙/.test(source)&&/체크인|체크아웃/.test(source));
-  const ids=[...(inn?['genre.inn']:[]),...diagnosis.suggestedModules.filter(id=>KNOWN_MODULES.has(id)&&!(inn&&id==='rpg.quests'))];
+export function resolveModules(source:string,diagnosis:ReturnType<typeof diagnoseCard>){
+  const matched=genreTemplates().filter(template=>template.detect(source)),excluded=new Set(matched.flatMap(template=>template.excludes??[]));
+  const ids=[...matched.map(template=>template.id),...diagnosis.suggestedModules.filter(id=>KNOWN_MODULES.has(id)&&!excluded.has(id))];
   return[...new Set(ids)];
 }
 export async function compileCard({parsed,provider,signal}:CompileCardOptions):Promise<CompileResult>{
