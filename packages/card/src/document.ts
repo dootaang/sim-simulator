@@ -33,7 +33,7 @@ function loreFrom(rawValue:unknown,index:number):CardLoreEntry{
 function assetFrom(value:CardAsset,index:number):CardDocumentAsset{return{id:`asset-${index}`,name:value.name,type:value.type,ext:value.ext,uri:value.uri,...(value.path?{path:value.path}:{}),mime:value.mime,size:value.size,bytes:value.bytes?.slice()??null,origin:value.type==='module-asset'?'module':'card'};}
 
 function readDraft(parsed:ParsedCard):{draft:CardDocumentDraft;moduleRoot:Record<string,unknown>|null}{
-  const root=object(parsed.card),data=object(root.data??root),extensions=object(data.extensions),risu=object(extensions.risuai),moduleRoot=parsed.modules?.[0]?.raw?clone(parsed.modules[0].raw):null;
+  const root=object(parsed.card),data=object(root.data??root),extensions=object(data.extensions),risu=object(extensions.risuai),embeddedModule=parsed.modules?.find(module=>module.origin!=='card-extension'),moduleRoot=embeddedModule?.raw?clone(embeddedModule.raw):null;
   const moduleLore=Array.isArray(moduleRoot?.lorebook)?moduleRoot.lorebook:null,book=object(data.character_book),cardLore=Array.isArray(book.entries)?book.entries:[];
   const lore=(moduleLore??cardLore).map(loreFrom),regexScripts=clone(parsed.modules?.flatMap(module=>module.regex)??[]),triggerSource=moduleRoot?.trigger??risu.triggerScript??risu.triggerscript,triggerScripts=Array.isArray(triggerSource)?clone(triggerSource.map(object)):[];
   return{moduleRoot,draft:{name:String(data.name??root.name??parsed.name),description:String(data.description??''),personality:String(data.personality??''),scenario:String(data.scenario??''),

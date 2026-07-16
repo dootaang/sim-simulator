@@ -1,6 +1,6 @@
 import { tagCompatibilityGrades } from './ysp-translate.ts';
 
-interface ParsedCard { name:string; card:Record<string,unknown>; assets?:Array<{name?:string;type?:string;mime?:string}>; embeddedModules?:string[]; modules?:Array<{name?:string;regex?:unknown[];lorebook?:unknown[];defaultVariables?:Record<string,string>;raw?:Record<string,unknown>}>; sourceBytes?:Uint8Array; }
+interface ParsedCard { name:string; card:Record<string,unknown>; assets?:Array<{name?:string;type?:string;mime?:string}>; embeddedModules?:string[]; modules?:Array<{name?:string;regex?:unknown[];lorebook?:unknown[];defaultVariables?:string|Record<string,string>;raw?:Record<string,unknown>}>; sourceBytes?:Uint8Array; }
 interface RuntimeProject { projectId:string; schema:Record<string,unknown>; screens:Record<string,unknown>[]; navigation:Record<string,unknown>[]; content:Record<string,unknown>; featureToggles:Record<string,unknown>; moduleIds?:string[]; }
 export interface CardCompileArtifact {schema:Record<string,unknown>;moduleIds:string[];screens?:Record<string,unknown>[];navigation?:Record<string,unknown>[];}
 
@@ -8,6 +8,7 @@ export interface CardPassport {
   mode: 'full-sim' | 'chat';
   grades: { exact: string[]; approx: string[]; preserved: string[] };
   cardName: string;
+  runtime?:{kind:'embedded-risu-program';luaChars:number;defaultVariableChars:number;regexScripts:number;triggerScripts:number;htmlChars:number;assets:number;lowLevelAccess:boolean;directExecution:false};
 }
 
 export interface CardRuntimeProfile {
@@ -40,8 +41,8 @@ export function cardToRuntimeProject(parsed: ParsedCard, compiled?:CardCompileAr
   const grades=tagCompatibilityGrades(textPool);
   const fixtureInn=!('format'in parsed)&&grades.exact.length+grades.approx.length+grades.preserved.length>0;
   const cardName=text(data.name)||parsed.name||'Imported card';
-  const regexScripts=extractRegexScripts(parsed),risuExtension=(data.extensions&&typeof data.extensions==='object'?((data.extensions as Record<string,unknown>).risuai):null),defaultVariables={...variableMap((risuExtension&&typeof risuExtension==='object'?(risuExtension as Record<string,unknown>).defaultVariables:null)??data.defaultVariables??data.default_variables)},backgroundHtml=[text(risuExtension&&typeof risuExtension==='object'?(risuExtension as Record<string,unknown>).backgroundHTML:''),...(parsed.modules??[]).map(module=>text(module.raw?.backgroundEmbedding))].filter(Boolean).join('\n');
-  for(const module of parsed.modules??[])Object.assign(defaultVariables,module.defaultVariables??variableMap(module.raw?.defaultVariables??module.raw?.default_variables));
+  const regexScripts=extractRegexScripts(parsed),risuExtension=(data.extensions&&typeof data.extensions==='object'?((data.extensions as Record<string,unknown>).risuai):null),risu=risuExtension&&typeof risuExtension==='object'?risuExtension as Record<string,unknown>:null,defaultVariables={...variableMap(risu?.defaultVariables??data.defaultVariables??data.default_variables)},backgroundHtml=[text(risu?.backgroundHTML),...(parsed.modules??[]).map(module=>text(module.raw?.backgroundEmbedding))].filter(Boolean).join('\n');
+  for(const module of parsed.modules??[])Object.assign(defaultVariables,variableMap(module.defaultVariables??module.raw?.defaultVariables??module.raw?.default_variables));
   const activeModules=[...new Set((parsed.modules??[]).flatMap((module,index)=>[module.raw?.id,module.raw?.namespace,module.raw?.name,module.name,parsed.embeddedModules?.[index]].map(text).filter(Boolean)))],assetCommands=[...new Set((parsed.assets??[]).filter(asset=>String(asset.mime??'').startsWith('image/')).map(asset=>text(asset.name??asset.type).replace(/[_-]\d+$/,'')).filter(Boolean))];
   const content={characters:[{id:'primary',name:cardName,description:text(data.description),personality:text(data.personality),scenario:text(data.scenario)}],lorebooks,activeModules,assetCommands};
   const project:RuntimeProject={
@@ -54,7 +55,7 @@ export function cardToRuntimeProject(parsed: ParsedCard, compiled?:CardCompileAr
   };
   return {
     project,
-    passport:{mode:compiled||fixtureInn?'full-sim':'chat',grades,cardName},
+    passport:{mode:compiled||fixtureInn?'full-sim':'chat',grades,cardName,...(risu&&embeddedProgram(risu,parsed.assets?.length??0)?{runtime:embeddedProgram(risu,parsed.assets?.length??0)!}:{})},
     card:{name:cardName,description:text(data.description),personality:text(data.personality),scenario:text(data.scenario),systemPrompt:text(data.system_prompt),postHistoryInstructions:text(data.post_history_instructions),regexScripts},
     firstMessage:text(data.first_mes),
     greetings:[text(data.first_mes),...(Array.isArray(data.alternate_greetings)?data.alternate_greetings.map(text):[])].filter(Boolean),
@@ -73,3 +74,8 @@ function variableMap(value:unknown):Record<string,string>{
 function hashBytes(bytes:Uint8Array):string{let h=2166136261;for(let i=0;i<bytes.length;i+=1){h^=bytes[i]!;h=Math.imul(h,16777619);}return(h>>>0).toString(16).padStart(8,'0');}
 function text(value:unknown):string{return typeof value==='string'?value:'';}
 function slug(value:string):string{return value.normalize('NFKC').toLowerCase().replace(/[^a-z0-9가-힣]+/g,'-').replace(/^-+|-+$/g,'')||'card';}
+function embeddedProgram(risu:Record<string,unknown>,assets:number):NonNullable<CardPassport['runtime']>|null{
+  const triggerSource=risu.triggerscript??risu.triggerScript,scriptSource=risu.customScripts??risu.customscript,triggers:unknown[]=Array.isArray(triggerSource)?triggerSource:[],scripts:unknown[]=Array.isArray(scriptSource)?scriptSource:[],lua=triggers.flatMap(trigger=>{const item=trigger&&typeof trigger==='object'?trigger as Record<string,unknown>:{};return Array.isArray(item.effect)?item.effect:[];}).reduce((sum,effect)=>sum+text(effect&&typeof effect==='object'?(effect as Record<string,unknown>).code:'').length,0),defaults=risu.defaultVariables??risu.default_variables,defaultVariableChars=typeof defaults==='string'?defaults.length:defaults&&typeof defaults==='object'&&!Array.isArray(defaults)?JSON.stringify(defaults).length:0,htmlChars=text(risu.backgroundHTML).length;
+  if(!lua&&!scripts.length&&!defaultVariableChars&&!htmlChars)return null;
+  return{kind:'embedded-risu-program',luaChars:lua,defaultVariableChars,regexScripts:scripts.length,triggerScripts:triggers.length,htmlChars,assets,lowLevelAccess:risu.lowLevelAccess===true,directExecution:false};
+}
