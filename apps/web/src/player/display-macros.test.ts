@@ -15,6 +15,15 @@ describe('정규식이 에셋 해석보다 먼저 원문을 본다 (업스트림
   });
 });
 
+describe('카드의 자체 반응형 분기 — screen_width가 메시지 CBS에도 공급된다',()=>{
+  it('넓은 화면에서만 넓은 분기가 켜진다',()=>{
+    const content='{{#if {{? {{screen_width}} > 768 }} }}WIDE{{/if}}BASE';
+    expect(renderDisplayContent(content,'User','Card',[],[],{},0,0,{screenWidth:1024}).html).toContain('WIDE');
+    expect(renderDisplayContent(content,'User','Card',[],[],{},0,0,{screenWidth:390}).html).not.toContain('WIDE');
+    expect(renderDisplayContent(content,'User','Card',[],[],{},0,0,{screenWidth:390}).html).toContain('BASE');
+  });
+});
+
 describe('카드 <style>은 @scope로 가둬 보존한다 (안전 CSS 부분집합)',()=>{
   it('스타일을 뽑아 스코프에 넣고 잔여 CBS·@import·외부 url·fixed를 중화하며 중복은 한 번만 남긴다',()=>{
     const css='<style>.x{color:red;position:fixed;background:url(https://evil.test/a.png)}@import "https://evil.test/b.css";{{getvar::secret}}</style>';

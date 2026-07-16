@@ -6,12 +6,14 @@ import {sanitizeHtml} from '@simbot/ui/sanitize-html';
 // 매크로가 그것을 문법으로 오인한다(통합 감사). 치환 전에 중괄호를 무력화한다.
 const literal=(value:string)=>String(value??'').replace(/[{}]/g,'');
 export function displayMacros(content:string,user:string,char:string){const u=literal(user),c=literal(char);return content.replace(/{{\s*user\s*}}/gi,u).replace(/{{\s*char\s*}}/gi,c);}
-export interface DisplayAssetOptions extends AssetResolveOptions{activeModules?:readonly string[]}
-export function prepareDisplayContent(content:string,user:string,char:string,scripts:readonly RegexScript[]=[],variables:Record<string,string>={},chatIndex=0,lastMessageId=0,activeModules:readonly string[]=[],budget=new CbsBudget()){
+export interface DisplayAssetOptions extends AssetResolveOptions{activeModules?:readonly string[];screenWidth?:number}
+export function prepareDisplayContent(content:string,user:string,char:string,scripts:readonly RegexScript[]=[],variables:Record<string,string>={},chatIndex=0,lastMessageId=0,activeModules:readonly string[]=[],budget=new CbsBudget(),screenWidth=0){
   // ADR 0004: 업스트림 processScriptFull과 같은 순서 — 각 정규식 치환 직후 CBS를 재평가한다.
   // 정규식 out에 든 {{getvar::…}}가 그 자리에서 값이 되므로(용사여관 outfit 사례) 뒷단이 완성된 이름을 받는다.
   // 메시지 1개 렌더 전체가 예산 하나를 공유한다 — 파스를 잘게 쪼개는 우회를 막는다(M-S2a).
-  const cbs=(text:string)=>parseCbs(text,{userName:user,charName:char,chatIndex,lastMessageId,variables,activeModules,budget});
+  // screenWidth는 배경 경로와 같은 계약이다 — 카드 CSS의 {{#if {{? {{screen_width}} > 768}}}} 반응형
+  // 분기가 메시지에서도 살아야 카드가 스스로 좁은 화면에 맞춰 그린다(DOMINIUM 실측).
+  const cbs=(text:string)=>parseCbs(text,{userName:user,charName:char,chatIndex,lastMessageId,variables,activeModules,screenWidth,budget});
   let rendered=applyRegexScripts(content,scripts,'output',{parser:cbs});
   rendered=applyRegexScripts(rendered,scripts,'display',{parser:cbs});
   return cbs(rendered);}
@@ -31,7 +33,7 @@ function safeCss(css:string){return css.replace(/\{\{[\s\S]*?}}/g,'').replace(/@
 // 상태창 UI)이 통째로 죽는다 — DOMINIUM 실측으로 확인한 회귀. {{img::}}·{{raw::}}·<img="">는 CBS를
 // 그대로 통과하므로(포트 계약) 마지막 한 번의 해석으로 충분하다.
 export function renderDisplayContent(content:string,user:string,char:string,assets:readonly AssetMacroAsset[],scripts:readonly RegexScript[]=[],variables:Record<string,string>={},chatIndex=0,lastMessageId=0,assetOptions:DisplayAssetOptions={}):{html:string;warnings:DisplayWarning[]}{
-  const budget=new CbsBudget(),prepared=prepareDisplayContent(content,user,char,scripts,variables,chatIndex,lastMessageId,assetOptions.activeModules,budget),resolved=resolveAssetMacros(prepared,assets,assetOptions);
+  const budget=new CbsBudget(),prepared=prepareDisplayContent(content,user,char,scripts,variables,chatIndex,lastMessageId,assetOptions.activeModules,budget,assetOptions.screenWidth),resolved=resolveAssetMacros(prepared,assets,assetOptions);
   const styles:string[]=[];const body=resolved.content.replace(styleTree,(_whole,css:string)=>{const clean=safeCss(css).trim();if(clean&&!styles.includes(clean))styles.push(clean);return'';});
   const scoped=styles.length?`<style>@scope (.lucky-card-surface){${styles.join('\n')}}</style>`:'';
   return{html:scoped+sanitizeHtml(renderMarkdown(body)),warnings:uniqueWarnings([...resolved.warnings,...budgetWarnings(budget)])};}
