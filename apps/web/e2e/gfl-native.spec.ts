@@ -29,6 +29,10 @@ test('소녀전선 PNG를 넣으면 별도 컴파일 질문 없이 네이티브 
   const console=simulation.getByLabel('소녀전선 지휘 콘솔');
   await expect(console).toContainText('소녀전선: 잔불');
   await console.getByRole('button',{name:'지휘관으로 시작'}).click();
+  await console.getByRole('button',{name:'인형 고용',exact:true}).click();
+  await console.getByRole('button',{name:'오늘의 목록 확인'}).click();
+  await expect(console).toContainText('숙소 1/3');
+  await expect(console.getByRole('button',{name:'계약',exact:true}).first()).toBeVisible();
   await console.getByRole('button',{name:'제대',exact:true}).click();
   await console.getByRole('button',{name:/M4A1 · AR/}).click();
   await expect(console.getByRole('button',{name:/SLOT 1 M4A1/})).toBeVisible();

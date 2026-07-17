@@ -19,6 +19,15 @@ const registration=runtime.dispatch('gfl/start',{mode:'commander'});
 assert.equal(registration.log[0]?.ok,true);
 const echelons=runtime.select('gfl/echelons')as Array<Record<string,unknown>>,dolls=runtime.select('gfl/dolls')as Array<Record<string,unknown>>;
 assert(dolls.length>0&&echelons.length>0);
+const hireRefresh=runtime.dispatch('gfl/hire/refresh'),hire=runtime.select('gfl/hire')as{offers:Array<Record<string,unknown>>;capacity:number};
+assert.equal(hireRefresh.log[0]?.ok,true);assert.equal(hire.offers.length,5);assert.equal(hire.capacity,3);
+const m4=(compiled.schema.gfl as{dolls:Array<Record<string,unknown>>}).dolls.find(value=>value.name==='M4A1');
+assert.equal(m4?.price,7000);
+const facilities=runtime.select('gfl/facilities')as Array<Record<string,unknown>>,training=facilities.find(value=>value.id==='base1');
+assert.deepEqual(training?.cost,{gold:4000,res:2000});
+runtime.state.gold=100_000;(runtime.state.resources as Record<string,unknown>).res=100_000;
+const firstUpgrade=runtime.dispatch('gfl/facility/upgrade',{facilityId:'base1'}),secondUpgrade=runtime.dispatch('gfl/facility/upgrade',{facilityId:'base1'});
+assert.deepEqual(firstUpgrade.log[0]?.cost,{gold:4000,res:2000});assert.deepEqual(secondUpgrade.log[0]?.cost,{gold:6000,res:3000});
 const assignment=runtime.dispatch('gfl/echelon/assign',{echelonId:echelons[0]!.id,slot:0,dollId:dolls[0]!.id});
 assert.equal(assignment.log[0]?.ok,true);
 const assetStarted=performance.now(),assetIndex=await indexZipAssets(await openAsBlob(modulePath));
@@ -26,7 +35,7 @@ assert(assetIndex.entries.length>0);
 console.log(JSON.stringify({
   card:{name:parsed.name,format:parsed.format,bytes:parsed.sourceBytes.length,embeddedAssets:parsed.assets.length},
   runtime:compiled.diagnosis.runtime,
-  native:{modules:compiled.moduleIds,dolls:(compiled.schema.gfl as{dolls:unknown[]}).dolls.length,missions:(compiled.schema.gfl as{missions:unknown[]}).missions.length,echelons:echelons.length,starter:dolls[0]!.name},
+  native:{modules:compiled.moduleIds,dolls:(compiled.schema.gfl as{dolls:unknown[]}).dolls.length,missions:(compiled.schema.gfl as{missions:unknown[]}).missions.length,echelons:echelons.length,starter:dolls[0]!.name,hireOffers:hire.offers.length,dormCapacity:hire.capacity,m4ContractPrice:m4?.price,facilityCosts:[firstUpgrade.log[0]?.cost,secondUpgrade.log[0]?.cost]},
   assetModule:{entries:assetIndex.totalEntries,images:assetIndex.entries.length,centralDirectoryBytes:assetIndex.centralDirectoryBytes,indexMs:Math.round(performance.now()-assetStarted)},
   totalMs:Math.round(performance.now()-started)
 },null,2));
