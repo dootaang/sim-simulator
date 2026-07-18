@@ -8,6 +8,8 @@ const lua=`local DOLL_CLASS={${classes}}
 local DOLL_GRADE={${grades}}
 local ITEM_DATA={["전투식량"]={price=50,type="use",desc="전투 중 체력을 회복",effect={hp=100},drop=100}}
 local EQUIP_DATA={["옵티컬"]={price=100,power=50,desc="명중을 보조하는 조준경",etc="전투력 +50"}}
+local DOC_DATA={{id="doc0",year="1908",code="023-TNG-1908",title="퉁구스카 대폭발",body="첫 번째 기록입니다.<br>둘째 줄입니다."}}
+local KALINA_SHOP_ITEMS={{id="전투식량",price=50,desc="전투 중 체력을 회복"}}
 local PROG_BY_STAR={[0]=3,[1]=5,[2]=7,[3]=8,[4]=9,[5]=10,[6]=11}
 local MISSION_TYPES={{key="recon",name="🔍 정찰 임무",step_mod=-1,hint="교전 최소화. 빠르게 끝나지만 보상 적음."},{key="sweep",name="⚔️ 소탕 임무",step_mod=0,hint="구역의 적을 소탕. 표준 난이도·보상."},{key="annihil",name="💥 섬멸 임무",step_mod=1,hint="거점 완전 섬멸. 길고 어렵지만 보상 큼."}}
 local EV_GUIDE={battle="교전 상황. 실제 전투를 서술하라.",boss="보스 교전을 서술하라.",recon="정찰 상황. 교전을 넣지 마라.",other="돌발 상황. 교전을 넣지 마라.",mystery="정체불명 상황을 서술하라."}
@@ -68,6 +70,23 @@ test('소녀전선 PNG를 넣으면 별도 컴파일 질문 없이 네이티브 
   await reopened.getByRole('button',{name:'작전',exact:true}).click();
   await reopened.getByRole('button',{name:/레드·오렌지 작전구역/}).click();
   await expect(reopened).toContainText('ALPHA');
+});
+
+test('기록실 원문을 열람하고 확인 대화상자를 거쳐 인형을 해체한다',async({page})=>{
+  await page.setViewportSize({width:844,height:720});
+  const simulation=await importGfl(page),console=simulation.getByLabel('소녀전선 지휘 콘솔');
+  await console.getByRole('button',{name:'지휘관으로 시작'}).click();
+  await console.getByText(/기록실 · 1\/1/).click();
+  await console.getByText(/1908 · 023-TNG-1908 · 퉁구스카 대폭발/).click();
+  await expect(console).toContainText('첫 번째 기록입니다.'); await expect(console).toContainText('둘째 줄입니다.');
+  await console.getByRole('button',{name:'인형 고용',exact:true}).click(); await console.getByRole('button',{name:'🎲 오늘의 인형 뽑기'}).click();
+  await console.getByRole('button',{name:'계약',exact:true}).first().click(); await console.getByRole('button',{name:/다음 시간대 · 수송 도착/}).click();
+  await expect(simulation).toBeHidden(); await page.getByRole('button',{name:'관리 화면 열기'}).click();
+  const reopened=page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔'); await reopened.getByRole('button',{name:'인형',exact:true}).click();
+  await expect(reopened.locator('.doll-grid button')).toHaveCount(1); page.once('dialog',dialog=>dialog.accept());
+  await reopened.getByRole('button',{name:'인형 해체 · 확인 필요'}).click(); await expect(simulation).toBeHidden();
+  await page.getByRole('button',{name:'관리 화면 열기'}).click(); const finalConsole=page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔'); await finalConsole.getByRole('button',{name:'인형',exact:true}).click();
+  await expect(finalConsole.locator('.doll-grid button')).toHaveCount(0);
 });
 
 test('임무 유형 선택부터 다단계 진행·전투·루팅 영수증까지 완주한다',async({page})=>{

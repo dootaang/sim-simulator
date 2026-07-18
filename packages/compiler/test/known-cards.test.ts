@@ -11,6 +11,7 @@ function gfl(): ParsedCard {
     ).join(","),
     grades = Array.from({ length: 20 }, (_, i) => `["D${i + 1}"]=3`).join(","),
     lua = `local DOLL_CLASS={${classes}}\nlocal DOLL_GRADE={${grades}}\nlocal MOD_POWER={[1]=111,[2]=222,[3]=333}\nlocal base_defaults={base1={gold="4000",res="2000"},base2={gold="4000",res="2000"},base3={gold="4000",res="2000"},base4={gold="5000",res="3000"},base5={gold="3000",res="1000"}}\nlocal ITEM_DATA={["RAM"]={price=100,type="use",desc="회복",drop=4},["AUTO"]={price=500,type="use",desc="자동"}}\nlocal EQUIP_DATA={["SCOPE"]={price=200,power=10}}\nlocal MFG_EQ_POOL_NORMAL={"SCOPE"}\nlocal MFG_EQ_POOL_HEAVY={"SCOPE","MISSING_EQ"}\nlocal BOSS_LIST={"Scarecrow","Gebbennu"}\nlocal NO_RECRUIT_BOSSES={Gebbennu=true}\nlocal PROG_BY_STAR={[0]=3,[1]=5,[2]=7,[3]=8,[4]=9,[5]=10,[6]=11}\nlocal MISSION_TYPES={{key="recon",name="🔍 정찰 임무",step_mod=-1,hint="교전 최소화. 빠르게 끝나지만 보상 적음."},{key="sweep",name="⚔️ 소탕 임무",step_mod=0,hint="구역의 적을 소탕. 표준 난이도·보상."},{key="annihil",name="💥 섬멸 임무",step_mod=1,hint="거점 완전 섬멸. 길고 어렵지만 보상 큼."}}\nlocal EV_GUIDE={battle="교전 지시",boss="보스 지시",recon="정찰 지시",other="돌발 지시",mystery="미확인 지시"}\nlocal ENCOUNTER_POOL={"D1","D2","MISSING"}\nlocal ENCOUNTER_BAN={D2=true}\nlocal MISSION_DATA={["ALPHA"]={name="ALPHA",diff="★★★★☆",power="800",reward="자금 +500 / 부품 +100",enemy="철혈 / 감염체 / 패러데우스",boss=" Scarecrow "},["BETA"]={name="BETA",diff="☆☆☆☆☆",power="900",boss=" "},["GAMMA"]={name="GAMMA",power="1000"}}\n${"-- filler\n".repeat(1200)}`;
+  const enrichedLua = lua.replace("local MOD_POWER=", 'local DOC_DATA={{id="doc0",year="1908",code="A-1",title="기록",body="첫 줄<br>둘째 줄"}}\nlocal KALINA_SHOP_ITEMS={{id="RAM",price=100,desc="회복"},{id="SHOP_ONLY",price=77,desc="추가 상품"}}\nlocal MOD_POWER=');
   return {
     format: "png",
     source: "gfl.png",
@@ -26,7 +27,7 @@ function gfl(): ParsedCard {
         extensions: {
           risuai: {
             defaultVariables: DV,
-            triggerscript: [{ effect: [{ type: "triggerlua", code: lua }] }],
+            triggerscript: [{ effect: [{ type: "triggerlua", code: enrichedLua }] }],
           },
         },
       },
@@ -42,7 +43,7 @@ function gfl(): ParsedCard {
         lorebook: [],
         defaultVariables: DV,
         raw: {
-          triggerscript: [{ effect: [{ type: "triggerlua", code: lua }] }],
+          triggerscript: [{ effect: [{ type: "triggerlua", code: enrichedLua }] }],
         },
       },
     ],
@@ -80,6 +81,9 @@ describe("known card compiler", () => {
       expect.objectContaining({ name: "AUTO", drop: 60 }),
     ]));
     expect((result?.schema.gfl as any).encounters).toEqual({ pool: ["d1", "d2"], ban: ["d2"] });
+    expect((result?.schema.gfl as any).documents).toEqual([{ id: "doc0", year: "1908", code: "A-1", title: "기록", body: "첫 줄<br>둘째 줄" }]);
+    expect((result?.schema.gfl as any).kalinaComparison).toMatchObject({ source: 2, matched: 1, missing: ["SHOP_ONLY"] });
+    expect((result?.schema.gfl as any).items).toEqual(expect.arrayContaining([expect.objectContaining({ name: "SHOP_ONLY", price: 77, description: "추가 상품" })]));
     expect((result?.schema.gfl as any).bosses).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "scarecrow", class: "BOSS", grade: 6, maxHp: 1800, power: 1000 }),
     ]));

@@ -95,6 +95,7 @@ const equipment = (schema: RuntimeRecord) =>
   list<RuntimeRecord>(config(schema).equipment);
 const fairies = (schema: RuntimeRecord) =>
   list<RuntimeRecord>(config(schema).fairies);
+const documents = (schema: RuntimeRecord) => list<RuntimeRecord>(config(schema).documents);
 const bosses = (schema: RuntimeRecord) => list<Doll>(config(schema).bosses);
 const boss = (schema: RuntimeRecord, value: unknown) =>
   bosses(schema).find((entry) => entry.id === value || entry.name === value);
@@ -250,6 +251,29 @@ function missionRisk(formationPower: number, requiredPower: number, commanderBon
   for (let roll = 1; roll <= 20; roll++) if (roll === 20 || (roll !== 1 && roll + modifier >= 8)) wins++;
   const chance = wins * 5, label = chance < 30 ? "극위험" : chance < 60 ? "위험" : chance < 85 ? "보통" : "안정";
   return { ratio: Math.round(ratio * 100), modifier, baseModifier, commanderBonus, chance, chanceLow: Math.max(5, chance - 5), chanceHigh: Math.min(95, chance + 5), label };
+}
+function resolveDailyRaid(c: Context) {
+  const defenseLevel = facilityLevel(c.state, "base2"), chance = Math.max(2, 18 - defenseLevel * 3),
+    raidRoll = c.rng.int(1, 100), defenseRoll = c.rng.int(1, 20), occurred = raidRoll <= chance,
+    completed = list<string>(state(c.state).completedMissions), recentId = completed.at(-1), recent = mission(c.schema, recentId),
+    enemyPower = recent ? Math.max(1, Math.round(number(recent.power) * .6)) : 500,
+    first = echelons(c.state)[0], rawDefense = first ? effectivePower(c.state, first) : 0,
+    defensePower = Math.round(rawDefense * (1 + DEFENSE_POWER[defenseLevel - 1]! / 100)),
+    risk = missionRisk(defensePower, enemyPower), success = occurred && (defenseRoll === 20 || (defenseRoll !== 1 && defenseRoll + risk.modifier >= 8)),
+    resources = record(c.state.resources);
+  let delta = 0, loss = 0;
+  if (occurred && success) { delta = 100; resources.res = number(resources.res) + delta; }
+  else if (occurred) {
+    loss = Math.min(500, Math.floor(number(resources.res) * .1)); delta = -loss; resources.res = Math.max(0, number(resources.res) - loss);
+    if (first) for (const id of list<unknown>(first.slots).map(string).filter(Boolean)) {
+      const unit = record(owned(c.state)[id]), hp = record(unit.hp);
+      if (!Object.keys(unit).length) continue;
+      hp.cur = Math.max(0, number(hp.cur) - Math.ceil(number(hp.max) * .15)); unit.hp = hp;
+      if (number(hp.cur) <= 0) unit.status = "대파"; else if (number(hp.cur) < number(hp.max)) unit.status = "손상";
+    }
+  }
+  c.state.resources = resources;
+  return { occurred, chance, raidRoll, defenseRoll, success, defensePower, enemyPower, missionId: recentId ?? null, modifier: risk.modifier, resourceDelta: delta, loss };
 }
 type RelationChoice = {
   label: string;
@@ -719,7 +743,7 @@ function resolveSortie(c: Context) {
   }
   const loot = outcome === "victory" ? rollOperationLoot(c) : [],
     operationComplete = outcome === "victory" && (!stages.length || currentStageIndex >= stages.length - 1);
-  let reward = null, rewardRate = 0, commanderExp = { gained: 0, total: commanderBefore.exp, level: commanderBefore.level }, levelUp: RuntimeRecord | null = null;
+  let reward = null, rewardRate = 0, commanderExp = { gained: 0, total: commanderBefore.exp, level: commanderBefore.level }, levelUp: RuntimeRecord | null = null, docUnlocked: RuntimeRecord | null = null;
   if (operationComplete) {
     const firstClear = !list<string>(state(c.state).completedMissions).includes(string(operation.id));
     rewardRate = firstClear ? 1 : .35;
@@ -743,6 +767,11 @@ function resolveSortie(c: Context) {
         string(operation.id),
       ]),
     ];
+    const completedBefore = number(next.sortiesCompletedTotal), completedAfter = completedBefore + 1;
+    next.sortiesCompletedTotal = completedAfter;
+    const unlockedBefore = Math.min(documents(c.schema).length, Math.floor(completedBefore / 2) + 1),
+      unlockedAfter = Math.min(documents(c.schema).length, Math.floor(completedAfter / 2) + 1);
+    if (unlockedAfter > unlockedBefore) docUnlocked = documents(c.schema)[unlockedAfter - 1] ?? null;
     if (firstClear && bossDefinition) {
       next.defeatedBosses = [...new Set([...list<string>(next.defeatedBosses), bossDefinition.id])];
       if (!list<string>(config(c.schema).noRecruit).includes(bossDefinition.id) && !owned(c.state)[bossDefinition.id])
@@ -784,6 +813,7 @@ function resolveSortie(c: Context) {
     guide: stageGuide(c.schema, stageType),
     loot,
     operationComplete,
+    docUnlocked,
   };
   if (outcome === "defeat" || operationComplete || !stages.length) next.sortie = null;
   else {
@@ -817,6 +847,7 @@ function resolveSortie(c: Context) {
     guide: stageGuide(c.schema, stageType),
     loot,
     operationComplete,
+    docUnlocked,
     current: next.sortie ? number(record(next.sortie).current) : stages.length,
     total: stages.length || 1,
     dailyAwards,
@@ -1088,30 +1119,7 @@ export function gflModule(): ModuleDefinition {
             unit.hp = hp;
             unit.mood = clamp(number(unit.mood) + 10, 0, 1000);
           }
-          const raidChance = Math.max(
-              0,
-              20 - DEFENSE_REDUCTION[facilityLevel(c.state, "base2") - 1]!,
-            ),
-            raidRoll = c.rng.int(1, 100),
-            raid = raidRoll <= raidChance;
-          if (raid) {
-            const best = Math.max(
-                0,
-                ...echelons(c.state).map((entry) =>
-                  effectivePower(c.state, entry),
-                ),
-              ),
-              defended =
-                Math.round(
-                  best *
-                    (1 +
-                      DEFENSE_POWER[facilityLevel(c.state, "base2") - 1]! /
-                        100),
-                ) >= 1000;
-            if (!defended)
-              resources.res = Math.max(0, number(resources.res) - 300);
-            daily = { income, healRate, raid: true, defended, raidRoll };
-          } else daily = { income, healRate, raid: false, raidRoll };
+          daily = { income, healRate };
           const previousOffers = list<RuntimeRecord>(gfl.hireOffers).map((value) => string(value.id)).filter(Boolean);
           if (previousOffers.length) gfl.hirePreviousOffers = previousOffers;
           gfl.hireOffers = [];
@@ -1150,8 +1158,8 @@ export function gflModule(): ModuleDefinition {
       steps.push(row);
       if (row.newDay) break;
     }
-    const settlement = steps.at(-1) ?? {};
-    return ok(c, { steps: steps.length, day: settlement.day, phase: settlement.phase, daily: settlement.daily, dailyAwards });
+    const settlement = steps.at(-1) ?? {}, raid = resolveDailyRaid(c);
+    return ok(c, { steps: steps.length, day: settlement.day, phase: settlement.phase, daily: settlement.daily, raid, dailyAwards });
   }),
       "gfl/relation/check": scoped((c) => {
         if (
@@ -1537,6 +1545,7 @@ export function gflModule(): ModuleDefinition {
           id = string(pending.bossId);
         if (!definition || !id) return fail(c, "gfl_boss_recruit_missing");
         if (!list<string>(gfl.defeatedBosses).includes(id)) return fail(c, "gfl_boss_not_defeated", id);
+        if (list<string>(gfl.dismissedBosses).includes(id)) return fail(c, "gfl_boss_dismissed", id);
         if (list<string>(config(c.schema).noRecruit).includes(id)) return fail(c, "gfl_boss_no_recruit", id);
         if (owned(c.state)[id]) return fail(c, "gfl_doll_owned", id);
         const capacity = dollCapacity(c.schema, c.state), count = Object.keys(owned(c.state)).length;
@@ -1550,6 +1559,35 @@ export function gflModule(): ModuleDefinition {
         if (!pending.bossId) return fail(c, "gfl_boss_recruit_missing");
         gfl.bossRecruit = null; c.state.gfl = gfl;
         return ok(c, { bossId: pending.bossId, dismissed: true });
+      }),
+      "gfl/doll/dismiss": scoped((c) => {
+        const id = string(c.params.dollId), gfl = state(c.state), values = owned(c.state), unit = record(values[id]);
+        if (c.params.confirm !== true) return fail(c, "gfl_dismiss_confirmation_required", id);
+        if (!Object.keys(unit).length) return fail(c, "gfl_doll_not_owned", id);
+        for (const entry of echelons(c.state)) {
+          entry.slots = list<unknown>(entry.slots).map((slot) => slot === id ? null : slot);
+        }
+        gfl.echelons = echelons(c.state);
+        gfl.repairs = queue(c.state, "repairs").filter((job) => job.dollId !== id);
+        if (gfl.featuredDollId === id) gfl.featuredDollId = null;
+        if (string(unit.class) === "BOSS") gfl.dismissedBosses = [...new Set([...list<string>(gfl.dismissedBosses), id])];
+        delete values[id]; gfl.dolls = values;
+        const core = items(c.schema).find((item) => item.name === "코어"), coreId = string(core?.id), inventory = record(c.state.items), bonus = c.rng.int(500, 2000), resources = record(c.state.resources);
+        if (coreId) inventory[coreId] = number(inventory[coreId]) + 1;
+        else resources.cores = number(resources.cores) + 1;
+        resources.res = number(resources.res) + bonus;
+        c.state.items = inventory; c.state.resources = resources; c.state.gfl = gfl;
+        return ok(c, { dollId: id, name: unit.name, reward: { coreId: coreId || "cores", cores: 1, res: bonus }, boss: string(unit.class) === "BOSS" });
+      }),
+      "gfl/equipment/scrap": scoped((c) => {
+        const id = string(c.params.equipmentId), definition = equipment(c.schema).find((item) => item.id === id), inventory = record(c.state.items);
+        if (c.params.confirm !== true) return fail(c, "gfl_scrap_confirmation_required", id);
+        if (!definition) return fail(c, "gfl_unknown_equipment", id);
+        if (number(inventory[id]) < 1) return fail(c, "gfl_equipment_not_owned", id);
+        const parts = Math.floor(number(definition.price) * .3), resources = record(c.state.resources);
+        inventory[id] = number(inventory[id]) - 1; resources.parts = number(resources.parts) + parts;
+        c.state.items = inventory; c.state.resources = resources;
+        return ok(c, { equipmentId: id, name: definition.name, reward: { parts } });
       }),
       "gfl/facility/upgrade": scoped((c) => {
         const id = string(c.params.facilityId),
@@ -1968,6 +2006,16 @@ export function gflModule(): ModuleDefinition {
       },
       "gfl/theaters": (...args) =>
         list<RuntimeRecord>(config(record(args[0])).theaters),
+      "gfl/documents": (...args) => {
+        const schema = record(args[0]), completed = number(state(record(args[1])).sortiesCompletedTotal), rows = documents(schema),
+          unlockedCount = Math.min(rows.length, Math.floor(completed / 2) + 1);
+        return { completed, unlockedCount, documents: rows.map((entry, index) => ({ ...entry, unlocked: index < unlockedCount })) };
+      },
+      "gfl/unlockedDocs": (...args) => {
+        const schema = record(args[0]), completed = number(state(record(args[1])).sortiesCompletedTotal), rows = documents(schema),
+          count = Math.min(rows.length, Math.floor(completed / 2) + 1);
+        return { count, ids: rows.slice(0, count).map((entry) => string(entry.id)) };
+      },
       "gfl/queues": (...args) => ({
         manufacturing: queue(record(args[1]), "manufacturing"),
         repairs: queue(record(args[1]), "repairs"),

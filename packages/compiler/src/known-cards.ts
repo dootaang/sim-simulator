@@ -142,6 +142,25 @@ function itemRows(mined: ReturnType<typeof mineCard>) {
     };
   });
 }
+function documentRows(mined: ReturnType<typeof mineCard>) {
+  return (Array.isArray(mined.tables.DOC_DATA) ? mined.tables.DOC_DATA : []).map((value) => {
+    const row = record(value);
+    return { id: text(row.id), year: text(row.year), code: text(row.code), title: text(row.title), body: text(row.body) };
+  });
+}
+function kalinaShop(mined: ReturnType<typeof mineCard>, catalog: Array<{ id: string; name: string; price: number }>) {
+  const rows = (Array.isArray(mined.tables.KALINA_SHOP_ITEMS) ? mined.tables.KALINA_SHOP_ITEMS : []).map(record),
+    byName = new Map(catalog.map((item) => [item.name, item])),
+    missingRows = rows.filter((row) => !byName.has(text(row.id))),
+    mismatches = rows.flatMap((row) => {
+      const item = byName.get(text(row.id));
+      return item && number(row.price) !== item.price ? [{ name: text(row.id), itemPrice: item.price, shopPrice: number(row.price) }] : [];
+    });
+  return {
+    added: missingRows.map((row) => ({ id: id(text(row.id)), name: text(row.id), price: number(row.price), type: "use", description: text(row.desc), effect: {}, drop: 0, asset: text(row.id) })),
+    comparison: { source: rows.length, matched: rows.length - missingRows.length, missing: missingRows.map((row) => text(row.id)), priceMismatches: mismatches },
+  };
+}
 
 function progression(mined: ReturnType<typeof mineCard>) {
   const byStar = Object.fromEntries(
@@ -277,7 +296,7 @@ function facilities(mined: ReturnType<typeof mineCard>) {
 }
 function gflSchema(parsed: ParsedCard, mined: ReturnType<typeof mineCard>) {
   const { rows: dolls, recovered, normalizedMg3, unknownClasses } = dollRows(parsed, mined),
-    items = itemRows(mined),
+    baseItems = itemRows(mined), kalina = kalinaShop(mined, baseItems), items = [...baseItems, ...kalina.added],
     equipment = equipmentRows(mined),
     missions = missionRows(mined),
     defaults = mined.defaultVars.numbers,
@@ -402,6 +421,8 @@ function gflSchema(parsed: ParsedCard, mined: ReturnType<typeof mineCard>) {
         timePhases: ["오전", "오후", "저녁", "밤", "심야", "새벽"],
         progression: progression(mined),
         encounters: encounterData.value,
+        documents: documentRows(mined),
+        kalinaComparison: kalina.comparison,
         bosses: bossData.rows,
         noRecruit: bossData.noRecruit,
         relation: {
@@ -485,6 +506,8 @@ function gflSchema(parsed: ParsedCard, mined: ReturnType<typeof mineCard>) {
           manufacturing: [],
           repairs: [],
           completedMissions: [],
+          sortiesCompletedTotal: 0,
+          dismissedBosses: [],
           defeatedBosses: [],
           bossRecruit: null,
           sortie: null,
