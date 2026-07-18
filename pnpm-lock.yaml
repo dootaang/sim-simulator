@@ -233,6 +233,9 @@ importers:
         specifier: workspace:*
         version: link:../runtime
     devDependencies:
+      '@simbot/kernel':
+        specifier: workspace:*
+        version: link:../kernel
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
