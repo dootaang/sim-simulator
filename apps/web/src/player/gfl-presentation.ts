@@ -6,7 +6,7 @@ const time=/\|\s*day\s*\d+\s*_\s*[가-힣]+/gi;
 function dialogue(asset:string,quote:string){
   // 카드 고유의 <img="이름"> 대화 표식을 Risu의 img CBS로 넘긴다.
   // 이후 치환 순서는 Risu ParseMarkdown과 동일하게 처리한다.
-  return `\n{{img::${asset.trim()}}}\n> ${quote.trim().replace(/^["“]|["”]$/g,'')}\n`;
+  return `\n{{img::${asset.trim()}}}\n“${quote.trim().replace(/^["“]|["”]$/g,'')}”\n`;
 }
 
 export type GflNarrativeSegment=
@@ -66,13 +66,13 @@ export function parseGflNarrative(source:string):GflNarrativeSegment[]{
 
 interface GflRenderedPart<W>{html:string;warnings:W[]}
 /** 일반 산문은 기존 렌더러에 맡기고 대사는 엔진 소유 HTML에 안전한 텍스트로 넣는다. */
-export function renderGflNarrative<W extends{code:string;macro:string;name:string}>(source:string,render:(content:string)=>GflRenderedPart<W>,speakerFor:(asset:string)=>string){
+export function renderGflNarrative<W extends{code:string;macro:string;name:string}>(source:string,render:(content:string)=>GflRenderedPart<W>){
   const html:string[]=[],warnings:W[]=[];
   for(const segment of parseGflNarrative(source)){
     if(segment.kind==='prose'){const result=render(segment.text);html.push(result.html);warnings.push(...result.warnings);continue;}
-    const safeAsset=/[{}<>\r\n]/.test(segment.asset)?'':segment.asset,result=safeAsset?render(`{{img::${safeAsset}}}`):{html:'',warnings:[] as W[]},speaker=speakerFor(segment.asset)||segment.asset;
+    const safeAsset=/[{}<>\r\n]/.test(segment.asset)?'':segment.asset,result=safeAsset?render(`{{img::${safeAsset}}}`):{html:'',warnings:[] as W[]};
     warnings.push(...result.warnings);
-    html.push(`<div class="gfl-say"><div class="gfl-say-portrait">${result.html}</div><div class="gfl-say-body"><span class="gfl-say-name">${escapeHtml(speaker)}</span><blockquote><p>${escapeHtml(segment.quote).replace(/\r?\n/g,'<br>')}</p></blockquote></div></div>`);
+    html.push(`${result.html}\n<p><span class="dialogue">“${escapeHtml(segment.quote).replace(/\r?\n/g,'<br>')}”</span></p>`);
   }
   const seen=new Set<string>();
   return{html:html.join('\n'),warnings:warnings.filter(warning=>{const key=`${warning.code}\u0001${warning.macro}\u0001${warning.name}`;if(seen.has(key))return false;seen.add(key);return true;})};
