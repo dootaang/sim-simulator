@@ -505,6 +505,7 @@ function gflSchema(parsed: ParsedCard, mined: ReturnType<typeof mineCard>) {
           fairies: {},
           manufacturing: [],
           repairs: [],
+          logistics: [],
           completedMissions: [],
           sortiesCompletedTotal: 0,
           dismissedBosses: [],

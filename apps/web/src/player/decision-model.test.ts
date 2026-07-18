@@ -92,4 +92,9 @@ describe('결정 카드 모델', () => {
       expect.objectContaining({ label: '보내준다', id: 'gfl/boss/dismiss', kind: 'ghost' }),
     ]);
   });
+  it('복귀한 군수지원은 확정 보상과 수령 버튼을 결정 카드로 표시한다', () => {
+    const cards = buildDecisionCards((id) => id === 'gfl/logistics' ? [{ id: 'logistics:1:0', echelonId: 'e1', echelonName: '제1제대', status: 'complete', reward: { gold: 321, res: 192 } }] : id === 'gfl/status' ? {} : null);
+    expect(cards[0]).toMatchObject({ key: 'gfl-logistics:logistics:1:0', title: '군수지원 복귀 · 제1제대', desc: '파견 때 확정된 보상: 자금 321 · 자원 192', more: '수령 전까지 제대 대기' });
+    expect(cards[0]?.options[0]).toMatchObject({ label: '보급품을 수령한다', id: 'gfl/logistics/collect', params: { jobId: 'logistics:1:0' }, mode: 'ledger' });
+  });
 });

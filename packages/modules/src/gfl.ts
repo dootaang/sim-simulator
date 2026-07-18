@@ -23,10 +23,10 @@ type Doll = RuntimeRecord & {
   mood?: number;
 };
 type FormationRow = "전열" | "중열" | "후열";
-const CLASS_COMBAT: Record<string,{aggro:number;damageTaken:number;vsMaxHp?:number;round1?:number;round3plus?:number;hitBuffAlly?:number}> = {
+const CLASS_COMBAT: Record<string,{aggro:number;damageTaken:number;vsMaxHp?:number;round1?:number;round3plus?:number;hitBuffAlly?:number;illumination?:number}> = {
   AR: { aggro: 1, damageTaken: 1 }, SMG: { aggro: 3, damageTaken: .68 }, SG: { aggro: 4, damageTaken: .6 },
   MG: { aggro: 1, damageTaken: 1, round1: 1.4, round3plus: .8 }, RF: { aggro: .5, damageTaken: 1, vsMaxHp: 1.3 },
-  HG: { aggro: .5, damageTaken: 1, hitBuffAlly: 1 },
+  HG: { aggro: .5, damageTaken: 1, hitBuffAlly: 1, illumination: 2 },
   BOSS: { aggro: 1.5, damageTaken: .9 },
 };
 const ROW_AGGRO: Record<FormationRow, number> = { 전열: 2.4, 중열: 1, 후열: .4 };
@@ -145,7 +145,10 @@ function formation(value: RuntimeRecord, echelonId: unknown) {
 function power(value: RuntimeRecord, echelon: RuntimeRecord) {
   const values = owned(value);
   return list<unknown>(echelon.slots).reduce<number>(
-    (sum, id) => sum + number(record(values[string(id)]).power),
+    (sum, id) => {
+      const unit = record(values[string(id)]), base = number(unit.power);
+      return sum + base * (unit.oathed === true ? 1.05 : 1);
+    },
     0,
   );
 }
@@ -244,13 +247,35 @@ function missionUnlocked(schema: RuntimeRecord, value: RuntimeRecord, operation:
   const rows = missions(schema), index = rows.findIndex(row => row.id === operation.id), theater = string(operation.theater), previous = rows.slice(0, index).filter(row => string(row.theater) === theater).at(-1);
   return !previous || completed.has(string(previous.id));
 }
-function missionRisk(formationPower: number, requiredPower: number, commanderBonus = 0) {
+function missionRisk(formationPower: number, requiredPower: number, commanderBonus = 0, fieldModifier = 0) {
   const ratio = formationPower / Math.max(1, requiredPower), baseModifier = clamp(Math.round(10 * Math.log2(Math.max(.1, ratio))), -10, 8),
-    modifier = baseModifier + commanderBonus;
+    modifier = baseModifier + commanderBonus + fieldModifier;
   let wins = 0;
   for (let roll = 1; roll <= 20; roll++) if (roll === 20 || (roll !== 1 && roll + modifier >= 8)) wins++;
   const chance = wins * 5, label = chance < 30 ? "극위험" : chance < 60 ? "위험" : chance < 85 ? "보통" : "안정";
-  return { ratio: Math.round(ratio * 100), modifier, baseModifier, commanderBonus, chance, chanceLow: Math.max(5, chance - 5), chanceHigh: Math.min(95, chance + 5), label };
+  return { ratio: Math.round(ratio * 100), modifier, baseModifier, commanderBonus, fieldModifier, chance, chanceLow: Math.max(5, chance - 5), chanceHigh: Math.min(95, chance + 5), label };
+}
+
+function logistics(value: RuntimeRecord) {
+  return queue(value, "logistics");
+}
+function echelonLogistics(value: RuntimeRecord, echelonId: unknown) {
+  return logistics(value).find((job) => job.echelonId === echelonId && (job.status === "active" || job.status === "complete"));
+}
+function nightSortie(value: RuntimeRecord, entry: RuntimeRecord) {
+  const phase = string(record(value.clock).phase), night = phase === "심야" || phase === "새벽",
+    values = owned(value), illumination = Math.min(4, list<unknown>(entry.slots).reduce<number>((sum, id) => {
+      const unit = record(values[string(id)]);
+      return sum + number(combatProfile(unit.class).illumination);
+    }, 0));
+  return { night, phase, illumination, hgCount: illumination / 2, modifier: night ? -3 + illumination : 0 };
+}
+function moodClamp(unit: RuntimeRecord, value: number) {
+  return clamp(value, unit.oathed === true ? 30 : 0, 1000);
+}
+function loveTierIndex(schema: RuntimeRecord) {
+  const names = list<string>(record(config(schema).relation).names), named = names.indexOf("사랑");
+  return named >= 0 ? named : clamp(relationFor(schema, 0).index + 5, 0, Math.max(0, names.length - 1));
 }
 function resolveDailyRaid(c: Context) {
   const defenseLevel = facilityLevel(c.state, "base2"), chance = Math.max(2, 18 - defenseLevel * 3),
@@ -589,12 +614,12 @@ function resolveSortie(c: Context) {
 
   const commanderBefore = commanderStatus(c.state),
     tactic = string(c.params.tactic || sortie.tactic || "balanced"),
-    risk = missionRisk(number(sortie.power), number(operation.power), commanderBefore.checkBonus),
+    risk = missionRisk(number(sortie.power), number(operation.power), commanderBefore.checkBonus, number(sortie.nightHitModifier)),
     missionRoll = c.rng.int(1, 20),
     missionTotal = missionRoll + risk.modifier,
     condition = missionRoll === 20 || (missionRoll !== 1 && missionTotal >= 8) ? missionTotal >= 15 ? "favorable" : "steady" : missionTotal <= 2 ? "disastrous" : "unfavorable",
     conditionHit = condition === "favorable" ? 2 : condition === "unfavorable" ? -2 : condition === "disastrous" ? -4 : 0,
-    tacticHit = (tactic === "focus" ? 2 : tactic === "cover" ? -2 : 0) + (sortie.scouted ? 1 : 0),
+    tacticHit = (tactic === "focus" ? 2 : tactic === "cover" ? -2 : 0) + (sortie.scouted ? 1 : 0) + number(sortie.nightHitModifier),
     allyDamageFactor = tactic === "focus" ? 1.15 : tactic === "cover" ? .85 : 1,
     incomingFactor = (tactic === "focus" ? 1.15 : tactic === "cover" ? .7 : 1) * (condition === "favorable" ? .85 : condition === "unfavorable" ? 1.15 : condition === "disastrous" ? 1.3 : 1) * (stages.length ? .8 : 1),
     values = owned(c.state), missionFaction = factionSummary(operation),
@@ -608,7 +633,7 @@ function resolveSortie(c: Context) {
           name: string(unit.name),
           hp: Math.max(0, number(hp.cur)),
           maxHp: Math.max(1, number(hp.max, 1)),
-          power: Math.max(1, number(unit.power, 1)),
+          power: Math.max(1, number(unit.power, 1) * (unit.oathed === true ? 1.05 : 1)),
           grade: number(unit.grade, 1),
           class: string(unit.class), row, hpBefore: Math.max(0, number(hp.cur)),
         };
@@ -747,7 +772,7 @@ function resolveSortie(c: Context) {
   if (operationComplete) {
     const firstClear = !list<string>(state(c.state).completedMissions).includes(string(operation.id));
     rewardRate = firstClear ? 1 : .35;
-    const rawReward = record(operation.rewards), scaledReward = Object.fromEntries(Object.entries(rawReward).map(([key, value]) => [key, Math.floor(number(value) * rewardRate)]));
+    const rawReward = record(operation.rewards), scaledReward = Object.fromEntries(Object.entries(rawReward).map(([key, value]) => [key, Math.floor(number(value) * rewardRate * (key === "parts" && sortie.night === true ? 2 : 1))]));
     rewards(c.state, scaledReward, c);
     reward = scaledReward;
     const stars = clamp(Math.floor(number(operation.stars)), 0, 6),
@@ -814,6 +839,9 @@ function resolveSortie(c: Context) {
     loot,
     operationComplete,
     docUnlocked,
+    night: sortie.night === true,
+    nightHitModifier: number(sortie.nightHitModifier),
+    nightHg: number(sortie.nightHg),
   };
   if (outcome === "defeat" || operationComplete || !stages.length) next.sortie = null;
   else {
@@ -848,6 +876,9 @@ function resolveSortie(c: Context) {
     loot,
     operationComplete,
     docUnlocked,
+    night: sortie.night === true,
+    nightHitModifier: number(sortie.nightHitModifier),
+    nightHg: number(sortie.nightHg),
     current: next.sortie ? number(record(next.sortie).current) : stages.length,
     total: stages.length || 1,
     dailyAwards,
@@ -972,6 +1003,9 @@ export function gflModule(): ModuleDefinition {
         if (!entry) return fail(c, "gfl_unknown_echelon", c.params.echelonId);
         if (!owned(c.state)[id]) return fail(c, "gfl_doll_not_owned", id);
         if (slot < 0 || slot >= FORMATION_SIZE) return fail(c, "gfl_slot_invalid", slot);
+        if (echelonLogistics(c.state, entry.id)) return fail(c, "gfl_echelon_logistics_active", entry.id);
+        const current = echelons(c.state).find((echelon) => list<unknown>(echelon.slots).includes(id));
+        if (current && echelonLogistics(c.state, current.id)) return fail(c, "gfl_echelon_logistics_active", current.id);
         for (const echelon of echelons(c.state)) {
           const slots = list<unknown>(echelon.slots);
           for (let index = 0; index < slots.length; index++)
@@ -992,6 +1026,7 @@ export function gflModule(): ModuleDefinition {
           slot = Math.trunc(number(c.params.slot, -1));
         if (!entry) return fail(c, "gfl_unknown_echelon", c.params.echelonId);
         if (slot < 0 || slot >= FORMATION_SIZE) return fail(c, "gfl_slot_invalid", slot);
+        if (echelonLogistics(c.state, entry.id)) return fail(c, "gfl_echelon_logistics_active", entry.id);
         const slots = list<unknown>(entry.slots),
           removed = slots[slot] ?? null;
         slots[slot] = null;
@@ -1029,6 +1064,35 @@ export function gflModule(): ModuleDefinition {
           narrativeFact: `지휘관의 현재 위치는 ${string(destination.name)}이다.`,
         });
       }),
+  "gfl/logistics/dispatch": scoped((c) => {
+    const echelonId = string(c.params.echelonId), entry = formation(c.state, echelonId), duration = Math.trunc(number(c.params.duration));
+    if (!entry) return fail(c, "gfl_unknown_echelon", echelonId);
+    if (![2, 4, 6].includes(duration)) return fail(c, "gfl_logistics_duration_invalid", duration);
+    const members = list<unknown>(entry.slots).map(string).filter(Boolean), activeSortie = record(state(c.state).sortie);
+    if (!members.length) return fail(c, "gfl_echelon_empty");
+    if (activeSortie.active && activeSortie.echelonId === echelonId) return fail(c, "gfl_echelon_sortie_active", echelonId);
+    if (echelonLogistics(c.state, echelonId)) return fail(c, "gfl_logistics_active", echelonId);
+    if (members.every((id) => number(record(record(owned(c.state)[id]).hp).cur) <= 0)) return fail(c, "gfl_echelon_incapacitated");
+    const formationPower = effectivePower(c.state, entry), rewardRoll = c.rng.int(90, 110),
+      gold = Math.min(2000, Math.floor(formationPower * .03 * duration * rewardRoll / 100)),
+      res = Math.min(1200, Math.floor(formationPower * .03 * duration * .6 * rewardRoll / 100)),
+      jobs = logistics(c.state), job = {
+        id: `logistics:${number(record(c.state.clock).turn)}:${jobs.length}`,
+        echelonId, duration, remaining: duration, status: "active", rewardRoll,
+        reward: { gold, res }, power: formationPower,
+      };
+    jobs.push(job); state(c.state).logistics = jobs;
+    return ok(c, { job });
+  }),
+  "gfl/logistics/collect": scoped((c) => {
+    const jobs = logistics(c.state), job = jobs.find((entry) => entry.id === c.params.jobId);
+    if (!job || job.status !== "complete") return fail(c, "gfl_logistics_not_complete", c.params.jobId);
+    const reward = record(job.reward), resources = record(c.state.resources);
+    c.state.gold = number(c.state.gold) + number(reward.gold);
+    resources.res = number(resources.res) + number(reward.res); c.state.resources = resources;
+    state(c.state).logistics = jobs.filter((entry) => entry.id !== job.id);
+    return ok(c, { jobId: job.id, echelonId: job.echelonId, reward });
+  }),
   "gfl/time/advance": scoped((c) => {
         if (fieldSortie(c.state)) return fail(c, "gfl_time_field_locked");
         {
@@ -1042,7 +1106,7 @@ export function gflModule(): ModuleDefinition {
           clock = record(c.state.clock),
           before = string(clock.phase || order[0]),
           index = Math.max(0, order.indexOf(before));
-        if (before === "밤" && c.params.settlement !== true) return fail(c, "gfl_night_requires_end_day");
+        if (before === "새벽" && c.params.settlement !== true) return fail(c, "gfl_dawn_requires_end_day");
         const
           next = order[(index + 1) % order.length]!,
           newDay = index === order.length - 1;
@@ -1099,6 +1163,13 @@ export function gflModule(): ModuleDefinition {
             unit.status = "대기";
           }
         }
+        for (const job of logistics(c.state).filter((value) => value.status === "active")) {
+          job.remaining = Math.max(0, number(job.remaining) - 1);
+          if (job.remaining === 0) {
+            job.status = "complete";
+            completed.push(job);
+          }
+        }
         let daily: RuntimeRecord | null = null;
         if (newDay) {
           const tomorrow = day(c.state) + 1;
@@ -1117,7 +1188,7 @@ export function gflModule(): ModuleDefinition {
               number(hp.cur) + Math.ceil((number(hp.max) * healRate) / 100),
             );
             unit.hp = hp;
-            unit.mood = clamp(number(unit.mood) + 10, 0, 1000);
+            unit.mood = moodClamp(unit, number(unit.mood) + 10);
           }
           daily = { income, healRate };
           const previousOffers = list<RuntimeRecord>(gfl.hireOffers).map((value) => string(value.id)).filter(Boolean);
@@ -1147,7 +1218,7 @@ export function gflModule(): ModuleDefinition {
       if (dialogue) return fail(c, "gfl_dialogue_active", string(dialogue.name));
     }
     const phase = string(record(c.state.clock).phase || "오전");
-    if (!["저녁", "밤"].includes(phase)) return fail(c, "gfl_end_day_time_locked", phase);
+    if (!["저녁", "밤", "심야", "새벽"].includes(phase)) return fail(c, "gfl_end_day_time_locked", phase);
     const dailyAwards = markDaily(c, "endDay");
     const steps: RuntimeRecord[] = [];
     for (let count = 0; count < 6; count++) {
@@ -1225,7 +1296,7 @@ export function gflModule(): ModuleDefinition {
           affinityDelta = Math.round(choice.affinity * multiplier * (multiplier < 0 ? difficulty.loss : difficulty.gain) * repeatFactor),
           moodDelta = Math.round(choice.mood * multiplier * repeatFactor);
         unit.affinity = clamp(number(unit.affinity) + affinityDelta, -200, 500);
-        unit.mood = clamp(number(unit.mood) + moodDelta, 0, 1000);
+        unit.mood = moodClamp(unit, number(unit.mood) + moodDelta);
         markRelationUse(c, dollId, choiceId);
         const afterTier = relationFor(c.schema, unit.affinity),
           tierChanged =
@@ -1334,7 +1405,7 @@ export function gflModule(): ModuleDefinition {
           affinityDelta = Math.round(2 * difficulty.gain),
           moodDelta = 10;
         unit.affinity = clamp(number(unit.affinity) + affinityDelta, -200, 500);
-        unit.mood = clamp(number(unit.mood) + moodDelta, 0, 1000);
+        unit.mood = moodClamp(unit, number(unit.mood) + moodDelta);
         const afterTier = relationFor(c.schema, unit.affinity),
           days = record(gfl.dialogueDays);
         days[dollId] = number(dialogue.day, day(c.state));
@@ -1468,6 +1539,17 @@ export function gflModule(): ModuleDefinition {
         c.state.gfl = gfl;
         return ok(c, { job });
       }),
+      "gfl/repair/rush": scoped((c) => {
+        const gfl = state(c.state), repairs = queue(c.state, "repairs"),
+          job = repairs.find((value) => value.id === c.params.jobId), unit = record(owned(c.state)[string(job?.dollId)]);
+        if (!job || job.status !== "active") return fail(c, "gfl_repair_not_active", c.params.jobId);
+        const missing = spend(c, { parts: 2 });
+        if (missing) return fail(c, "gfl_repair_rush_cost_missing", missing);
+        job.remaining = 0; job.status = "complete";
+        const hp = record(unit.hp); hp.cur = hp.max; unit.hp = hp; unit.status = "대기";
+        gfl.repairs = repairs; c.state.gfl = gfl;
+        return ok(c, { job, cost: { parts: 2 } });
+      }),
       "gfl/sortie/start": scoped((c) => {
         const gfl = state(c.state);
         if (record(gfl.sortie).active) return fail(c, "gfl_sortie_active");
@@ -1483,6 +1565,7 @@ export function gflModule(): ModuleDefinition {
           return fail(c, "gfl_unknown_mission", c.params.missionId);
         if (!missionUnlocked(c.schema, c.state, operation)) return fail(c, "gfl_mission_locked", c.params.missionId);
         if (!entry) return fail(c, "gfl_unknown_echelon", c.params.echelonId);
+        if (echelonLogistics(c.state, entry.id)) return fail(c, "gfl_echelon_logistics_active", entry.id);
         if (!["field", "remote"].includes(command))
           return fail(c, "gfl_sortie_command_invalid", command);
         if (!OPERATION_STAGE_WEIGHTS[missionType])
@@ -1499,7 +1582,7 @@ export function gflModule(): ModuleDefinition {
           if (missing)
             return fail(c, "gfl_sortie_travel_funds_missing", travelCost);
         }
-        const stages = operationStages(c, operation, missionType);
+        const stages = operationStages(c, operation, missionType), night = nightSortie(c.state, entry);
         gfl.sortie = {
           active: true,
           missionId: operation.id,
@@ -1515,6 +1598,10 @@ export function gflModule(): ModuleDefinition {
           stages,
           current: 0,
           scouted: false,
+          night: night.night,
+          nightPhase: night.phase,
+          nightHitModifier: night.modifier,
+          nightHg: night.hgCount,
         };
         daily.sortiesUsed = number(daily.sortiesUsed) + 1;
         c.state.gfl = gfl;
@@ -1527,7 +1614,8 @@ export function gflModule(): ModuleDefinition {
           stages,
           current: 0,
           travelCost,
-          risk: missionRisk(formationPower, number(operation.power), commander.checkBonus),
+          night,
+          risk: missionRisk(formationPower, number(operation.power), commander.checkBonus, night.modifier),
           sortiesRemaining: Math.max(0, commander.sortieLimit - number(daily.sortiesUsed)),
         });
       }),
@@ -1691,7 +1779,8 @@ export function gflModule(): ModuleDefinition {
           return fail(c, "gfl_doll_not_owned", dollId);
         if (number(inventory[itemId]) < 1)
           return fail(c, "gfl_item_not_owned", itemId);
-        const effect = record(definition.effect),
+        const effect = record(definition.effect), beforeTier = relationFor(c.schema, unit.affinity),
+          oathEligible = string(definition.name) === "서약반지" && unit.oathed !== true && beforeTier.index >= loveTierIndex(c.schema),
           hp = record(unit.hp),
           mp = record(unit.mp);
         if ("hp" in effect)
@@ -1699,7 +1788,7 @@ export function gflModule(): ModuleDefinition {
         if ("mp" in effect)
           mp.cur = clamp(number(mp.cur) + number(effect.mp), 0, number(mp.max));
         if ("mood" in effect)
-          unit.mood = clamp(number(unit.mood) + number(effect.mood), 0, 1000);
+          unit.mood = moodClamp(unit, number(unit.mood) + number(effect.mood));
         if ("aff" in effect)
           unit.affinity = clamp(
             number(unit.affinity) + number(effect.aff),
@@ -1708,6 +1797,10 @@ export function gflModule(): ModuleDefinition {
           );
         unit.hp = hp;
         unit.mp = mp;
+        if (oathEligible) {
+          unit.oathed = true;
+          unit.mood = moodClamp(unit, number(unit.mood));
+        }
         inventory[itemId] = number(inventory[itemId]) - 1;
         c.state.items = inventory;
         return ok(c, {
@@ -1718,6 +1811,8 @@ export function gflModule(): ModuleDefinition {
           mp,
           mood: unit.mood,
           affinity: unit.affinity,
+          oathed: unit.oathed === true,
+          oathApplied: oathEligible,
         });
       }),
       "gfl/item/sell": scoped((c) => {
@@ -1878,6 +1973,7 @@ export function gflModule(): ModuleDefinition {
                 }
               : { id: locationId, name: location?.name ?? locationId },
           sortie: sortie.active ? sortie : null,
+          logistics: logistics(value),
           bossRecruit: gfl.bossRecruit ?? null,
           defeatedBosses: list<string>(gfl.defeatedBosses),
           missionTypes: list<RuntimeRecord>(progressionConfig(schema).missionTypes),
@@ -1965,7 +2061,7 @@ export function gflModule(): ModuleDefinition {
     const schema = record(args[0]);
     return Object.values(owned(record(args[1]))).map((raw) => {
       const unit = record(raw);
-      return { ...unit, relation: relationFor(schema, unit.affinity) };
+      return { ...unit, oathed: unit.oathed === true, relation: relationFor(schema, unit.affinity) };
     });
   },
       "gfl/echelons": (...args) =>
@@ -2020,6 +2116,13 @@ export function gflModule(): ModuleDefinition {
         manufacturing: queue(record(args[1]), "manufacturing"),
         repairs: queue(record(args[1]), "repairs"),
       }),
+      "gfl/logistics": (...args) => {
+        const value = record(args[1]);
+        return logistics(value).map((job) => {
+          const entry = formation(value, job.echelonId);
+          return { ...job, echelonName: entry?.name ?? job.echelonId };
+        });
+      },
       "gfl/hire": (...args) => {
         const schema = record(args[0]),
           value = record(args[1]),

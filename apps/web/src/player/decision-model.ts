@@ -62,6 +62,18 @@ export interface DecisionContext { logs?: ReadonlyArray<Record<string, unknown>>
 export function buildDecisionCards(select: (id: string) => unknown, context: DecisionContext = {}): DecisionCardModel[] {
   const cards: DecisionCardModel[] = tierCards(context.logs ?? [], context.turn ?? 0, context.nameFor ?? ((id) => id));
   const gflStatus = rec(safeSelect(select, 'gfl/status'));
+  const logistics = arr(safeSelect(select, 'gfl/logistics'));
+  for (const job of logistics.filter((entry) => entry.status === 'complete')) {
+    const reward = rec(job.reward);
+    cards.push({
+      key: `gfl-logistics:${String(job.id)}`,
+      icon: 'star',
+      title: `군수지원 복귀 · ${String(job.echelonName ?? job.echelonId)}`,
+      desc: `파견 때 확정된 보상: 자금 ${num(reward.gold).toLocaleString()} · 자원 ${num(reward.res).toLocaleString()}`,
+      more: '수령 전까지 제대 대기',
+      options: [{ label: '보급품을 수령한다', id: 'gfl/logistics/collect', params: { jobId: String(job.id) }, mode: 'ledger', kind: 'primary' }],
+    });
+  }
   // 대화 세션 상주 카드 — 시간이 멈춰 있음을 계속 보여주고, 마무리(=보너스 확정) 출구를 하나만 남긴다.
   const dialogue = rec(gflStatus.dialogue);
   if (dialogue.dollId) {

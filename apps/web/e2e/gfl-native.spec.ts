@@ -179,6 +179,27 @@ test('관계 선택지 캡슐과 1:1 대화 세션이 엔진 상태로 작동한
   await expect(console).toContainText('오늘 완료');
 });
 
+test('군수지원 복귀 보상을 수령하고 심야 작전의 실제 명중 보정을 확인한다',async({page})=>{
+  await page.setViewportSize({width:844,height:720});
+  const simulation=await importGfl(page); let console=simulation.getByLabel('소녀전선 지휘 콘솔');
+  await console.getByRole('button',{name:'지휘관으로 시작'}).click();
+  await console.getByRole('button',{name:'인형 고용',exact:true}).click(); await console.getByRole('button',{name:'🎲 오늘의 인형 뽑기'}).click();
+  await console.getByRole('button',{name:'계약',exact:true}).first().click(); await console.getByRole('button',{name:/수송 도착/}).click();
+  const reopen=async()=>{await page.getByRole('button',{name:'관리 화면 열기'}).click(); return page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔');};
+  console=await reopen(); await console.getByRole('button',{name:'제대',exact:true}).click(); await console.locator('.roster button').first().click();
+  await console.getByRole('button',{name:'2시간대 파견'}).click(); await expect(console.locator('.logistics-panel')).toContainText('파견 중 · 2시간대 남음');
+  await console.getByRole('button',{name:'기지',exact:true}).click(); await console.getByRole('button',{name:'다음 시간대'}).click();
+  console=await reopen(); await console.getByRole('button',{name:'다음 시간대'}).click();
+  console=await reopen(); await console.getByRole('button',{name:'제대',exact:true}).click(); await expect(console.locator('.logistics-panel')).toContainText('복귀 완료 · 보급품 수령 대기');
+  await console.getByRole('button',{name:'보급품 수령'}).click(); await expect(console.locator('.logistics-panel')).toContainText('파견 순간 보상이 확정');
+  await console.getByRole('button',{name:'기지',exact:true}).click(); await console.getByRole('button',{name:'다음 시간대'}).click();
+  console=await reopen(); await expect(console.locator('header.status')).toContainText('심야');
+  await console.getByRole('button',{name:'작전',exact:true}).click(); await expect(console.locator('.night-warning')).toContainText('기본 명중 −3');
+  await expect(console.locator('.night-warning')).toContainText('최종 -3');
+  await console.getByRole('button',{name:/레드·오렌지 작전구역/}).click(); await console.getByRole('button',{name:/ALPHA/}).click();
+  await expect(console.locator('.risk')).toContainText('d20 보정'); await console.getByRole('button',{name:'빠른 교전'}).click();
+});
+
 test('휴대폰 가로모드에서 대화 장면과 관리창이 한 화면에 맞고 가로 스크롤이 생기지 않는다',async({page})=>{
   await page.setViewportSize({width:844,height:390});
   const simulation=await importGfl(page),console=simulation.getByLabel('소녀전선 지휘 콘솔');

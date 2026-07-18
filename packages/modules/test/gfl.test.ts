@@ -581,7 +581,9 @@ describe("Girls Frontline native module", () => {
     game.dispatch("gfl/doll/acquire", { dollId: "m4a1" });
     const before = Number((game.state.resources as any).res);
     for (let step = 0; step < 3; step++) expect(game.dispatch("gfl/time/advance").log[0]).toMatchObject({ ok: true, newDay: false });
-    expect(game.dispatch("gfl/time/advance").log[0]).toMatchObject({ ok: false, reason: "gfl_night_requires_end_day" });
+    expect(game.dispatch("gfl/time/advance").log[0]).toMatchObject({ ok: true, before: "밤", phase: "심야" });
+    expect(game.dispatch("gfl/time/advance").log[0]).toMatchObject({ ok: true, before: "심야", phase: "새벽" });
+    expect(game.dispatch("gfl/time/advance").log[0]).toMatchObject({ ok: false, reason: "gfl_dawn_requires_end_day" });
     const endDay = game.dispatch("gfl/time/end-day").log[0] as any;
     expect(endDay).toMatchObject({ ok: true, day: 2, phase: "오전", daily: { income: 300 }, raid: { resourceDelta: expect.any(Number) } });
     expect(Number((game.state.resources as any).res)).toBe(before + 300 + endDay.raid.resourceDelta);
@@ -988,5 +990,76 @@ describe("Girls Frontline native module", () => {
     expect(second.state).toEqual(first.state);
     expect(second.applied).toContainEqual({ moduleId: "genre.gfl", changed: false });
     expect((old.gfl as any).echelons[0].slots).toHaveLength(5);
+  });
+  it("군수지원은 출발 때 RNG 1회로 보상을 봉인하고 완료 뒤 수동 수령한다", () => {
+    const game = runtime(structuredClone(schema), 20260718); game.dispatch("gfl/start", { mode: "commander" });
+    game.dispatch("gfl/doll/acquire", { dollId: "m4a1" }); game.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 0, dollId: "m4a1" });
+    const before = game.snapshot().rng, started = game.dispatch("gfl/logistics/dispatch", { echelonId: "e1", duration: 2 }).log[0] as any,
+      expected = createRng(0); expected.restore(before); expected.int(90, 110);
+    expect(started).toMatchObject({ ok: true, job: { echelonId: "e1", duration: 2, remaining: 2, status: "active", reward: { gold: expect.any(Number), res: expect.any(Number) } } });
+    expect(game.snapshot().rng).toBe(expected.snapshot());
+    expect(game.dispatch("gfl/sortie/start", { missionId: "alpha", echelonId: "e1" }).log[0]).toMatchObject({ ok: false, reason: "gfl_echelon_logistics_active" });
+    const reward = structuredClone(started.job.reward), funds = Number(game.state.gold), res = Number((game.state.resources as any).res);
+    game.dispatch("gfl/time/advance"); game.dispatch("gfl/time/advance");
+    expect(game.select("gfl/logistics")).toEqual([expect.objectContaining({ status: "complete", remaining: 0, reward })]);
+    expect(game.state.gold).toBe(funds); expect((game.state.resources as any).res).toBe(res);
+    expect(game.dispatch("gfl/logistics/collect", { jobId: started.job.id }).log[0]).toMatchObject({ ok: true, reward });
+    expect(game.state.gold).toBe(funds + reward.gold); expect((game.state.resources as any).res).toBe(res + reward.res);
+    expect(game.select("gfl/logistics")).toEqual([]);
+  });
+  it("군수 거부 조건은 RNG를 쓰지 않고 2·4·6 외 시간은 받지 않는다", () => {
+    const game = runtime(); game.dispatch("gfl/start", { mode: "commander" });
+    const before = game.snapshot().rng;
+    expect(game.dispatch("gfl/logistics/dispatch", { echelonId: "e1", duration: 3 }).log[0]).toMatchObject({ ok: false, reason: "gfl_logistics_duration_invalid" });
+    expect(game.snapshot().rng).toBe(before);
+    expect(game.dispatch("gfl/logistics/dispatch", { echelonId: "e1", duration: 2 }).log[0]).toMatchObject({ ok: false, reason: "gfl_echelon_empty" });
+    expect(game.snapshot().rng).toBe(before);
+  });
+  it("심야·새벽은 HG 조명과 동일한 위험 보정을 실제 전투에 쓰고 부품을 두 배 지급한다", () => {
+    const game = sortieGame({ stars: 0 }); (game.state.clock as any).phase = "심야";
+    const started = game.dispatch("gfl/sortie/start", { missionId: "alpha", echelonId: "e1" }).log[0] as any;
+    expect(started).toMatchObject({ night: { night: true, phase: "심야", modifier: -3, hgCount: 0 }, risk: { fieldModifier: -3 } });
+    const finished = completeOperation(game);
+    expect(finished).toMatchObject({ outcome: "victory", night: true, nightHitModifier: -3, rewards: { parts: 2 } });
+    expect(finished.missionCheck.modifier).toBe(finished.missionCheck.risk.baseModifier + finished.missionCheck.commanderBonus - 3);
+
+    const source: any = structuredClone(schema); source.gfl.dolls.push({ id: "hg", name: "HG", class: "HG", grade: 3, maxHp: 1000, power: 1000 });
+    const lit = runtime(source); lit.dispatch("gfl/start", { mode: "commander" }); lit.dispatch("gfl/doll/acquire", { dollId: "hg" }); lit.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 0, dollId: "hg" }); (lit.state.clock as any).phase = "새벽";
+    expect(lit.dispatch("gfl/sortie/start", { missionId: "alpha", echelonId: "e1" }).log[0]).toMatchObject({ night: { night: true, modifier: -1, hgCount: 1 }, risk: { fieldModifier: -1 } });
+  });
+  it("사랑 단계의 반지는 서약을 맺고 이후 기분 30 하한·최종 전투력 5%를 유지한다", () => {
+    const source: any = structuredClone(schema); source.gfl.relation = { names: ["첫 만남", "사랑", "서약"], thresholds: [0, 150, 400], descriptions: ["", "", ""] };
+    source.gfl.items = [{ id: "ring", name: "서약반지", type: "use", effect: { aff: 500 }, price: 10000 }, { id: "shock", name: "충격", type: "use", effect: { mood: -100 }, price: 0 }];
+    const game = runtime(source); game.dispatch("gfl/start", { mode: "commander" }); game.dispatch("gfl/doll/acquire", { dollId: "m4a1" }); game.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 0, dollId: "m4a1" });
+    const unit = (game.state.gfl as any).dolls.m4a1; unit.affinity = 150; (game.state.items as any).ring = 1; (game.state.items as any).shock = 1;
+    expect((game.select("gfl/echelons") as any)[0].power).toBe(1100);
+    expect(game.dispatch("gfl/item/use", { itemId: "ring", dollId: "m4a1" }).log[0]).toMatchObject({ ok: true, oathApplied: true, oathed: true });
+    expect((game.select("gfl/echelons") as any)[0].power).toBe(1155);
+    expect(game.dispatch("gfl/item/use", { itemId: "shock", dollId: "m4a1" }).log[0]).toMatchObject({ ok: true, mood: 30, oathed: true });
+  });
+  it("사랑 미만의 반지는 기존 호감 효과만 적용하고 서약하지 않는다", () => {
+    const source: any = structuredClone(schema); source.gfl.relation = { names: ["첫 만남", "사랑", "서약"], thresholds: [0, 150, 400], descriptions: ["", "", ""] };
+    source.gfl.items = [{ id: "ring", name: "서약반지", type: "use", effect: { aff: 500 }, price: 10000 }];
+    const game = runtime(source); game.dispatch("gfl/start", { mode: "commander" }); game.dispatch("gfl/doll/acquire", { dollId: "m4a1" }); (game.state.items as any).ring = 1;
+    expect(game.dispatch("gfl/item/use", { itemId: "ring", dollId: "m4a1" }).log[0]).toMatchObject({ ok: true, oathApplied: false, oathed: false, affinity: 500 });
+  });
+  it("긴급 수복은 부품 2개만 더 쓰고 RNG 없이 즉시 완료한다", () => {
+    const game = runtime(); game.dispatch("gfl/start", { mode: "commander" }); game.dispatch("gfl/doll/acquire", { dollId: "m4a1" }); game.dispatch("gfl/location/move", { locationId: "base-maintenance" });
+    const unit = (game.state.gfl as any).dolls.m4a1; unit.hp.cur = 1;
+    const repair = game.dispatch("gfl/repair/start", { dollId: "m4a1" }).log[0] as any, before = game.snapshot().rng;
+    expect(game.dispatch("gfl/repair/rush", { jobId: repair.job.id }).log[0]).toMatchObject({ ok: true, job: { status: "complete", remaining: 0 }, cost: { parts: 2 } });
+    expect(game.snapshot().rng).toBe(before); expect((game.state.resources as any).parts).toBe(0); const repaired = (game.state.gfl as any).dolls.m4a1; expect(repaired.hp.cur).toBe(repaired.hp.max);
+  });
+  it("30일 표준 운용에서 군수지원 수입은 총수입 40% 이하다", () => {
+    const game = runtime(structuredClone(schema), 30); game.dispatch("gfl/start", { mode: "commander" }); game.dispatch("gfl/doll/acquire", { dollId: "m4a1" }); game.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 0, dollId: "m4a1" });
+    let logisticsIncome = 0;
+    for (let day = 0; day < 30; day++) {
+      const job = (game.dispatch("gfl/logistics/dispatch", { echelonId: "e1", duration: 6 }).log[0] as any).job;
+      for (let phase = 0; phase < 6; phase++) game.dispatch("gfl/time/advance", { settlement: true });
+      logisticsIncome += Number(job.reward.gold) + Number(job.reward.res); game.dispatch("gfl/logistics/collect", { jobId: job.id });
+    }
+    const supplyIncome = 30 * 300, routineSortieIncome = 500 + 29 * Math.floor(500 * .35), totalIncome = logisticsIncome + supplyIncome + routineSortieIncome,
+      share = logisticsIncome / totalIncome;
+    expect(share).toBeLessThanOrEqual(.4);
   });
 });
