@@ -202,6 +202,10 @@
         const enc = log.encounter as Log | undefined;
         return { key: `${index}`, icon: '❓', label: '정체불명 구역', delta: null, after: null, note: enc ? `무소속 인형 발견 · ${s(enc.name)}` : (Array.isArray(log.loot) && (log.loot as Log[]).length ? '물자 발견' : '아무것도 없었다'), rejected: false };
       }
+      if (event === 'gfl/sortie/auto') {
+        const stop: Record<string, string> = { complete: '작전 완료', defeat: '작전 실패', boss: '보스 직전 정지', encounter: '무소속 인형 발견', prisoner: '포로 발생' };
+        return { key: `${index}`, icon: '⭐', label: `자동 진행 · ${fmt(n(log.stepCount) ?? 0)}단계`, delta: null, after: null, note: stop[s(log.stopReason)] ?? s(log.stopReason), rejected: false };
+      }
       if (event === 'gfl/sortie/interrogate') { const success = log.success === true; return { key: `${index}`, icon: success ? '⭐' : '⚠️', label: success ? '심문 성공' : '심문 실패', delta: null, after: null, note: success ? '적 정보 확보 — 다음 교전 명중 +1' : '허위 정보 — 다음 교전 매복 주의', rejected: false }; }
       if (event === 'gfl/sortie/retreat') return { key: `${index}`, icon: '🚪', label: '작전 퇴각', delta: null, after: null, note: '전리품 유지 · 완료 보상 없음', rejected: false };
       if (event === 'gfl/logistics/collect') { const reward = log.reward as Log | undefined; return { key: `${index}`, icon: '📦', label: '군수지원 수령', delta: null, after: null, note: `자금 ${signed(n(reward?.gold) ?? 0)} · 자원 ${signed(n(reward?.res) ?? 0)}`, rejected: false }; }
@@ -230,6 +234,12 @@
     const lines = [toFactLine(log, index)];
     if (log.ok === false) return lines;
     const event = s(log.event);
+    // 오토런은 단계 로그 묶음 — 각 단계를 재귀로 펼쳐 보상·전리품이 접히지 않게 한다.
+    if (event === 'gfl/sortie/auto') {
+      for (const [at, step] of (Array.isArray(log.steps) ? (log.steps as Log[]) : []).entries())
+        for (const line of toFactLines(step, index)) lines.push({ ...line, key: `${index}-a${at}-${line.key}` });
+      return lines;
+    }
     if (event === 'gfl/sortie/resolve' || event === 'gfl/sortie/finish' || event === 'gfl/sortie/engage' || event === 'gfl/sortie/stage') {
       const rewards = log.rewards as Log | null | undefined;
       for (const [resource, amount] of Object.entries(rewards ?? {})) {

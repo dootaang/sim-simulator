@@ -1071,6 +1071,64 @@ describe("Girls Frontline native module", () => {
     const guide = runtime().select("gfl/formation/guide");
     expect(guide).toMatchObject({ SG: "전열", SMG: "전열", AR: "중열", HG: "중열", MG: "후열", RF: "후열", factions: { 철혈: "⚙", 바랴그단: "🎯", "E.L.I.D": "☣", 패러데우스: "⬡" } });
   });
+  it("오토런은 수동 단계 진행과 같은 시드에서 완전히 같은 결과를 낸다", () => {
+    const run = (mode: "auto" | "manual") => {
+      const source: any = structuredClone(schema);
+      source.gfl.missions[0] = { ...source.gfl.missions[0], stars: 1, power: 100, enemies: [{ id: "t", name: "표적", power: 20, hp: 60 }] };
+      source.gfl.dolls[0].power = 10_000; source.gfl.dolls[0].maxHp = 10_000;
+      const game = runtime(source, 4242);
+      game.dispatch("gfl/start", { mode: "commander" });
+      game.dispatch("gfl/doll/acquire", { dollId: "m4a1" });
+      game.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 0, dollId: "m4a1" });
+      game.dispatch("gfl/sortie/start", { missionId: "alpha", echelonId: "e1", engagementMode: "quick", missionType: "sweep" });
+      if (mode === "auto") expect((game.dispatch("gfl/sortie/auto").log[0] as any).ok).toBe(true);
+      else for (let step = 0; step < 14; step++) {
+        const gfl = game.state.gfl as any, sortie = gfl.sortie;
+        if (!sortie?.active || sortie.encounter?.dollId || gfl.prisoner?.active) break;
+        if (sortie.stages[Math.min(sortie.current, sortie.stages.length - 1)].type === "boss") break;
+        if (!(game.dispatch("gfl/sortie/stage").log[0] as any).ok) break;
+      }
+      return game.snapshot();
+    };
+    const auto = run("auto"), manual = run("manual");
+    expect(JSON.stringify(auto.state)).toBe(JSON.stringify(manual.state)); // 수치 재구현 없음의 증명
+    expect(auto.rng).toBe(manual.rng);
+  });
+  it("오토런은 quick 전용이고 보스 직전에 멈추며 잘못된 서사 설정을 거부한다", () => {
+    const tactical = (() => {
+      const source: any = structuredClone(schema);
+      source.gfl.missions[0] = { ...source.gfl.missions[0], stars: 0 };
+      const game = runtime(source, 7);
+      game.dispatch("gfl/start", { mode: "commander" }); game.dispatch("gfl/doll/acquire", { dollId: "m4a1" });
+      game.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 0, dollId: "m4a1" });
+      game.dispatch("gfl/sortie/start", { missionId: "alpha", echelonId: "e1", engagementMode: "tactical" });
+      return game.dispatch("gfl/sortie/auto").log[0] as any;
+    })();
+    expect(tactical).toMatchObject({ ok: false, reason: "gfl_auto_tactical" });
+    let bossStop: any = null;
+    for (let seed = 1; seed < 60 && !bossStop; seed++) {
+      const source: any = structuredClone(schema);
+      source.gfl.missions[0] = { ...source.gfl.missions[0], stars: 0, power: 100, boss: "Scarecrow" };
+      source.gfl.dolls[0].power = 10_000; source.gfl.dolls[0].maxHp = 10_000;
+      const game = runtime(source, seed);
+      game.dispatch("gfl/start", { mode: "commander" }); game.dispatch("gfl/doll/acquire", { dollId: "m4a1" });
+      game.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 0, dollId: "m4a1" });
+      game.dispatch("gfl/sortie/start", { missionId: "alpha", echelonId: "e1", engagementMode: "quick" });
+      const log = game.dispatch("gfl/sortie/auto").log[0] as any;
+      if (log.ok && log.stopReason === "boss") {
+        const sortie = (game.state.gfl as any).sortie;
+        expect(sortie.active).toBe(true);
+        expect(sortie.stages[sortie.current].type).toBe("boss"); // 보스는 자동으로 넘지 않는다
+        bossStop = log;
+      }
+    }
+    expect(bossStop).not.toBeNull();
+    const settings = runtime();
+    settings.dispatch("gfl/start", { mode: "commander" });
+    expect(settings.dispatch("gfl/settings/update", { stageNarration: "nope" }).log[0]).toMatchObject({ ok: false, reason: "gfl_stage_narration_invalid" });
+    expect(settings.dispatch("gfl/settings/update", { stageNarration: "each" }).log[0]).toMatchObject({ ok: true });
+    expect((settings.select("gfl/status") as any).settings.stageNarration).toBe("each");
+  });
   it("근무 배치가 적성 효과·훈련 보너스·기분 소모·수면 절반을 만든다", () => {
     const source: any = structuredClone(schema);
     source.initialState.clock.phase = "저녁";

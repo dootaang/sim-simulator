@@ -4,13 +4,26 @@ import { buildDecisionCards } from './decision-model';
 const selectFrom = (traffic: unknown) => (id: string) => (id === 'inn/traffic' ? traffic : null);
 
 describe('결정 카드 모델', () => {
-  it('소녀전선 작전의 현재 단계를 채팅 안 진행 버튼으로 고정한다', () => {
-    const cards = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { active: true, missionId: 'alpha', echelonId: 'e1', power: 1800, current: 1, stages: [{type:'recon',completed:true},{type:'battle'},{type:'boss'}] } } : null);
-    expect(cards).toHaveLength(1);
-    expect(cards[0]).toMatchObject({ key: 'gfl-sortie:alpha:e1:1', title: '다음 단계 진행 · 2/3 ⚔', more: '단계 시퀀스 확정됨' });
-    expect(cards[0]!.options[0]).toMatchObject({ label: '교전 진행', id: 'gfl/sortie/resolve', mode: 'narrated' });
-    const recon = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { active: true, missionId: 'alpha', echelonId: 'e1', current: 0, stages: [{type:'recon'},{type:'battle'}] } } : null);
+  it('전술 교전의 전술 3택과 개입 옵션을 채팅 카드에 직접 노출한다', () => {
+    const sortie = { active: true, missionId: 'alpha', echelonId: 'e1', power: 1800, engagementMode: 'tactical', command: 68, current: 1, stages: [{type:'recon',completed:true},{type:'battle'},{type:'boss'}] };
+    const cards = buildDecisionCards((id) => id === 'gfl/status' ? { sortie } : null);
+    expect(cards[0]).toMatchObject({ key: 'gfl-sortie:alpha:e1:1', title: '다음 단계 진행 · 2/3 ⚔', more: '지휘 게이지 68/100' });
+    expect(cards[0]!.options.map((option) => `${option.label}:${String(option.params.tactic)}`)).toEqual(['집중 사격:focus', '균형 전술:balanced', '엄폐 전진:cover']);
+    const charged = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { ...sortie, command: 100 } } : null);
+    expect(charged[0]!.options).toHaveLength(6);
+    expect(charged[0]!.options[3]).toMatchObject({ id: 'gfl/sortie/engage', params: { tactic: 'balanced', intervention: { round: 1, type: 'focus' } }, kind: 'ghost' });
+    const recon = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { active: true, missionId: 'alpha', echelonId: 'e1', engagementMode: 'tactical', current: 0, stages: [{type:'recon'},{type:'battle'}] } } : null);
     expect(recon[0]).toMatchObject({ title: '다음 단계 진행 · 1/2 🔍', options: [{ label: '단계 진행', id: 'gfl/sortie/stage' }] });
+  });
+  it('quick 작전은 오토런을 기본으로, each 설정·보스 단계는 단계별로 제시한다', () => {
+    const base = { active: true, missionId: 'alpha', echelonId: 'e1', engagementMode: 'quick', command: 0, current: 0, stages: [{type:'battle'},{type:'boss'}] };
+    const quick = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: base } : null);
+    expect(quick[0]!.options.map((option) => option.id)).toEqual(['gfl/sortie/auto', 'gfl/sortie/stage']);
+    expect(quick[0]!.options[0]).toMatchObject({ label: '자동 진행 · 정지 지점까지', kind: 'primary' });
+    const each = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: base, settings: { stageNarration: 'each' } } : null);
+    expect(each[0]!.options).toEqual([expect.objectContaining({ label: '단계 진행', id: 'gfl/sortie/stage' })]);
+    const boss = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { ...base, current: 1 } } : null);
+    expect(boss[0]!.options).toEqual([expect.objectContaining({ label: '👑 보스 교전', id: 'gfl/sortie/stage' })]);
   });
   it('야전 조우 인형은 엔진 상태에 있을 때만 영입·두고 가기 카드로 제시한다', () => {
     const cards = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { active: true, missionId: 'alpha', encounter: { dollId: 'springfield', name: 'Springfield' } } } : null);

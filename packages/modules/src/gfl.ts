@@ -1204,13 +1204,15 @@ export function gflModule(): ModuleDefinition {
         return ok(c, { dollId: id });
       }),
       "gfl/settings/update": scoped((c) => {
-        const difficulty = string(c.params.relationDifficulty), gossip = string(c.params.gossip), jealousy = string(c.params.jealousy), gfl = state(c.state), settings = record(gfl.settings);
+        const difficulty = string(c.params.relationDifficulty), gossip = string(c.params.gossip), jealousy = string(c.params.jealousy), stageNarration = string(c.params.stageNarration), gfl = state(c.state), settings = record(gfl.settings);
         if (difficulty && !["relaxed", "standard", "strict"].includes(difficulty)) return fail(c, "gfl_relation_difficulty_invalid", difficulty);
         if (gossip && !["off", "mild", "full"].includes(gossip)) return fail(c, "gfl_gossip_mode_invalid", gossip);
         if (jealousy && !["off", "mild", "full"].includes(jealousy)) return fail(c, "gfl_jealousy_mode_invalid", jealousy);
+        if (stageNarration && !["auto", "each"].includes(stageNarration)) return fail(c, "gfl_stage_narration_invalid", stageNarration);
         if (difficulty) settings.relationDifficulty = difficulty;
         if (gossip) settings.gossip = gossip;
         if (jealousy) settings.jealousy = jealousy;
+        if (stageNarration) settings.stageNarration = stageNarration;
         gfl.settings = settings; c.state.gfl = gfl;
         return ok(c, { settings });
       }),
@@ -2143,6 +2145,40 @@ export function gflModule(): ModuleDefinition {
       "gfl/sortie/resolve": scoped(resolveSortie),
       "gfl/sortie/finish": scoped(resolveSortie),
       "gfl/sortie/stage": scoped(resolveOperationStage),
+      // 오토런 — quick 작전을 "결정이 필요한 지점"까지 기존 단계 이벤트 재사용으로 연속 해소한다.
+      // 수치·판정을 재구현하지 않으므로 같은 시드에서 수동 단계 진행과 결과가 완전히 같다(테스트 계약).
+      "gfl/sortie/auto": scoped((c) => {
+        const first = record(state(c.state).sortie);
+        if (!first.active) return fail(c, "gfl_sortie_missing");
+        if (string(first.engagementMode) !== "quick") return fail(c, "gfl_auto_tactical");
+        const steps: RuntimeRecord[] = [];
+        let stopReason = "complete";
+        for (let guard = 0; guard < 14; guard++) {
+          const gfl = state(c.state), sortie = record(gfl.sortie);
+          if (!sortie.active) {
+            stopReason = string(record(steps.at(-1)).outcome) === "defeat" ? "defeat" : "complete";
+            break;
+          }
+          if (record(sortie.encounter).dollId) { stopReason = "encounter"; break; }
+          if (record(gfl.prisoner).active) { stopReason = "prisoner"; break; }
+          const stages = list<RuntimeRecord>(sortie.stages),
+            current = clamp(number(sortie.current), 0, Math.max(0, stages.length - 1));
+          if (string(record(stages[current]).type) === "boss") { stopReason = "boss"; break; }
+          const result = c.registry.dispatch(c.schema, c.state, { id: "gfl/sortie/stage", params: {} }, c.rng),
+            row = record(result.log[0]);
+          if (!row.ok) return result;
+          c.state = result.state;
+          steps.push(row);
+        }
+        const reasonText: Record<string, string> = {
+          complete: "작전 완료", defeat: "작전 실패로 종료", boss: "보스 교전 직전 정지",
+          encounter: "무소속 인형 발견 — 결정 대기", prisoner: "포로 발생 — 결정 대기",
+        };
+        return ok(c, {
+          steps, stopReason, stepCount: steps.length,
+          narrativeFact: `작전을 ${steps.length}개 단계 연속으로 진행했다 (${reasonText[stopReason] ?? stopReason}). 각 단계의 결과와 지침은 steps 배열의 엔진 확정값을 따른다.`,
+        });
+      }),
       "gfl/sortie/retreat": scoped(retreatOperation),
       "gfl/sortie/interrogate": scoped((c) => {
         const gfl = state(c.state), prisoner = record(gfl.prisoner);
@@ -2520,7 +2556,7 @@ export function gflModule(): ModuleDefinition {
           promises: list<RuntimeRecord>(gfl.promises),
           promiseReceipts: list<RuntimeRecord>(gfl.promiseReceipts),
           anniversaries: list<RuntimeRecord>(gfl.anniversaries),
-          settings: { relationDifficulty: relationDifficulty(value).id, gossip: string(record(gfl.settings).gossip || "mild"), jealousy: string(record(gfl.settings).jealousy || "mild") },
+          settings: { relationDifficulty: relationDifficulty(value).id, gossip: string(record(gfl.settings).gossip || "mild"), jealousy: string(record(gfl.settings).jealousy || "mild"), stageNarration: string(record(gfl.settings).stageNarration || "auto") },
           commander: commanderStatus(value),
           dissatisfaction: { value: dissatisfaction(value), ...dissTier(value) },
           market: gfl.market ?? null,

@@ -9,7 +9,7 @@ const compiled = { schema, moduleIds: ['genre.inn'], screens: [{ id: 'management
 
 async function seed(page: Page) {
   await page.route(/(?:sqlite3\.wasm|sqlite\.worker\.ts)/, route => route.abort());
-  await page.addInitScript(() => localStorage.setItem('simbot.llm', JSON.stringify({ provider: 'custom', endpoint: 'http://127.0.0.1:4173/test-llm', model: 'test', apiKey: 'key' })));
+  await page.addInitScript(() => localStorage.setItem('simbot.llm', JSON.stringify({ provider: 'custom', endpoint: 'http://127.0.0.1:4173/test-llm', model: 'test', apiKey: 'key', keepSimulationOpen: false })));
   await page.route('http://127.0.0.1:4173/test-llm', async route => { await new Promise(resolve => setTimeout(resolve, 500)); await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: '점심 영업이 활기차게 이어졌다.' } }] }) }); });
   await page.goto('/');
   await page.locator('input[accept=".simpack,.charx,.png,.json"]').setInputFiles({ name: 'orchestration.json', mimeType: 'application/json', buffer: card });
@@ -27,7 +27,7 @@ async function openCard(page: Page, mobile: boolean) {
   await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toBeVisible();
 }
 
-for (const item of [{ name: '데스크톱', viewport: { width: 1280, height: 800 }, mobile: false }, { name: '모바일', viewport: { width: 390, height: 844 }, mobile: true }]) test(`${item.name} 현장 행동은 패널을 닫고 채팅 대기와 최신 응답으로 복귀한다`, async ({ page }) => {
+for (const item of [{ name: '데스크톱', viewport: { width: 1280, height: 800 }, mobile: false }, { name: '모바일', viewport: { width: 390, height: 844 }, mobile: true }]) test(`${item.name} 현장 행동은 (창 유지 끔 설정에서) 패널을 닫고 채팅 대기와 최신 응답으로 복귀한다`, async ({ page }) => {
   await page.setViewportSize(item.viewport); await seed(page); await openCard(page, item.mobile);
   await page.getByRole('dialog', { name: '시뮬레이션' }).getByRole('button', { name: '점심 영업' }).click();
   await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toBeHidden();
