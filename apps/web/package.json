@@ -3,7 +3,7 @@
   "version":"0.1.0",
   "private":true,
   "type":"module",
-  "scripts":{"dev":"vite","build":"vite build","typecheck":"svelte-check --tsconfig ./tsconfig.json","test":"vitest run src","test:e2e":"playwright test","canary:compiler":"node --experimental-strip-types scripts/compiler-canary.mts","canary:gfl":"node --experimental-transform-types scripts/gfl-canary.mts","canary:runtime":"node --experimental-transform-types scripts/runtime-canary.mts"},
+  "scripts":{"dev":"vite","build":"vite build","typecheck":"svelte-check --tsconfig ./tsconfig.json","test":"vitest run src","test:e2e":"playwright test","canary:compiler":"node --experimental-strip-types scripts/compiler-canary.mts","canary:gfl":"node --experimental-transform-types scripts/gfl-canary.mts","canary:longrun":"node --experimental-transform-types scripts/gfl-longrun.mts","canary:runtime":"node --experimental-transform-types scripts/runtime-canary.mts"},
   "dependencies":{"@simbot/card":"workspace:*","@simbot/compiler":"workspace:*","@simbot/contracts":"workspace:*","@simbot/persistence":"workspace:*","@simbot/risu":"workspace:*","@simbot/runtime":"workspace:*","@simbot/session":"workspace:*","@simbot/simpack":"workspace:*","@simbot/ui":"workspace:*","@sqlite.org/sqlite-wasm":"^3.53.0-build1","svelte":"^5.0.0"},
   "devDependencies":{"@playwright/test":"^1.55.0","@sveltejs/vite-plugin-svelte":"^6.0.0","fflate":"^0.8.3","svelte-check":"^4.0.0","typescript":"^5.9.3","vite":"^7.0.0","vitest":"^3.2.7"}
 }
