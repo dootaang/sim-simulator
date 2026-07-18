@@ -7,7 +7,7 @@
   import {diagnostics} from './diagnostics.svelte.ts';
   import { toFactLine } from './FactReceipt.svelte';
   import { presentNarrativeIssues } from './narrative-issues';
-  import {buildNpcClusters,extractAssetSpeakers,inferGflProseSpeakers,type NpcCluster} from './npc-gallery';
+  import {buildNpcClusters,extractAssetSpeakers,type NpcCluster} from './npc-gallery';
   import {stripGflBgmMarkers} from './gfl-bgm';
   import {prepareGflNarrative} from './gfl-presentation';
   import {tick} from 'svelte';
@@ -90,7 +90,7 @@
   function speakersFor(message:ChatMessage){return session.resolveSpeakers(message.speakers??[]);}
   let nativeGfl=$derived(session.runtime.project.moduleIds?.includes('genre.gfl')??false),resolvedNpcGroups=$derived(npcGroups.length?npcGroups:buildNpcClusters(assets));
   const speakerKey=(value:string)=>value.normalize('NFKC').toLowerCase().replace(/[^a-z0-9가-힣]+/g,'');
-  function stageSpeakersFor(message:ChatMessage){assetRevision;if(message.role!=='assistant')return[];const options=assetOptions(),prepared=prepareDisplayContent(message.content,userName,cardName,session.regexScripts,session.cbsVariables,message.index,session.messages.length-1,options.activeModules),inline=new Set(extractAssetSpeakers(prepared,resolvedNpcGroups).map(item=>speakerKey(item.npcId))),declared=speakersFor(message),fallback=nativeGfl&&!declared.length?inferGflProseSpeakers(prepared,resolvedNpcGroups).map(item=>({...item,name:item.npcId,outfit:undefined})):[];return(declared.length?declared:fallback).filter(item=>!inline.has(speakerKey(item.npcId))&&!!portraitFor(item.npcId,item.emotion,item.outfit));}
+  function stageSpeakersFor(message:ChatMessage){assetRevision;if(message.role!=='assistant')return[];const options=assetOptions(),prepared=prepareDisplayContent(message.content,userName,cardName,session.regexScripts,session.cbsVariables,message.index,session.messages.length-1,options.activeModules),inline=new Set(extractAssetSpeakers(prepared,resolvedNpcGroups).map(item=>speakerKey(item.npcId)));return speakersFor(message).filter(item=>!inline.has(speakerKey(item.npcId))&&!!portraitFor(item.npcId,item.emotion,item.outfit));}
   function avatarFor(message:ChatMessage){return message.role==='user'?userPortrait:botPortrait;}
   function closeMessageMenu(event:PointerEvent){
     if(menuFor&&event.target instanceof HTMLElement&&!event.target.closest('.tools'))menuFor=null;

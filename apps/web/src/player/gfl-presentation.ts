@@ -4,9 +4,9 @@ const background=/\[배경\s*:\s*([^\]]+)\]/gi;
 const time=/\|\s*day\s*\d+\s*_\s*[가-힣]+/gi;
 
 function dialogue(asset:string,quote:string){
-  // 원본의 간결한 <img="이름"> 문법을 유지한다. 표시 파이프라인은 이 형식을 실제 이미지로
-  // 바꾸고, 외부 에셋 모듈을 읽는 잠깐 동안에도 {{img::…}} 같은 내부 매크로를 사용자에게 노출하지 않는다.
-  return `\n<img="${asset.trim()}">\n> ${quote.trim().replace(/^["“]|["”]$/g,'')}\n`;
+  // 카드 고유의 <img="이름"> 대화 표식을 Risu의 img CBS로 넘긴다.
+  // 이후 치환 순서는 Risu ParseMarkdown과 동일하게 처리한다.
+  return `\n{{img::${asset.trim()}}}\n> ${quote.trim().replace(/^["“]|["”]$/g,'')}\n`;
 }
 
 /** 원본 Risu UI 명령을 실행하지 않고 Lucky의 안전한 이미지·인용문으로 투영한다. */
