@@ -1794,11 +1794,20 @@ export class PlaySession {
         ? `\n플레이어 페르소나: ${this.#persona.name}\n${this.#persona.prompt}`
         : "",
       catalog = narrativeCatalog(this.runtime.project,this.#assets,this.#cbsVariables.toggle_GFNSFW === "1"),
+      // 서사화 경로엔 카드 시스템 프롬프트(이미지 표식 형식을 가르치는)가 실리지 않는다.
+      // 스프라이트 가이드는 이름만 주고 형식을 카드에 위임하므로, GFL 네이티브에선 형식을 여기서 직접 준다 —
+      // 안 주면 모델이 [M16A1_smug] 같은 대괄호 표기를 지어내 본문에 노출된다.
+      gflFormatGuide =
+        object(this.runtime.project.content).nativePresentation === "gfl" ||
+        this.runtime.project.moduleIds?.includes("genre.gfl")
+          ? '이미지 표식은 [|<img="캐릭터_표정">|"대사"|] 형식만 사용한다. [캐릭터_표정]처럼 대괄호 안에 이름만 넣는 표기는 금지한다.'
+          : "",
       npcGuide = [
         catalog.npcs.length
           ? `[등장 가능한 NPC]\n${catalog.npcs.join("\n")}`
           : "",
         spriteCommandGuide(catalog.sprites),
+        gflFormatGuide,
       ]
         .filter(Boolean)
         .join("\n"),

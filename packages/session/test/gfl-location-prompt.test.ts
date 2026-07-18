@@ -8,4 +8,9 @@ describe('GFL location narrative grounding',()=>{it('sends the moved Korean loca
   const prompts:CompiledPrompt[]=[];const session=new PlaySession({id:'gfl-location',runtime,preset:defaultCardPreset(),card:{name:'소녀전선'},provider:{async complete(request){prompts.push(request.prompt);return{text:'정비실에 도착했다.'};}}});
   await session.runManagementTurn('gfl/location/move',{locationId:'base-maintenance'});await session.send('주변을 살핀다');
   for(const prompt of prompts){const sent=prompt.messages.map(message=>message.content).join('\n');expect(sent).toContain('정비실');expect(sent).toContain('base-maintenance');}
+  // 서사화 경로엔 카드 시스템 프롬프트가 없으므로 이미지 표식 형식을 엔진이 직접 가르쳐야 한다 —
+  // 빠지면 모델이 [M16A1_smug] 같은 대괄호 표기를 지어낸다(2026-07-18 오너 실측 버그).
+  const narration=prompts[0]!.messages.map(message=>message.content).join('\n');
+  expect(narration).toContain('[|<img="캐릭터_표정">|"대사"|]');
+  expect(narration).toContain('대괄호 안에 이름만 넣는 표기는 금지');
 });});

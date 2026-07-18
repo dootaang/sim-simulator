@@ -688,4 +688,13 @@ describe("Girls Frontline native module", () => {
     const capped = sortieGame({ exp: 5000 });
     expect(capped.select("gfl/status")).toMatchObject({ commander: { level: 20, exp: 5000, expIntoLevel: 1010, expForNext: null, sortieLimit: 5, checkBonus: 2, title: "백전의 지휘관" } });
   });
+  it("6번째 제대 칸에 배치·해제할 수 있고 구 5칸 상태도 6칸으로 승격한다", () => {
+    const game = runtime(); game.dispatch("gfl/start", { mode: "commander" }); game.dispatch("gfl/doll/acquire", { dollId: "m4a1" });
+    expect(game.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 5, dollId: "m4a1" }).log[0]).toMatchObject({ ok: true, slot: 5 });
+    const slots = (game.state.gfl as any).echelons[0].slots as unknown[];
+    expect(slots.length).toBe(6); // 테스트 스키마의 5칸 구상태가 배치 시점에 6칸으로 승격
+    expect(slots[5]).toBe("m4a1");
+    expect(game.dispatch("gfl/echelon/assign", { echelonId: "e1", slot: 6, dollId: "m4a1" }).log[0]).toMatchObject({ ok: false, reason: "gfl_slot_invalid" });
+    expect(game.dispatch("gfl/echelon/remove", { echelonId: "e1", slot: 5 }).log[0]).toMatchObject({ ok: true, removed: "m4a1" });
+  });
 });

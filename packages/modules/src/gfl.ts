@@ -66,6 +66,8 @@ const FACTION_COUNTER: Record<string,{advantaged:string[];label:string}> = {
   "패러데우스": { advantaged: ["SG","SMG"], label: "정예 화력 — 방패 병과 가치 상승" },
 };
 const combatProfile = (className: unknown) => CLASS_COMBAT[string(className)] ?? CLASS_COMBAT.AR!;
+// 진형 정원(3열×2). 배치 검증·패딩이 전부 이 상수를 봐야 한다 — 5칸 시절 숫자를 남기면 6번째 칸이 죽는다.
+export const FORMATION_SIZE = 6;
 export const gflFormationRow = (index: number): FormationRow => index < 2 ? "전열" : index < 4 ? "중열" : "후열";
 function factionSummary(value: RuntimeRecord) {
   const factions = list<string>(value.factions), counters = factions.map((name) => FACTION_COUNTER[name]).filter((counter): counter is NonNullable<typeof counter> => Boolean(counter)),
@@ -762,7 +764,7 @@ export function gflModule(): ModuleDefinition {
           slot = Math.trunc(number(c.params.slot, -1));
         if (!entry) return fail(c, "gfl_unknown_echelon", c.params.echelonId);
         if (!owned(c.state)[id]) return fail(c, "gfl_doll_not_owned", id);
-        if (slot < 0 || slot > 4) return fail(c, "gfl_slot_invalid", slot);
+        if (slot < 0 || slot >= FORMATION_SIZE) return fail(c, "gfl_slot_invalid", slot);
         for (const echelon of echelons(c.state)) {
           const slots = list<unknown>(echelon.slots);
           for (let index = 0; index < slots.length; index++)
@@ -770,7 +772,7 @@ export function gflModule(): ModuleDefinition {
           echelon.slots = slots;
         }
         const slots = list<unknown>(entry.slots);
-        while (slots.length < 5) slots.push(null);
+        while (slots.length < FORMATION_SIZE) slots.push(null); // 격리 전 5칸 저장도 여기서 6칸으로 승격
         slots[slot] = id;
         entry.slots = slots;
         gfl.echelons = echelons(c.state);
@@ -782,7 +784,7 @@ export function gflModule(): ModuleDefinition {
           entry = formation(c.state, c.params.echelonId),
           slot = Math.trunc(number(c.params.slot, -1));
         if (!entry) return fail(c, "gfl_unknown_echelon", c.params.echelonId);
-        if (slot < 0 || slot > 4) return fail(c, "gfl_slot_invalid", slot);
+        if (slot < 0 || slot >= FORMATION_SIZE) return fail(c, "gfl_slot_invalid", slot);
         const slots = list<unknown>(entry.slots),
           removed = slots[slot] ?? null;
         slots[slot] = null;

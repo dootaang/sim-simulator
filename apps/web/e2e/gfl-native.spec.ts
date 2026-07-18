@@ -79,6 +79,10 @@ test('저전투력 출격 위험도와 전술 교전 과정을 관리 화면 안
   await expect(console.locator('.slots .slot').filter({hasText:'후열'})).toHaveCount(2);
   await expect(console.locator('.formation-hint')).toContainText('RF·MG는 후열');
   await console.locator('.roster button').first().click();
+  // 6번째 칸(후열 2번) 배치 회귀 — 칸 수만 세는 검증은 slot>4 하드코딩을 놓쳤다.
+  await console.getByRole('button',{name:/SLOT 6/}).click();
+  await console.locator('.roster button').first().click();
+  await expect(console.locator('.slots .slot').nth(5)).not.toContainText('EMPTY');
   await console.getByRole('button',{name:'작전',exact:true}).click({force:true});
   await console.getByRole('button',{name:/레드·오렌지 작전구역/}).click();
   await console.getByRole('button',{name:/ALPHA/}).click();

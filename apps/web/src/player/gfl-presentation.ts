@@ -1,3 +1,5 @@
+import{parseGflSpriteName}from'@simbot/session';
+
 const systemProposal=/\[\[(?:aff|mood|hp|mp|gold|res|diss|stat|event|log\s*\d*|prog|loot|보스격파|전투완료|목표달성|작전완료|임무완료|진행|단계완료)[^\]]*\]\]/gi;
 const uiToken=/\[(?:상태창|사이드패널|하단상태창|진행도상태|시작버튼|인트로|대화|임포트대기)\]/g;
 const background=/\[배경\s*:\s*([^\]]+)\]/gi;
@@ -16,6 +18,13 @@ export type GflNarrativeSegment=
 const privateStart='\uE000',privateEnd='\uE001';
 const unquote=(value:string)=>value.trim().replace(/^["“]|["”]$/g,'');
 const escapeHtml=(value:string)=>value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+// 서사화 경로에서 형식을 모르던 모델이 지어낸 [캐릭터_표정] 표기를 표준 img 매크로로 흡수한다.
+// 실존 표정 접미사가 붙은 이름만 승격하고, 이름 해석은 기존 매크로 경로에 맡긴다(미해결이면 숨김+경고 —
+// 존재하지 않는 이름을 다른 감정으로 치환하지 않는 2026-07-18 원칙 그대로).
+function absorbBareSpriteTokens(source:string){
+  return source.replace(/\[\s*([A-Za-z0-9가-힣._&-]+_[A-Za-z.]+)\s*\]/g,(all,name)=>parseGflSpriteName(String(name).trim())?`\n{{img::${String(name).trim()}}}\n`:all);
+}
 
 function projectDialogueFrames(source:string,replace:(asset:string,quote:string)=>string){
   return source
@@ -54,7 +63,7 @@ function cleanGflNarrative(source:string){
 /** GFL 카드 표식을 내레이션과 네이티브 대화 장면으로 나누되 원래 순서는 보존한다. */
 export function parseGflNarrative(source:string):GflNarrativeSegment[]{
   const dialogues:Array<{asset:string;quote:string}>=[],safe=String(source??'').replace(/[\uE000\uE001]/g,'�'),projected=projectDialogueFrames(safe,(asset,quote)=>{const index=dialogues.push({asset:asset.trim(),quote:unquote(quote)})-1;return `\n${privateStart}${index}${privateEnd}\n`;});
-  const cleaned=cleanGflNarrative(projected),segments:GflNarrativeSegment[]=[];
+  const cleaned=cleanGflNarrative(absorbBareSpriteTokens(projected)),segments:GflNarrativeSegment[]=[];
   let cursor=0;
   for(const match of cleaned.matchAll(/\uE000(\d+)\uE001/g)){
     const index=match.index??0,prose=cleaned.slice(cursor,index).trim(),item=dialogues[Number(match[1])];
@@ -82,7 +91,7 @@ export function renderGflNarrative<W extends{code:string;macro:string;name:strin
 
 /** 원본 Risu UI 명령을 실행하지 않고 Lucky의 안전한 이미지·인용문으로 투영한다. */
 export function prepareGflNarrative(source:string){
-  return cleanGflNarrative(projectDialogueFrames(String(source??''),(asset,quote)=>dialogue(asset,quote)));
+  return cleanGflNarrative(absorbBareSpriteTokens(projectDialogueFrames(String(source??''),(asset,quote)=>dialogue(asset,quote))));
 }
 
 export function extractGflBackgroundCue(content:string):string|null{
