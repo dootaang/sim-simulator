@@ -7,6 +7,7 @@
   import { createSimPack, packSimPack, unpackSimPack, type SimPackProject } from '@simbot/simpack';
   import { ProjectRuntime, runtimeFromManifest } from '@simbot/runtime';
   import ScreenRenderer from '../player/ScreenRenderer.svelte';
+  import { compatibleFileAccept } from '../player/file-picker-accept';
   import { onDestroy } from 'svelte';
 
   let {embedded=false,initialCard=null}:{embedded?:boolean;initialCard?:ParsedCard|null}=$props();
@@ -51,7 +52,7 @@
 </script>
 
 <div class="editor" class:embedded>
-  <aside>{#if !embedded}<label class="open">봇 카드 가져오기<input type="file" accept=".json,.png,.charx,.risum,.jpg,.jpeg" onchange={importCard}/></label><label class="open">SimPack 열기<input type="file" accept=".simpack" onchange={open}/></label>{/if}{#each sections as item}<button class:active={section===item[0]} onclick={()=>section=item[0]}>{item[1]}</button>{/each}</aside>
+  <aside>{#if !embedded}<label class="open">봇 카드 가져오기<input type="file" accept={compatibleFileAccept('.json,.png,.charx,.risum,.jpg,.jpeg')} onchange={importCard}/></label><label class="open">SimPack 열기<input type="file" accept={compatibleFileAccept('.simpack')} onchange={open}/></label>{/if}{#each sections as item}<button class:active={section===item[0]} onclick={()=>section=item[0]}>{item[1]}</button>{/each}</aside>
   <main class="form"><h1>{project.manifest.title}</h1>{#if error}<p class="error">{error}</p>{/if}
     {#if section==='basics'}<Panel title="프로젝트 기본 정보"><label>프로젝트 이름<input value={project.manifest.title} oninput={(event)=>mutate((value)=>value.title=(event.currentTarget as HTMLInputElement).value)}/></label><label>캐릭터 이름<input value={characterName()} oninput={(event)=>mutate((root)=>{const content=root.content as Record<string,unknown>,values=content.characters as Record<string,unknown>[];values[0]={...values[0],name:(event.currentTarget as HTMLInputElement).value};})}/></label><p>원본 카드는 호환 정보와 별도로 보존됩니다.</p></Panel>
     {:else if section==='persona'}<Panel title="플레이어 페르소나"><label>이름<input value={persona.name} oninput={(event)=>setPersona('name',(event.currentTarget as HTMLInputElement).value)}/></label><label>LLM에 전달할 설명<textarea rows="10" value={persona.prompt} oninput={(event)=>setPersona('prompt',(event.currentTarget as HTMLTextAreaElement).value)}></textarea></label><label>제작자 메모<textarea rows="4" value={persona.note} oninput={(event)=>setPersona('note',(event.currentTarget as HTMLTextAreaElement).value)}></textarea></label></Panel>

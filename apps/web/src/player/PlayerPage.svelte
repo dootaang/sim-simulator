@@ -41,6 +41,7 @@
   import {AssetLoadScheduler} from './asset-load-scheduler';
   import {ASSET_THUMBNAIL_MAX_BYTES,ASSET_THUMBNAIL_MAX_ENTRIES,assetThumbnailKey,createAssetThumbnail} from './asset-thumbnail';
   import BootProgress from './BootProgress.svelte';
+  import {compatibleFileAccept} from './file-picker-accept';
 
   type AuxSetting={provider:ProviderId;model:string;apiKey:string};type Settings=ProviderConfig&{endpoint:string;voyageKey:string;assetWidth:number;keepSimulationOpen:boolean;auxEnabled:boolean;auxSlots:{translation:AuxSetting;emotion:AuxSetting;memory:AuxSetting}}; const source={source:'user' as const,path:'player-default'},providerChoices:Array<{id:ProviderId;label:string}>=[{id:'openai',label:'OpenAI'},{id:'anthropic',label:'Anthropic'},{id:'google',label:'Google Gemini'},{id:'vertex',label:'Google Vertex AI'},{id:'copilot',label:'GitHub Copilot'},{id:'openrouter',label:'OpenRouter'},{id:'deepseek',label:'DeepSeek'},{id:'vercel',label:'Vercel AI Gateway'},{id:'nanogpt',label:'NanoGPT'},{id:'cerebras',label:'Cerebras'},{id:'custom',label:'OpenAI 호환 · 커스텀'}],auxChoices=[{id:'translation' as const,label:'번역'},{id:'emotion' as const,label:'감정'},{id:'memory' as const,label:'메모리'}];
   let repository:SessionRepository<SessionSnapshot>=createMemoryRepository(),library:CardLibrary|null=null,presetLibrary:PresetLibrary|null=null,personaLibrary:PersonaLibrary|null=null,chatStore:ChatStore|null=null,fileInput:HTMLInputElement,moduleInput:HTMLInputElement,relinkProjectId:string|null=null;
@@ -253,7 +254,7 @@
   function normalize(v:string){return v.normalize('NFKC').toLowerCase().replace(/[^a-z0-9가-힣]+/g,'-').replace(/^-|-$/g,'');}
   function demo(){return new ProjectRuntime({projectId:'demo',schema:{initialState:{day:1}},screens:[{id:'play',title:'플레이',layout:'stage-chat-sidebar',regions:{main:[{widget:'chat'}]}}],navigation:[{id:'play',screenId:'play',label:'플레이'}],content:{},featureToggles:{},moduleIds:[]});}
 </script>
-<svelte:window onresize={()=>{compact=innerWidth<1000;if(!compact)sideOpen=false;}}/><input class="hidden" bind:this={fileInput} type="file" accept=".simpack,.charx,.png,.json" multiple onchange={load}/><input class="hidden" bind:this={moduleInput} type="file" accept=".charx,.zip" multiple onchange={loadAssetModule}/>
+<svelte:window onresize={()=>{compact=innerWidth<1000;if(!compact)sideOpen=false;}}/><input class="hidden" bind:this={fileInput} type="file" accept={compatibleFileAccept('.simpack,.charx,.png,.json')} multiple onchange={load}/><input class="hidden" bind:this={moduleInput} type="file" accept={compatibleFileAccept('.charx,.zip')} multiple onchange={loadAssetModule}/>
 {#if compileReview}<CompilerWorkspace result={compileReview} onapprove={(value)=>void approveCompilation(value)} oncancel={()=>compileReview=null}/>{/if}
 {#if simulationOpen&&session&&!simColumn}<SimulationPanel pinnable={!compact} {runtime} {version} {assetRevision} {session} {portraitFor} {portraitThumbFor} {assetFor} {busy} {decisionCards} onaction={runSimulationAction} onchange={changed} onpin={togglePin} onclose={()=>simulationOpen=false}/>{/if}
 {#if legacy}<div class="legacy"><button onclick={()=>fileInput.click()}>카드 또는 SimPack 열기</button>{#if session}<ScreenRenderer {runtime} {version} {session} {portraitFor} {portraitThumbFor} {assetFor} {busy} onaction={runSimulationAction}/>{/if}</div>

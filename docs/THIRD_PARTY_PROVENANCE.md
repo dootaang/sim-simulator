@@ -134,3 +134,9 @@ isu`. 이식 파일은 업스트림 경로를 미러링해 diff 추적한다.
 - 적용: `apps/web/src/player/DollPicker.svelte`에서 50명을 넘는 인형 목록은 화면 주변 행만 DOM에 유지한다. 검색·병과·등급·정렬 결과가 바뀌면 Svelte 어댑터의 virtualizer 옵션을 갱신한다.
 - 가져오지 않은 것: React/Vue/Solid 어댑터, 예제 UI, 서버 기능. 앱의 카드 마크업·접근성·초상화 지연 로딩은 자체 구현을 유지한다.
 - 조사했지만 코드 이식하지 않은 항목: Immich의 점진 이미지 로딩은 계층 설계만 참고했고, Comlink·offthread-image·wa-sqlite는 현행 실측이 이미 합격해 의존성이나 코드를 추가하지 않았다.
+
+## RisuAI iOS/iPadOS 파일 선택 호환
+
+- 소스: [RisuAI](https://github.com/kwaroran/RisuAI) GPL-3.0, 기준 commit `80ad19ce99b78ffff13448304c33fabdeadaca1a`, `src/ts/util.ts`의 공용 파일 선택 관문과 `src/ts/platform.ts`의 iPadOS 데스크톱 위장 판별.
+- 적용: `apps/web/src/player/file-picker-accept.ts`와 카드·에셋 모듈·프롬프트 프리셋·편집기 SimPack 입력. iPhone/iPad UA 또는 `MacIntel`+멀티터치를 Apple 터치 파일 선택기로 판별한다.
+- 변경: 업스트림의 전역 DB 설정과 동적 `<input>` 생성은 이식하지 않았다. 웹 표준상 모호한 `accept='*'` 대신 iOS/iPadOS에서 `accept` 속성 자체를 생략하고, 선택된 원본 파일명과 바이트는 기존 Lucky 파서가 검증한다. 데스크톱·Android·진짜 Mac의 확장자 필터는 유지한다.
