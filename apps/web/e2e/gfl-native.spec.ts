@@ -244,7 +244,7 @@ test('군수지원 복귀 보상을 수령하고 심야 작전의 실제 명중 
   await console.getByRole('button',{name:'인형 고용',exact:true}).click(); await console.getByRole('button',{name:'🎲 오늘의 인형 뽑기'}).click();
   await console.getByRole('button',{name:'계약',exact:true}).first().click(); await console.getByRole('button',{name:/수송 도착/}).click();
   const reopen=async()=>{const open=page.getByRole('button',{name:'관리 화면 열기'});if(await open.isVisible().catch(()=>false))await open.click(); return page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔');};
-  console=await reopen(); await console.getByRole('button',{name:'제대',exact:true}).click(); await console.locator('.roster button').first().click();
+  console=await reopen(); await console.getByRole('button',{name:'제대',exact:true}).click(); await console.locator('.roster button').first().click(); await expect(console.locator('.slots .remove')).toHaveCount(1);
   await console.getByRole('button',{name:'2시간대 파견'}).click(); await expect(console.locator('.logistics-panel')).toContainText('파견 중 · 2시간대 남음');
   await console.getByRole('button',{name:'기지',exact:true}).click(); await console.getByRole('button',{name:'다음 시간대'}).click();
   console=await reopen(); await console.getByRole('button',{name:'다음 시간대'}).click();
@@ -310,7 +310,10 @@ test('저격 고용에서 이름을 검색해 지정 계약한다',async({page})
   const simulation=await importGfl(page),console=simulation.getByLabel('소녀전선 지휘 콘솔');
   await console.getByRole('button',{name:'지휘관으로 시작'}).click();
   await console.getByRole('button',{name:'인형 고용',exact:true}).click();
+  await expect(console.getByRole('region',{name:'전술인형 선택기'})).toHaveCount(0);
+  await console.getByText(/저격 고용 · 원하는 인형/).click();
   const picker=console.getByRole('region',{name:'전술인형 선택기'});
+  await expect.poll(()=>picker.locator('.results article').count()).toBeGreaterThan(1);
   const before=await picker.locator('.results article').count();
   expect(before).toBeGreaterThan(1);
   await picker.getByLabel('인형 이름 검색').fill('M4A1');
