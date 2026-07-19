@@ -40,11 +40,20 @@
     insufficient_gold: '골드 부족',
   };
 
-  export interface FactLine { key: string; icon: string; label: string; delta: string | null; after: string | null; note: string; rejected: boolean; }
+  export interface FactLine { key: string; icon: string; label: string; delta: string | null; after: string | null; note: string; rejected: boolean; tone?: 'gain'|'loss'|'block'|'promote'; }
   export function factIconName(icon:string){return icon;} // 이모지→SVG 매핑은 Icon 컴포넌트가 단일 소유(전 이모지 벡터화)
 
   // 엔진 로그 한 줄 → 사람이 읽는 영수증 한 줄. 알 수 없는 형태도 안전하게 요약한다.
-  export function toFactLine(log: Log, index: number): FactLine {
+  // 4색 규칙(묶음 ②): 획득 초록 · 소모 빨강 · 차단 회색 · 승급 앰버 — 스캔 가능성.
+  function decorateTone(line: FactLine): FactLine {
+    const tone = line.rejected ? 'block'
+      : /승급|레벨 업|달성|극복|클리어/.test(line.note) ? 'promote'
+      : line.delta?.startsWith('-') ? 'loss'
+      : line.delta ? 'gain' : undefined;
+    return tone ? { ...line, tone } : line;
+  }
+  export function toFactLine(log: Log, index: number): FactLine { return decorateTone(buildFactLine(log, index)); }
+  function buildFactLine(log: Log, index: number): FactLine {
     const event = s(log.event), reason = s(log.reason);
     if (log.ok === false) {
       const why = s(log.reason);
@@ -273,7 +282,7 @@
     </header>
     <ol>
       {#each lines as line (line.key)}
-        <li class:rejected={line.rejected}>
+        <li class:rejected={line.rejected} class:tone-gain={line.tone==='gain'} class:tone-loss={line.tone==='loss'} class:tone-promote={line.tone==='promote'}>
           <span class="icon" aria-hidden="true"><Icon name={factIconName(line.icon)} size={14}/></span>
           <span class="label">{line.label}</span>
           {#if line.delta}<span class="delta" class:down={line.delta.startsWith('-')}>{line.delta}</span>{/if}
@@ -292,6 +301,11 @@
   .count { color: var(--color-muted); font-size: .72rem; margin-left: auto; font-variant-numeric: tabular-nums; }
   ol { list-style: none; margin: 0; padding: var(--space-1) 0; display: flex; flex-direction: column; }
   li { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-1) var(--space-3); }
+  li { border-left: 2px solid transparent; }
+  li.tone-gain { border-left-color: #6fbf8a; }
+  li.tone-loss { border-left-color: #d07a6e; }
+  li.tone-promote { border-left-color: var(--color-accent); }
+  li.rejected { border-left-color: #6b7280; }
   li + li { border-top: 1px solid color-mix(in srgb, var(--color-line) 45%, transparent); }
   .icon { flex: none; }
   .label { font-weight: 600; }

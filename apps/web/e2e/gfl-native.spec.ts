@@ -274,6 +274,17 @@ test('연속 엔진 클릭은 채팅에서 접힌 영수증 묶음이 되고 펼
   await expect(receipts).toHaveCount(collapsed+2); // 이전 2건이 펼쳐진다
 });
 
+test('하루 리듬 바·관계 게이지·퀵 칩이 게임 감각을 시각화한다',async({page})=>{
+  await page.setViewportSize({width:1280,height:800}); // 자동 핀 — 채팅과 콘솔 나란히
+  await page.goto('/'); await expect(page.getByRole('button',{name:/카드 가져오기/}).first()).toBeVisible({timeout:15_000});
+  await page.locator('input[accept=".simpack,.charx,.png,.json"]').setInputFiles({name:'gfl-romance.simpack',mimeType:'application/zip',buffer:romanceSimpack});
+  await page.getByRole('button',{name:'연애 리듬'}).click(); const console=page.getByLabel('소녀전선 지휘 콘솔');
+  await expect(console.locator('.day-rhythm i.now')).toHaveCount(1); // 하루 리듬 바
+  await console.getByRole('button',{name:'인형',exact:true}).click();
+  await expect(console.locator('.relation-gauge')).toBeVisible(); // 관계 게이지(신뢰 구간)
+  await expect(console.locator('.relation-gauge small')).toContainText('다음 문턱까지');
+});
+
 test('신뢰 인형과 외출해 시간대를 쓰고 수락한 수복 약속의 이행 영수증을 받는다',async({page})=>{
   await page.goto('/'); await expect(page.getByRole('button',{name:/카드 가져오기/}).first()).toBeVisible({timeout:15_000});
   await page.locator('input[accept=".simpack,.charx,.png,.json"]').setInputFiles({name:'gfl-romance.simpack',mimeType:'application/zip',buffer:romanceSimpack});
