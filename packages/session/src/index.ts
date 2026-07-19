@@ -149,6 +149,13 @@ export interface SessionBindings {
   persona: Persona | null;
   preset: PromptPreset;
 }
+// 체크포인트는 프리셋 전체(임포트 raw 포함 수십 KB) 대신 참조만 든다 — 본문은 세션의
+// presetSnapshots 사전에 1회 보존(성능 수술 파동 1b). preset 인라인은 구형 저장 하위호환.
+export interface SessionCheckpointBindings {
+  persona: Persona | null;
+  preset?: PromptPreset;
+  presetRef?: { id: string; version: number };
+}
 export interface SessionCheckpoint {
   turn: number;
   messageCount: number;
@@ -162,11 +169,12 @@ export interface SessionCheckpoint {
   ledgerDeltas: string[];
   journalCursor: number;
   cardRuntimeCursor?: number;
-  bindings: SessionBindings;
+  bindings: SessionCheckpointBindings;
 }
 export interface SessionHistory {
   undo: SessionCheckpoint[];
   redo: SessionCheckpoint[];
+  presetSnapshots?: Record<string, PromptPreset>;
 }
 export interface SessionSnapshot {
   contract: "simbot-play-session/0.1";
@@ -436,6 +444,7 @@ export class PlaySession {
   #aux: AuxConfig = { enabled: false, slots: {} };
   #checkpoints: SessionCheckpoint[] = [];
   #redoStack: SessionCheckpoint[] = [];
+  #presetSnapshots = new Map<string, PromptPreset>();
   #alternates: AlternateState[] = [];
   #responseBranches: ResponseBranchSet[] = [];
   #promptRuns: PromptRun[] = [];
@@ -473,6 +482,7 @@ export class PlaySession {
       ? clone(options.aux)
       : { enabled: false, slots: {} };
     this.#preset = clone(options.preset);
+    this.#rememberPreset(this.#preset);
     this.#persona = options.persona ? clone(options.persona) : null;
     this.#maxContext = options.maxContext;
     this.#card = clone(options.card);
@@ -737,6 +747,7 @@ export class PlaySession {
   }
   setPreset(preset: PromptPreset) {
     this.#preset = clone(preset);
+    this.#rememberPreset(this.#preset);
     const patch=Object.entries(presetToggleDefaults(this.#preset)).filter(([key])=>!(key in this.#cbsVariables)).map(([key,value])=>({op:'set' as const,key,value}));
     if(patch.length){const state=this.#cardRuntimeJournal.state,committed=this.#cardRuntimeJournal.append(`preset-toggle-defaults:${this.#cardRuntimeJournal.cursor+1}`,patch,state.randomState,state.logicalTimeMs);this.#cbsVariables=committed.variables;setActiveRenderContext(this.#regexScripts,this.#cbsVariables);this.#notify();}
   }
@@ -1412,10 +1423,8 @@ export class PlaySession {
         cardRuntimeJournal: this.#cardRuntimeJournal.toJSON(),
         lastSpeakers: this.rawLastSpeakers,
         journal: this.#journal.toJSON(),
-        history: {
-          undo: clone(this.#checkpoints),
-          redo: clone(this.#redoStack),
-        },
+        // 디스크 undo는 최근 5개만(RAM 30개 유지 — 오너 결정 1). 참조된 프리셋 본문은 사전으로 동봉.
+        history: this.#persistedHistory(),
         bindings: {
           persona: clone(this.#persona),
           preset: clone(this.#preset),
@@ -1523,6 +1532,13 @@ export class PlaySession {
       this.#persona = clone(data.bindings.persona);
       this.#preset = clone(data.bindings.preset);
     }
+    // 프리셋 사전 재구성: 복원된 현재 프리셋 + 동봉 사전 + 구형 인라인 체크포인트의 프리셋.
+    this.#presetSnapshots = new Map();
+    this.#rememberPreset(this.#preset);
+    for (const [key, preset] of Object.entries(data.history?.presetSnapshots ?? {}))
+      if (!this.#presetSnapshots.has(key)) this.#presetSnapshots.set(key, clone(preset));
+    for (const checkpoint of [...this.#checkpoints, ...this.#redoStack])
+      if (checkpoint.bindings.preset) this.#rememberPreset(checkpoint.bindings.preset);
     setActiveRenderContext(this.#regexScripts, this.#cbsVariables);
     this.memory.reset(data.memory);
     this.#continuityPatches.reset(data.continuityPatches ?? []);
@@ -1556,6 +1572,39 @@ export class PlaySession {
       ];
     this.#notify();
   }
+  static #presetKey(preset: Pick<PromptPreset, "id" | "version">) {
+    return `${preset.id}:${preset.version}`;
+  }
+  static PERSISTED_UNDO_DEPTH = 5;
+  #persistedHistory(): SessionHistory {
+    const undo = clone(this.#checkpoints.slice(-PlaySession.PERSISTED_UNDO_DEPTH)),
+      redo = clone(this.#redoStack.slice(-PlaySession.PERSISTED_UNDO_DEPTH)),
+      currentKey = PlaySession.#presetKey(this.#preset),
+      referenced = new Set(
+        [...undo, ...redo]
+          .map((checkpoint) => checkpoint.bindings.presetRef)
+          .filter((ref): ref is { id: string; version: number } => !!ref)
+          .map((ref) => PlaySession.#presetKey(ref)),
+      ),
+      presetSnapshots: Record<string, PromptPreset> = {};
+    for (const key of referenced)
+      if (key !== currentKey) { // 현재 프리셋은 bindings.preset이 이미 실어 나른다
+        const kept = this.#presetSnapshots.get(key);
+        if (kept) presetSnapshots[key] = clone(kept);
+      }
+    return { undo, redo, ...(Object.keys(presetSnapshots).length ? { presetSnapshots } : {}) };
+  }
+  #rememberPreset(preset: PromptPreset) {
+    const key = PlaySession.#presetKey(preset);
+    if (!this.#presetSnapshots.has(key)) this.#presetSnapshots.set(key, clone(preset));
+    return key;
+  }
+  #resolveCheckpointPreset(bindings: SessionCheckpointBindings): PromptPreset {
+    if (bindings.preset) return clone(bindings.preset); // 구형 체크포인트(프리셋 인라인)
+    const key = bindings.presetRef ? PlaySession.#presetKey(bindings.presetRef) : null,
+      kept = key ? this.#presetSnapshots.get(key) : null;
+    return kept ? clone(kept) : this.#preset; // 사전 누락(이론상 불가) 시 현재 프리셋 유지
+  }
   #captureCheckpoint(includeMessages = false): SessionCheckpoint {
     return {
       turn: this.#turn,
@@ -1570,7 +1619,7 @@ export class PlaySession {
       ledgerDeltas: clone(this.#ledgerDeltas),
       journalCursor: this.#journal.cursor,
       cardRuntimeCursor: this.#cardRuntimeJournal.cursor,
-      bindings: { persona: clone(this.#persona), preset: clone(this.#preset) },
+      bindings: { persona: clone(this.#persona), presetRef: { id: this.#preset.id, version: this.#preset.version } },
     };
   }
   #restoreCheckpoint(value: SessionCheckpoint) {
@@ -1595,7 +1644,8 @@ export class PlaySession {
     this.#alternates = clone(value.alternates);
     this.#ledgerDeltas = clone(value.ledgerDeltas ?? []);
     this.#persona = clone(value.bindings.persona);
-    this.#preset = clone(value.bindings.preset);
+    this.#preset = this.#resolveCheckpointPreset(value.bindings);
+    this.#rememberPreset(this.#preset);
     setActiveRenderContext(this.#regexScripts, this.#cbsVariables);
     this.#syncMessageSeq();
     this.#notify();
@@ -1624,11 +1674,9 @@ export class PlaySession {
         ? this.#cardRuntimeJournal.cursor
         : (next?.cardRuntimeCursor ?? this.#cardRuntimeJournal.cursor),
       messages = this.messages.slice(0, index + 1),
-      bindings = atHead
+      bindings = atHead || !next?.bindings
         ? { persona: clone(this.#persona), preset: clone(this.#preset) }
-        : clone(
-            next?.bindings ?? { persona: this.#persona, preset: this.#preset },
-          );
+        : { persona: clone(next.bindings.persona), preset: this.#resolveCheckpointPreset(next.bindings) };
     return {
       messages,
       engine: this.#journal.stateAt(journalCursor),

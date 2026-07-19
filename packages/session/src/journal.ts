@@ -82,7 +82,9 @@ export class SessionJournal {
   readonly #targetSchemaHash: string;
   #schemaHash: string;
   #initial: RuntimeSnapshot;
-  #expected: RuntimeSnapshot;
+  // 발산 감시는 기대 '스냅샷'이 아니라 기대 해시+RNG 위치만 있으면 된다 — 전체 클론·이중 해시 제거(성능 수술 파동 1a).
+  #expectedHash: string;
+  #expectedRng: number;
   #events: EngineJournalEvent[] = [];
   #sealedEpochs: SealedEngineJournalEpoch[] = [];
   #baseIndex = 0;
@@ -96,7 +98,8 @@ export class SessionJournal {
     this.#targetSchemaHash = stableHash(runtime.project.schema);
     this.#schemaHash = this.#targetSchemaHash;
     this.#initial = runtime.snapshot();
-    this.#expected = clone(this.#initial);
+    this.#expectedHash = stateHash(this.#initial);
+    this.#expectedRng = this.#initial.rng;
     this.#snapshotInterval = Math.max(1, Math.trunc(snapshotInterval) || 50);
     this.#snapshots.set(0, clone(this.#initial));
   }
@@ -121,7 +124,7 @@ export class SessionJournal {
   }
   append(id: string, params: RuntimeRecord = {}): DispatchResult {
     const actual = this.#runtime.snapshot();
-    if (stableHash(actual) !== stableHash(this.#expected)) throw new Error("journal_runtime_diverged");
+    if (stateHash(actual) !== this.#expectedHash || actual.rng !== this.#expectedRng) throw new Error("journal_runtime_diverged");
     const result = this.#rawDispatch(id, params),
       snapshot = this.#runtime.snapshot(),
       ok = result.log.some((entry) => entry.ok === true),
@@ -137,7 +140,8 @@ export class SessionJournal {
       };
     this.#events.push(record);
     this.#cursor = index;
-    this.#expected = clone(snapshot);
+    this.#expectedHash = record.stateHash;
+    this.#expectedRng = snapshot.rng;
     if ((index - this.#baseIndex) % this.#snapshotInterval === 0) this.#snapshots.set(index, clone(snapshot));
     return result;
   }
@@ -159,7 +163,8 @@ export class SessionJournal {
   moveTo(index: number) {
     const snapshot = this.stateAt(index);
     this.#cursor = index;
-    this.#expected = clone(snapshot);
+    this.#expectedHash = stateHash(snapshot);
+    this.#expectedRng = snapshot.rng;
     this.#runtime.restore(snapshot);
     return this.head();
   }
@@ -176,7 +181,8 @@ export class SessionJournal {
   reset(snapshot: RuntimeSnapshot) {
     this.#schemaHash = this.#targetSchemaHash;
     this.#initial = clone(snapshot);
-    this.#expected = clone(snapshot);
+    this.#expectedHash = stateHash(snapshot);
+    this.#expectedRng = snapshot.rng;
     this.#events = [];
     this.#sealedEpochs = [];
     this.#baseIndex = 0;
@@ -198,7 +204,8 @@ export class SessionJournal {
     this.#baseIndex = head.index;
     this.#schemaHash = newSchemaHash;
     this.#initial = clone(migratedInitial);
-    this.#expected = clone(migratedInitial);
+    this.#expectedHash = stateHash(migratedInitial);
+    this.#expectedRng = migratedInitial.rng;
     this.#events = [];
     this.#cursor = this.#baseIndex;
     this.#snapshots = new Map([[this.#baseIndex, clone(migratedInitial)]]);
@@ -250,7 +257,8 @@ export class SessionJournal {
     this.#sealedEpochs = normalized.epochs;
     this.#baseIndex = normalized.baseIndex;
     this.#initial = initial;
-    this.#expected = clone(trustedHead);
+    this.#expectedHash = data.head.stateHash;
+    this.#expectedRng = trustedHead.rng;
     this.#events = clone(data.events) as EngineJournalEvent[];
     this.#snapshotInterval = Math.max(1, Math.trunc(data.snapshotInterval) || 50);
     this.#snapshots = new Map([[this.#baseIndex, clone(initial)]]);
@@ -277,7 +285,8 @@ export class SessionJournal {
     this.#sealedEpochs = normalized.epochs;
     this.#baseIndex = normalized.baseIndex;
     this.#initial = initial;
-    this.#expected = clone(current);
+    this.#expectedHash = stateHash(current);
+    this.#expectedRng = current.rng;
     this.#events = clone(data.events) as EngineJournalEvent[];
     this.#snapshotInterval = Math.max(1, Math.trunc(data.snapshotInterval) || 50);
     this.#snapshots = new Map([[this.#baseIndex, clone(initial)]]);
