@@ -244,6 +244,15 @@ export interface LedgerNarrativeDelta {
   summaries: string[];
 }
 export const ACTION_WAL_CONTRACT = "simbot-action-wal/0.1";
+export interface ActionWalEntry {
+  mode: "ledger" | "narrated";
+  events: EngineJournalEvent[];
+  expectedJournalCursor: number;
+  expectedStateHash: string;
+  expectedRng: number;
+  expectedLogsHash: string;
+  turnAfter: number;
+}
 export interface ActionWalReceipt {
   contract: typeof ACTION_WAL_CONTRACT;
   sessionId: string;
@@ -255,6 +264,7 @@ export interface ActionWalReceipt {
   expectedRng: number;
   expectedLogsHash: string;
   turnAfter: number;
+  actions?: ActionWalEntry[];
   hash: string;
 }
 function actionWalHash(value: Omit<ActionWalReceipt, "hash">) {
@@ -581,8 +591,10 @@ export class PlaySession {
   #journalShardHashes: string[] | null = null;
   #persistedIntegrity: string | null = null;
   #backgroundSave: Promise<void> | null = null;
+  #backgroundSaveTimer: ReturnType<typeof setTimeout> | null = null;
   #backgroundSaveError: unknown = null;
   #walPresent = false;
+  #pendingWalActions: ActionWalEntry[] = [];
   #alternates: AlternateState[] = [];
   #responseBranches: ResponseBranchSet[] = [];
   #promptRuns: PromptRun[] = [];
@@ -1711,10 +1723,7 @@ export class PlaySession {
   }
   async #persistActionReceipt(mode: ActionWalReceipt["mode"], eventOffset: number, logs: Record<string, unknown>[], turnAfter: number) {
     if (!this.#repository || !this.#persistedIntegrity) return false;
-    const head = this.#journal.head(), unsigned: Omit<ActionWalReceipt, "hash"> = {
-      contract: ACTION_WAL_CONTRACT,
-      sessionId: this.id,
-      baseIntegrity: this.#persistedIntegrity,
+    const head = this.#journal.head(), action: ActionWalEntry = {
       mode,
       events: clone(this.#journal.rawEvents.slice(eventOffset)),
       expectedJournalCursor: head.index,
@@ -1722,6 +1731,18 @@ export class PlaySession {
       expectedRng: head.rng,
       expectedLogsHash: stableHash(logs),
       turnAfter,
+    }, actions = [...this.#pendingWalActions, action], unsigned: Omit<ActionWalReceipt, "hash"> = {
+      contract: ACTION_WAL_CONTRACT,
+      sessionId: this.id,
+      baseIntegrity: this.#persistedIntegrity,
+      mode,
+      events: action.events,
+      expectedJournalCursor: head.index,
+      expectedStateHash: head.stateHash,
+      expectedRng: head.rng,
+      expectedLogsHash: stableHash(logs),
+      turnAfter,
+      actions,
     };
     const receipt: ActionWalReceipt = { ...unsigned, hash: actionWalHash(unsigned) };
     await this.#repository.put({
@@ -1732,9 +1753,14 @@ export class PlaySession {
       payload: receipt as unknown as SessionSnapshot,
     });
     this.#walPresent = true;
+    this.#pendingWalActions = actions;
     return true;
   }
   async #flushBackgroundSave() {
+    if (this.#backgroundSaveTimer) {
+      clearTimeout(this.#backgroundSaveTimer);
+      this.#backgroundSaveTimer = null;
+    }
     if (this.#backgroundSave) await this.#backgroundSave;
     if (this.#backgroundSaveError) {
       const reason = this.#backgroundSaveError;
@@ -1744,9 +1770,13 @@ export class PlaySession {
   }
   #queueBackgroundSave() {
     if (!this.#repository) return;
-    const task = this.#saveNow(), handled = task.catch((reason) => { this.#backgroundSaveError = reason; }),
-      queued = handled.finally(() => { if (this.#backgroundSave === queued) this.#backgroundSave = null; });
-    this.#backgroundSave = queued;
+    if (this.#backgroundSaveTimer) clearTimeout(this.#backgroundSaveTimer);
+    this.#backgroundSaveTimer = setTimeout(() => {
+      this.#backgroundSaveTimer = null;
+      const task = this.#saveNow(), handled = task.catch((reason) => { this.#backgroundSaveError = reason; }),
+        queued = handled.finally(() => { if (this.#backgroundSave === queued) this.#backgroundSave = null; });
+      this.#backgroundSave = queued;
+    }, 750);
   }
   async #saveNow() {
     if (!this.#repository) return;
@@ -1776,6 +1806,7 @@ export class PlaySession {
     if (this.#walPresent) {
       await this.#repository.delete(PlaySession.actionWalRecordId(this.id));
       this.#walPresent = false;
+      this.#pendingWalActions = [];
     }
   }
   async save() {
@@ -1855,6 +1886,8 @@ export class PlaySession {
     } else if (value.integrity !== sessionIntegrity(value))
       throw new Error("session_corrupt:integrity");
     this.#persistedIntegrity = value.integrity ?? null;
+    this.#pendingWalActions = [];
+    if (this.#backgroundSaveTimer) { clearTimeout(this.#backgroundSaveTimer); this.#backgroundSaveTimer = null; }
     const currentFingerprint = runtimeSchemaFingerprint(this.runtime),
       compiled = !!this.runtime.project.schema._compiler,
       schemaChanged =
@@ -1995,36 +2028,42 @@ export class PlaySession {
     if (receipt.expectedJournalCursor <= this.#journal.cursor) return; // 코어 저장 뒤 WAL 삭제만 실패한 안전한 잔여물
     if (schemaChanged) throw new Error("session_corrupt:action_wal_schema");
     if (receipt.baseIntegrity !== baseIntegrity) throw new Error("session_corrupt:action_wal_base");
-    if (!receipt.events.length || receipt.events[0]?.parentIndex !== this.#journal.cursor)
-      throw new Error("session_corrupt:action_wal_parent");
-    const turnBefore = this.#turn, logs: Record<string, unknown>[] = [];
-    this.#pushCheckpoint();
-    for (const expected of receipt.events) {
-      const rows = this.runtime.dispatch(expected.event.id, expected.event.params as Record<string, unknown>).log as Record<string, unknown>[],
-        actual = this.#journal.rawEvents.at(-1);
-      if (!actual || stableHash(actual) !== stableHash(expected))
-        throw new Error(`session_corrupt:action_wal_replay:${expected.index}`);
-      logs.push(...rows);
-      this.#recordEngineFacts(expected.event.id, rows, actual.index);
-      if (receipt.mode === "ledger")
-        for (const log of rows) if (log.ok) this.#enqueueLedgerNarrative(expected.event.id, log, actual.index);
+    const actions: ActionWalEntry[] = receipt.actions?.length ? receipt.actions : [{mode:receipt.mode,events:receipt.events,expectedJournalCursor:receipt.expectedJournalCursor,expectedStateHash:receipt.expectedStateHash,expectedRng:receipt.expectedRng,expectedLogsHash:receipt.expectedLogsHash,turnAfter:receipt.turnAfter}];
+    for (const action of actions) {
+      if (!action.events.length || action.events[0]?.parentIndex !== this.#journal.cursor)
+        throw new Error("session_corrupt:action_wal_parent");
+      const logs: Record<string, unknown>[] = [];
+      this.#pushCheckpoint();
+      for (const expected of action.events) {
+        const rows = this.runtime.dispatch(expected.event.id, expected.event.params as Record<string, unknown>).log as Record<string, unknown>[],
+          actual = this.#journal.rawEvents.at(-1);
+        if (!actual || stableHash(actual) !== stableHash(expected))
+          throw new Error(`session_corrupt:action_wal_replay:${expected.index}`);
+        logs.push(...rows);
+        this.#recordEngineFacts(expected.event.id, rows, actual.index);
+        if (action.mode === "ledger")
+          for (const log of rows) if (log.ok) this.#enqueueLedgerNarrative(expected.event.id, log, actual.index);
+      }
+      const head = this.#journal.head();
+      if (head.index !== action.expectedJournalCursor || head.stateHash !== action.expectedStateHash || head.rng !== action.expectedRng || stableHash(logs) !== action.expectedLogsHash)
+        throw new Error("session_corrupt:action_wal_head");
+      if (action.turnAfter !== this.#turn + 1) throw new Error("session_corrupt:action_wal_turn");
+      this.#lastLogs = clone(logs);
+      this.#lastSpeakers = [];
+      this.#narrativeIssues = [];
+      if (action.mode === "ledger") this.#append("assistant", "장부에 반영되었습니다.", "ledger", { facts: logs });
+      else {
+        this.#ledgerNarrativeQueue = [];
+        this.#append("assistant", "관리 결과가 반영되었습니다.", "engine", {
+          facts: logs,
+          chips: [{ ok: true, kind: "system", text: "종료 직전 엔진 결과 복구 · 서사만 생략" }],
+        });
+      }
+      this.#turn = action.turnAfter;
     }
     const head = this.#journal.head();
-    if (head.index !== receipt.expectedJournalCursor || head.stateHash !== receipt.expectedStateHash || head.rng !== receipt.expectedRng || stableHash(logs) !== receipt.expectedLogsHash)
+    if (head.index !== receipt.expectedJournalCursor || head.stateHash !== receipt.expectedStateHash || head.rng !== receipt.expectedRng || stableHash(this.#lastLogs) !== receipt.expectedLogsHash)
       throw new Error("session_corrupt:action_wal_head");
-    if (receipt.turnAfter !== turnBefore + 1) throw new Error("session_corrupt:action_wal_turn");
-    this.#lastLogs = clone(logs);
-    this.#lastSpeakers = [];
-    this.#narrativeIssues = [];
-    if (receipt.mode === "ledger") this.#append("assistant", "장부에 반영되었습니다.", "ledger", { facts: logs });
-    else {
-      this.#ledgerNarrativeQueue = [];
-      this.#append("assistant", "관리 결과가 반영되었습니다.", "engine", {
-        facts: logs,
-        chips: [{ ok: true, kind: "system", text: "종료 직전 엔진 결과 복구 · 서사만 생략" }],
-      });
-    }
-    this.#turn = receipt.turnAfter;
     this.#messagesChain = null;
     this.#messageShardHashes = null;
     this.#journalShardHashes = null;
