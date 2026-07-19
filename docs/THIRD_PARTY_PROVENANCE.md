@@ -126,3 +126,11 @@ isu`. 이식 파일은 업스트림 경로를 미러링해 diff 추적한다.
 - `packages/risu/src/card-regex.ts`: LogPapa(GPL-3.0-or-later) `core/convert/cardRegex.js`의 `extractRegexScripts`, `sanitizeRegexOut`, `isCatastrophic`, `buildRegex`, `substituteGroups`, `expandCardRegex`를 TypeScript 계약과 4단계 훅으로 이식했다.
 - `packages/risu/src/cbs.ts`: LogPapa(GPL-3.0-or-later) `core/risu/parser.js`의 `calcString`, `evalInline`, `expandBlocks`, `renderRisu`를 최소 CBS 범위로 이식했다. 이 구현의 원전은 RisuAI(GPL-3.0) `src/ts/parser/parser.svelte.ts`의 `assetRegex`, `parseAdditionalAssets`, `risuChatParser`/`matcher`다.
 - RisuAI 호출 위치를 따라 `editinput`=사용자 입력, `editoutput`=모델 출력, `editprocess`=요청 전송 전, `editdisplay`=표시 직전으로 매핑했다. Lua와 임의 JavaScript 실행부는 이식하지 않았다.
+
+## 대형 인형 목록 가상화
+
+- 소스: [TanStack Virtual](https://github.com/TanStack/virtual), `@tanstack/svelte-virtual` 3.13.32.
+- 라이선스: MIT.
+- 적용: `apps/web/src/player/DollPicker.svelte`에서 50명을 넘는 인형 목록은 화면 주변 행만 DOM에 유지한다. 검색·병과·등급·정렬 결과가 바뀌면 Svelte 어댑터의 virtualizer 옵션을 갱신한다.
+- 가져오지 않은 것: React/Vue/Solid 어댑터, 예제 UI, 서버 기능. 앱의 카드 마크업·접근성·초상화 지연 로딩은 자체 구현을 유지한다.
+- 조사했지만 코드 이식하지 않은 항목: Immich의 점진 이미지 로딩은 계층 설계만 참고했고, Comlink·offthread-image·wa-sqlite는 현행 실측이 이미 합격해 의존성이나 코드를 추가하지 않았다.
