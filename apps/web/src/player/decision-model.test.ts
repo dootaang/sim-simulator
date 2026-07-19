@@ -114,7 +114,7 @@ describe('결정 카드 모델', () => {
   });
   it('첫 격파 보스의 구속 결과를 영입 결정 카드로 표시한다', () => {
     const cards = buildDecisionCards((id) => id === 'gfl/status' ? { bossRecruit: { bossId: 'scarecrow', name: 'Scarecrow' } } : null);
-    expect(cards[0]).toMatchObject({ key: 'gfl-boss-recruit:scarecrow', title: '⚠ Scarecrow · 구속 완료 — 영입하시겠습니까?', more: '6성 · BOSS 병과', dismissible: true });
+    expect(cards[0]).toMatchObject({ key: 'gfl-boss-recruit:scarecrow', title: 'Scarecrow · 구속 완료 — 영입하시겠습니까?', more: '6성 · BOSS 병과', dismissible: true });
     expect(cards[0]!.options).toEqual([
       expect.objectContaining({ label: '영입한다', id: 'gfl/boss/recruit', kind: 'primary' }),
       expect.objectContaining({ label: '보내준다', id: 'gfl/boss/dismiss', kind: 'ghost' }),
