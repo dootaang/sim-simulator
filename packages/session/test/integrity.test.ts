@@ -1,7 +1,7 @@
 import{describe,expect,it}from'vitest';
 import{type PromptPreset}from'@simbot/risu';
 import{ProjectRuntime}from'@simbot/runtime';
-import{PlaySession,sessionIntegrity,type SessionSnapshot}from'../src/index.ts';
+import{PlaySession,sessionIntegrity,sessionIntegrityV2,type SessionSnapshot}from'../src/index.ts';
 
 const source={source:'user' as const,path:'test'};
 const preset:PromptPreset={contract:'prompt-preset/0.1',id:'p',name:'p',compatibilityMode:'simpack',version:1,raw:null,settings:{assistantPrefill:'',sendNames:false,sendChatAsSystem:false},blocks:[{id:'chat',type:'chat',name:'chat',enabled:true,rangeStart:-1000,rangeEnd:'end',source}]};
@@ -15,7 +15,7 @@ describe('session integrity',()=>{
     await session.send('train');
     const snap=session.snapshot();
     expect(typeof snap.integrity).toBe('string');
-    expect(snap.integrity).toBe(sessionIntegrity(snap));
+    expect(snap.integrityVersion).toBe(2);expect(snap.integrity).toBe(sessionIntegrityV2(snap).integrity);
     const restored=new PlaySession({id:'s',runtime:runtime(),preset,card:{name:'Guide'},provider});
     restored.restore(snap);
     expect(restored.turn).toBe(1);
@@ -47,7 +47,7 @@ describe('memory migration compatibility',()=>{
   it('restores legacy snapshots that contain only the original seven memory fields',async()=>{
     const session=new PlaySession({id:'s',runtime:runtime(),preset,card:{name:'Guide'},provider});await session.send('train');
     const current=session.snapshot(),legacyBase={...current,memory:current.memory.map(({id,text,validFromTurn,validToTurn,scope,evidence,status})=>({id,text,validFromTurn,validToTurn,scope,evidence,status}))};delete legacyBase.integrity;
-    const legacy={...legacyBase,integrity:sessionIntegrity(legacyBase)} as SessionSnapshot,target=new PlaySession({id:'s',runtime:runtime(),preset,card:{name:'Guide'},provider});expect(()=>target.restore(legacy)).not.toThrow();expect(target.memory.all()[0]).not.toHaveProperty('createdTurn');
+    delete (legacyBase as Partial<SessionSnapshot>).integrityVersion;const legacy={...legacyBase,integrity:sessionIntegrity(legacyBase)} as SessionSnapshot,target=new PlaySession({id:'s',runtime:runtime(),preset,card:{name:'Guide'},provider});expect(()=>target.restore(legacy)).not.toThrow();expect(target.memory.all()[0]).not.toHaveProperty('createdTurn');
   });
   it('lets a successful engine receipt replace the previous fact with the same anchor',async()=>{
     const session=new PlaySession({id:'s',runtime:runtime(),preset,card:{name:'Guide'},provider});await session.send('train');await session.send('train');const engine=session.memory.all().filter((record)=>record.kind==='engine-fact');expect(engine.some((record)=>record.status==='superseded')).toBe(true);expect(engine.find((record)=>record.status==='approved')?.supersedes?.length).toBeGreaterThan(0);

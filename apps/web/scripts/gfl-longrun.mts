@@ -9,6 +9,7 @@ import { ProjectRuntime } from "@simbot/runtime";
 import {
   PlaySession,
   sessionIntegrity,
+  sessionIntegrityV2,
   type ModelProvider,
   type SessionSnapshot,
 } from "@simbot/session";
@@ -291,7 +292,10 @@ async function run(label: string, verifyEpoch: boolean) {
     };
     const forged = {
       ...forgedBase,
-      integrity: sessionIntegrity(forgedBase),
+      integrity:
+        (forgedBase as SessionSnapshot).integrityVersion === 2
+          ? sessionIntegrityV2(forgedBase as SessionSnapshot).integrity
+          : sessionIntegrity(forgedBase),
     } as SessionSnapshot;
     const messageCount = forged.messages.length;
     const memoryHash = hash(forged.memory);

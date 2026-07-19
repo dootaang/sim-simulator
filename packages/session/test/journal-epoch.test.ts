@@ -3,7 +3,7 @@ import { ModuleRegistry, type ModuleDefinition } from "@simbot/kernel";
 import { defaultCardPreset } from "@simbot/risu";
 import { ProjectRuntime, type RuntimeProject } from "@simbot/runtime";
 import { createMemoryRepository } from "@simbot/persistence";
-import { PlaySession, sessionIntegrity, type SessionSnapshot } from "../src/index.ts";
+import { PlaySession, sessionIntegrity, sessionIntegrityV2, type SessionSnapshot } from "../src/index.ts";
 
 const provider = {
   async complete() {
@@ -45,7 +45,7 @@ function session(revision: number, step: number, migration: "ok" | "throw" = "ok
 function resign(snapshot: SessionSnapshot) {
   const base = structuredClone(snapshot) as SessionSnapshot;
   delete (base as Partial<SessionSnapshot>).integrity;
-  base.integrity = sessionIntegrity(base);
+  base.integrity = base.integrityVersion === 2 ? sessionIntegrityV2(base).integrity : sessionIntegrity(base);
   return base;
 }
 

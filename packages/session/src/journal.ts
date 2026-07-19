@@ -41,6 +41,31 @@ export function sha256Stable(value: unknown) {
 function stateHash(snapshot: RuntimeSnapshot) {
   return stableHash(snapshot.state);
 }
+// integrity v2의 저널 섹션 — 이벤트 배열은 롤링 체인으로 접어 저장 시 O(1), 검증 시 1회 O(n)이다(파동 3).
+export function journalEventsChain(events: readonly EngineJournalEvent[], seed = "0") {
+  let chain = seed;
+  for (const event of events) chain = fnv1a(chain + stableHash(event));
+  return chain;
+}
+export function journalIntegrityHash(data: EngineJournalData, eventsChain = journalEventsChain(data.events)) {
+  const sealed =
+    data.contract === "simbot-event-journal/0.2"
+      ? (data.sealedEpochRefs?.length
+          ? data.sealedEpochRefs.map((ref) => ({ sealedIndex: ref.sealedIndex, sealHash: ref.sealHash }))
+          : data.sealedEpochs.map((epoch) => ({ sealedIndex: epoch.sealedIndex, sealHash: epoch.sealHash })))
+      : [];
+  return stableHash({
+    contract: data.contract,
+    schemaHash: data.schemaHash,
+    baseIndex: data.contract === "simbot-event-journal/0.2" ? data.baseIndex : 0,
+    initialDigest: stableHash(data.initial),
+    snapshotInterval: data.snapshotInterval,
+    cursor: data.cursor,
+    head: data.head,
+    eventsChain,
+    sealed,
+  });
+}
 function jsonRecord(value: RuntimeRecord) {
   return value as EngineJournalData["initial"]["state"];
 }
@@ -87,6 +112,8 @@ export class SessionJournal {
   #expectedHash: string;
   #expectedRng: number;
   #events: EngineJournalEvent[] = [];
+  #eventsChain = journalEventsChain([]);
+  #initialDigest = "";
   #sealedEpochs: SealedEngineJournalEpoch[] = [];
   #baseIndex = 0;
   #snapshots = new Map<number, RuntimeSnapshot>();
@@ -99,6 +126,7 @@ export class SessionJournal {
     this.#targetSchemaHash = stableHash(runtime.project.schema);
     this.#schemaHash = this.#targetSchemaHash;
     this.#initial = runtime.snapshot();
+    this.#initialDigest = stableHash(this.#initial);
     this.#expectedHash = stateHash(this.#initial);
     this.#expectedRng = this.#initial.rng;
     this.#snapshotInterval = Math.max(1, Math.trunc(snapshotInterval) || 50);
@@ -140,6 +168,7 @@ export class SessionJournal {
         rng: snapshot.rng,
       };
     this.#events.push(record);
+    this.#eventsChain = fnv1a(this.#eventsChain + stableHash(record)); // 롤링 체인 확장(O(이벤트 1))
     this.#cursor = index;
     this.#expectedHash = record.stateHash;
     this.#expectedRng = snapshot.rng;
@@ -172,19 +201,23 @@ export class SessionJournal {
   truncateTo(index: number) {
     this.#assertIndex(index);
     this.#events = this.#events.slice(0, index - this.#baseIndex);
+    this.#eventsChain = journalEventsChain(this.#events);
     for (const key of [...this.#snapshots.keys()]) if (key > index) this.#snapshots.delete(key);
     return this.moveTo(index);
   }
   head() {
-    const snapshot = this.#runtime.snapshot();
-    return { index: this.#cursor, stateHash: stateHash(snapshot), rng: snapshot.rng };
+    // 커서 이동·append마다 유지되는 기대 해시가 곧 머리의 상태 해시다 — save마다 전체 상태를
+    // 다시 문자열화하지 않는다(파동 3). 외부 변조는 다음 append의 발산 감시가 잡는다.
+    return { index: this.#cursor, stateHash: this.#expectedHash, rng: this.#expectedRng };
   }
   reset(snapshot: RuntimeSnapshot) {
     this.#schemaHash = this.#targetSchemaHash;
     this.#initial = clone(snapshot);
+    this.#initialDigest = stableHash(this.#initial);
     this.#expectedHash = stateHash(snapshot);
     this.#expectedRng = snapshot.rng;
     this.#events = [];
+    this.#eventsChain = journalEventsChain([]);
     this.#sealedEpochs = [];
     this.#baseIndex = 0;
     this.#snapshots = new Map([[0, clone(snapshot)]]);
@@ -205,9 +238,11 @@ export class SessionJournal {
     this.#baseIndex = head.index;
     this.#schemaHash = newSchemaHash;
     this.#initial = clone(migratedInitial);
+    this.#initialDigest = stableHash(this.#initial);
     this.#expectedHash = stateHash(migratedInitial);
     this.#expectedRng = migratedInitial.rng;
     this.#events = [];
+    this.#eventsChain = journalEventsChain([]);
     this.#cursor = this.#baseIndex;
     this.#snapshots = new Map([[this.#baseIndex, clone(migratedInitial)]]);
     this.#runtime.restore(migratedInitial);
@@ -231,6 +266,20 @@ export class SessionJournal {
   get sealedEpochCount() { return this.#sealedEpochs.length; }
   // 영속용 읽기 전용 뷰 — 클론 없이 내보내므로 호출자는 절대 변형하지 말 것(봉인 본문은 불변).
   sealedEpochAt(offset: number): SealedEngineJournalEpoch | undefined { return this.#sealedEpochs[offset]; }
+  // 저장 시점의 저널 섹션 해시 — 롤링 체인·캐시 다이제스트로 O(1). 순수 검증 함수와 동일 재료·동일 결과.
+  currentIntegrityHash() {
+    return stableHash({
+      contract: "simbot-event-journal/0.2" as const,
+      schemaHash: this.#schemaHash,
+      baseIndex: this.#baseIndex,
+      initialDigest: this.#initialDigest,
+      snapshotInterval: this.#snapshotInterval,
+      cursor: this.#cursor,
+      head: this.head(),
+      eventsChain: this.#eventsChain,
+      sealed: this.#sealedEpochs.map((epoch) => ({ sealedIndex: epoch.sealedIndex, sealHash: epoch.sealHash })),
+    });
+  }
   // 디스크 핫 저장용: 봉인 본문 없이 참조만 — 본문은 sealed-epoch 레코드가 1회 보관한다(파동 2).
   toPersistedJSON(): EngineJournalDataV02 {
     return { ...this.#dataCore(), sealedEpochs: [], ...(this.#sealedEpochs.length ? { sealedEpochRefs: this.sealedEpochRefs() } : {}) };
@@ -273,9 +322,11 @@ export class SessionJournal {
     this.#sealedEpochs = normalized.epochs;
     this.#baseIndex = normalized.baseIndex;
     this.#initial = initial;
+    this.#initialDigest = stableHash(this.#initial);
     this.#expectedHash = data.head.stateHash;
     this.#expectedRng = trustedHead.rng;
     this.#events = clone(data.events) as EngineJournalEvent[];
+    this.#eventsChain = journalEventsChain(this.#events);
     this.#snapshotInterval = Math.max(1, Math.trunc(data.snapshotInterval) || 50);
     this.#snapshots = new Map([[this.#baseIndex, clone(initial)]]);
     this.#cursor = data.cursor;
@@ -301,9 +352,11 @@ export class SessionJournal {
     this.#sealedEpochs = normalized.epochs;
     this.#baseIndex = normalized.baseIndex;
     this.#initial = initial;
+    this.#initialDigest = stableHash(this.#initial);
     this.#expectedHash = stateHash(current);
     this.#expectedRng = current.rng;
     this.#events = clone(data.events) as EngineJournalEvent[];
+    this.#eventsChain = journalEventsChain(this.#events);
     this.#snapshotInterval = Math.max(1, Math.trunc(data.snapshotInterval) || 50);
     this.#snapshots = new Map([[this.#baseIndex, clone(initial)]]);
     for (const [index, snapshot] of states)

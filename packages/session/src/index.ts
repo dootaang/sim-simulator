@@ -47,6 +47,7 @@ import {
 import {
   SessionJournal,
   fnv1a,
+  journalIntegrityHash,
   stableHash,
   stableStringify,
 } from "./journal.ts";
@@ -198,6 +199,8 @@ export interface SessionSnapshot {
   bindings?: SessionBindings;
   ledgerDeltas?: string[];
   integrity?: string;
+  // 2 = 섹션 해시 합성(파동 3). 부재 = 구형 전체 직렬화 서명 — restore가 버전별로 검증한다.
+  integrityVersion?: number;
   // 조립 단계가 별도 레코드에서 가져와 붙이는 봉인 본문 — integrity 서명 범위 밖(참조의 sealHash가 본문을 검증).
   sealedEpochBodies?: SealedEngineJournalEpoch[];
 }
@@ -229,6 +232,43 @@ export function parseSessionBackup(
 // 무결성 해시는 복원되는 페이로드 전부를 덮어야 한다. cbsVariables(카드 변수 저장소)가 해시 밖에 있으면
 // 저장 파일의 변수만 고쳐 검증을 우회할 수 있다(통합 감사 Critical). 단 구 스냅샷은 이 필드가 없으므로
 // '있을 때만' 해시에 포함해 기존 저장분의 해시를 바꾸지 않는다(하위호환).
+// integrity v2 — 섹션 해시 합성(파동 3). 커버리지는 v1과 등가(복원되는 전 섹션)이며 계산만 증분화:
+// 저장 시 큰 섹션(저널·메시지)은 세션이 유지하는 롤링 체인을 재사용하고, 검증 시엔 전체 재계산으로 대조한다.
+export function messagesChainHash(messages: readonly ChatMessage[], seed = "0") {
+  let chain = seed;
+  for (const message of messages) chain = fnv1a(chain + stableHash(message));
+  return chain;
+}
+export function sessionIntegrityV2(
+  snapshot: Omit<SessionSnapshot, "integrity">,
+  precomputed: Partial<Record<"journal" | "messages", string>> = {},
+): { integrity: string; sections: Record<string, string> } {
+  const sections: Record<string, string> = {
+    meta: stableHash({
+      projectId: snapshot.projectId,
+      ...(snapshot.schemaFingerprint ? { schemaFingerprint: snapshot.schemaFingerprint } : {}),
+      turn: snapshot.turn,
+    }),
+    messages: precomputed.messages ?? messagesChainHash(snapshot.messages),
+    engine: stableHash(snapshot.engine),
+    memory: stableHash(snapshot.memory),
+    ...(snapshot.journal ? { journal: precomputed.journal ?? journalIntegrityHash(snapshot.journal) } : {}),
+    ...(snapshot.history ? { history: stableHash(snapshot.history) } : {}),
+    ...(snapshot.bindings ? { bindings: stableHash(snapshot.bindings) } : {}),
+    extras: stableHash({
+      ...(snapshot.continuityPatches ? { continuityPatches: snapshot.continuityPatches } : {}),
+      ...(snapshot.cbsVariables ? { cbsVariables: snapshot.cbsVariables } : {}),
+      ...(snapshot.cardRuntimeJournal ? { cardRuntimeJournal: snapshot.cardRuntimeJournal } : {}),
+      ...(snapshot.lastSpeakers ? { lastSpeakers: snapshot.lastSpeakers } : {}),
+      ...(snapshot.alternates ? { alternates: snapshot.alternates } : {}),
+      ...(snapshot.responseBranches ? { responseBranches: snapshot.responseBranches } : {}),
+      ...(snapshot.promptRuns ? { promptRuns: snapshot.promptRuns } : {}),
+      ...(snapshot.ledgerDeltas ? { ledgerDeltas: snapshot.ledgerDeltas } : {}),
+      lastLogs: snapshot.lastLogs,
+    }),
+  };
+  return { integrity: fnv1a(stableStringify({ v: 2, sections })), sections };
+}
 export function sessionIntegrity(
   snapshot: Omit<SessionSnapshot, "integrity">,
 ): string {
@@ -449,6 +489,8 @@ export class PlaySession {
   #redoStack: SessionCheckpoint[] = [];
   #presetSnapshots = new Map<string, PromptPreset>();
   #persistedEpochOffsets = new Set<number>();
+  // 메시지 섹션 롤링 체인 — append는 O(1) 연장, 그 외 변형은 무효화 후 다음 저장에서 1회 재계산.
+  #messagesChain: { count: number; hash: string } | null = null;
   #alternates: AlternateState[] = [];
   #responseBranches: ResponseBranchSet[] = [];
   #promptRuns: PromptRun[] = [];
@@ -786,6 +828,7 @@ export class PlaySession {
       throw new Error("greeting_locked");
     if (!text.trim()) throw new Error("message_empty");
     this.#messages[0] = { ...this.#messages[0], content: text.trim() };
+    this.#messagesChain = null;
     this.#notify();
     await this.save();
   }
@@ -845,6 +888,7 @@ export class PlaySession {
       translation = response.text.trim();
     if (!translation) throw new Error("translation_empty");
     this.#messages[index] = { ...message, translation };
+    this.#messagesChain = null;
     await this.save();
     this.#notify();
     return translation;
@@ -865,6 +909,7 @@ export class PlaySession {
     if (index < 0) throw new Error(`message_not_found:${id}`);
     const { translation: _, ...previous } = this.#messages[index]!;
     this.#messages[index] = { ...previous, content };
+    this.#messagesChain = null;
     this.#alternates = [];
     this.#responseBranches = [];
     await this.save();
@@ -880,6 +925,7 @@ export class PlaySession {
       ...message,
       index: messageIndex,
     }));
+    this.#messagesChain = null;
     this.#checkpoints = this.#checkpoints.filter(
       (snapshot) => snapshot.messageCount <= index,
     );
@@ -1502,7 +1548,14 @@ export class PlaySession {
           ? { promptRuns: clone(this.#promptRuns) }
           : {}),
       };
-    return { ...base, integrity: sessionIntegrity(base) };
+    // v2 서명: 저널은 클래스가 유지한 롤링 체인, 메시지는 세션 롤링 체인을 재사용해 O(변경분)로 서명한다.
+    if (!this.#messagesChain || this.#messagesChain.count !== base.messages.length)
+      this.#messagesChain = { count: base.messages.length, hash: messagesChainHash(base.messages) };
+    const { integrity } = sessionIntegrityV2(base, {
+      journal: this.#journal.currentIntegrityHash(),
+      messages: this.#messagesChain.hash,
+    });
+    return { ...base, integrityVersion: 2, integrity };
   }
   restore(value: SessionSnapshot) {
     if (
@@ -1511,8 +1564,11 @@ export class PlaySession {
     )
       throw new Error("session_snapshot_incompatible");
     // 무결성 해시는 필수 — 해시 필드를 지우는 것만으로 변조 검증을 우회할 수 있으므로(감사 Critical)
-    // 누락도 거부한다. 프리릴리스 조이기: 현행 저장 경로는 전부 해시를 실으므로 하위호환 예외를 없앤다.
-    if (value.integrity !== sessionIntegrity(value))
+    // 누락도 거부한다. v2(섹션 합성)는 전체 재계산으로 대조하고, 버전 없는 구형은 구 알고리즘으로 검증한다.
+    if (value.integrityVersion === 2) {
+      if (value.integrity !== sessionIntegrityV2(value).integrity)
+        throw new Error("session_corrupt:integrity");
+    } else if (value.integrity !== sessionIntegrity(value))
       throw new Error("session_corrupt:integrity");
     const currentFingerprint = runtimeSchemaFingerprint(this.runtime),
       compiled = !!this.runtime.project.schema._compiler,
@@ -1559,6 +1615,7 @@ export class PlaySession {
       origin:
         message.origin ?? (message.role === "assistant" ? "model" : "user"),
     }));
+    this.#messagesChain = null;
     this.#lastLogs = data.lastLogs;
     this.#lastSpeakers = clone(data.lastSpeakers ?? []);
     this.#alternates = clone(data.alternates ?? []);
@@ -1696,6 +1753,7 @@ export class PlaySession {
     this.#journal.moveTo(value.journalCursor);
     this.#turn = value.turn;
     this.#messages = messages;
+    this.#messagesChain = null;
     this.memory.reset(value.memory);
     this.#continuityPatches.reset(value.continuityPatches ?? []);
     this.#lastLogs = clone(value.lastLogs);
@@ -1772,6 +1830,7 @@ export class PlaySession {
   }
   #restoreAlternate(value: AlternateState) {
     this.#messages = clone(value.messages);
+    this.#messagesChain = null;
     this.#lastLogs = clone(value.logs);
     this.#lastSpeakers = clone(value.speakers);
     this.#promptRuns = compactPromptRuns(clone(value.promptRuns ?? []));
@@ -2044,6 +2103,9 @@ export class PlaySession {
         ...normalized,
       };
     this.#messages.push(message);
+    if (this.#messagesChain && this.#messagesChain.count === this.#messages.length - 1)
+      this.#messagesChain = { count: this.#messages.length, hash: fnv1a(this.#messagesChain.hash + stableHash(message)) };
+    else this.#messagesChain = null;
     this.#notify();
     return message;
   }

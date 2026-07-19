@@ -109,7 +109,7 @@ describe('통합 감사 수정 — 무결성·카드 태그 채널',()=>{
     const session=new PlaySession({id:'ib',runtime:runtime(),preset,card:{name:'C'},provider:{async complete(){return{text:'ok'};}}});
     await session.send('x');
     const snap=structuredClone(session.snapshot()) as unknown as Record<string,unknown>;
-    delete snap.cbsVariables; const base={...snap}; delete base.integrity;
+    delete snap.cbsVariables; delete snap.integrityVersion; const base={...snap}; delete base.integrity;
     const legacy={...base,integrity:sessionIntegrity(base as never)} as SessionSnapshot;
     const target=new PlaySession({id:'ib',runtime:runtime(),preset,card:{name:'C'},provider:{async complete(){return{text:'ok'};}}});
     expect(()=>target.restore(legacy)).not.toThrow();
