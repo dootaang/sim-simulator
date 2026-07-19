@@ -75,6 +75,8 @@ test('소녀전선 PNG를 넣으면 별도 컴파일 질문 없이 네이티브 
   await expect(reopened).toContainText('현재 위치 · 정비실');
   await expect(reopened.getByRole('button',{name:'제조·수복'})).toBeEnabled();
   await reopened.getByRole('button',{name:'인형 고용',exact:true}).click();
+  // 결정론 peek이 실제 뽑기 전에 다음 5명의 초상화를 영구 캐시에 준비한다.
+  await expect.poll(()=>page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const request=indexedDB.open('lucky-simulator-card-blobs',3);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});try{const tx=db.transaction('asset-thumbnails','readonly'),count=await new Promise<number>((resolve,reject)=>{const request=tx.objectStore('asset-thumbnails').count();request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});return count;}finally{db.close();}}),{timeout:10_000}).toBeGreaterThan(0);
   await reopened.getByRole('button',{name:'🎲 오늘의 인형 뽑기'}).click();
   await expect(reopened).toContainText('숙소 0/4');
   await expect(reopened.getByRole('button',{name:'계약',exact:true}).first()).toBeVisible();

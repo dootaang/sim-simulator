@@ -147,6 +147,16 @@ export class ProjectRuntime {
     this.#notify();
     return result;
   }
+  peek(id: string, params: RuntimeRecord = {}): DispatchResult {
+    const rng = createRng(0);
+    rng.restore(this.#rng.snapshot());
+    return this.registry.dispatch(
+      this.project.schema,
+      structuredClone(this.#state),
+      { id, params: structuredClone(params) },
+      rng,
+    );
+  }
   select(id: string): unknown {
     return this.registry.select(id, this.project.schema, this.#state);
   }

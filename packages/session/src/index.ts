@@ -818,6 +818,10 @@ export class PlaySession {
       logicalTimeMs: card.logicalTimeMs,
     });
   }
+  get engineRevision() {
+    const head = this.#journal.head();
+    return `${head.stateHash}:${head.rng}`;
+  }
   cardRuntimeSnapshot(): CardRuntimeSnapshot {
     const card = this.#cardRuntimeJournal.state;
     return {
