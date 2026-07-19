@@ -17,7 +17,7 @@ describe('성능 수술 파동 1 — 다이어트 후에도 규율은 그대로�
     await session.runLedgerAction('progression/gain',{source:'train'});
     session.setPreset(preset('beta'));
     await session.runLedgerAction('progression/gain',{source:'train'});
-    const saved=(await repository.get('preset-ref'))!.payload;
+    const saved=await PlaySession.assembleSnapshot((await repository.get('preset-ref'))!.payload,repository);
     // 저장 payload의 체크포인트에는 프리셋 본문이 없다(참조만) — 다이어트의 목적 그 자체.
     expect((saved.history?.undo??[]).every(checkpoint=>!checkpoint.bindings.preset&&checkpoint.bindings.presetRef)).toBe(true);
     expect(saved.history?.undo.length??0).toBeGreaterThan(0);
@@ -33,7 +33,7 @@ describe('성능 수술 파동 1 — 다이어트 후에도 규율은 그대로�
     const repository=createMemoryRepository<SessionSnapshot>(),session=new PlaySession({id:'depth',runtime:runtime(),preset:preset('a'),card:{name:'G'},repository,provider});
     for(let i=0;i<12;i+=1)await session.runLedgerAction('progression/gain',{source:'train'});
     expect(session.checkpointDepth).toBe(12); // RAM은 깊게(상한 30)
-    const saved=(await repository.get('depth'))!.payload;
+    const saved=await PlaySession.assembleSnapshot((await repository.get('depth'))!.payload,repository);
     expect(saved.history?.undo).toHaveLength(5); // 디스크는 최근 5개만(오너 결정 1)
     const restored=new PlaySession({id:'depth',runtime:runtime(),preset:preset('a'),card:{name:'G'},provider});
     restored.restore(saved);

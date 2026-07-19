@@ -1,4 +1,4 @@
-import type { EngineJournalData, MemoryRecord, SealedEngineJournalEpoch, SealedEpochRef } from "@simbot/contracts";
+import type { EngineJournalData, EngineJournalDataV02, MemoryRecord, SealedEngineJournalEpoch, SealedEpochRef } from "@simbot/contracts";
 import {
   ContinuityPatchLedger,
   ingestMemoryTurn,
@@ -201,10 +201,28 @@ export interface SessionSnapshot {
   integrity?: string;
   // 2 = 섹션 해시 합성(파동 3). 부재 = 구형 전체 직렬화 서명 — restore가 버전별로 검증한다.
   integrityVersion?: number;
+  // 파동 4: 디스크 핫 저장은 큰 배열(메시지·저널 이벤트)을 청크 레코드로 내보내고 코어엔 목록만 남긴다.
+  // integrity는 '조립된 전체'에 대한 서명이므로 청크 변조·누락은 조립 후 검증에서 잡힌다.
+  shardManifest?: SessionShardManifest;
   // 조립 단계가 별도 레코드에서 가져와 붙이는 봉인 본문 — integrity 서명 범위 밖(참조의 sealHash가 본문을 검증).
   sealedEpochBodies?: SealedEngineJournalEpoch[];
 }
 export const SEALED_EPOCH_CONTRACT = "simbot-sealed-epoch/0.1";
+export const SESSION_SHARD_CONTRACT = "simbot-session-shard/0.1";
+export const MESSAGE_SHARD_SIZE = 100;
+export const JOURNAL_SHARD_SIZE = 200;
+export interface SessionShardManifest {
+  version: 1;
+  messages: { chunkSize: number; total: number; chunks: string[] };
+  journalEvents: { chunkSize: number; total: number; chunks: string[] };
+}
+interface SessionShardRecord {
+  contract: typeof SESSION_SHARD_CONTRACT;
+  sessionId: string;
+  kind: "messages" | "journal-events";
+  offset: number;
+  items: unknown[];
+}
 export const MAX_SESSION_IMPORT_BYTES = 30 * 1024 * 1024;
 export function parseSessionBackup(
   text: string,
@@ -491,6 +509,9 @@ export class PlaySession {
   #persistedEpochOffsets = new Set<number>();
   // 메시지 섹션 롤링 체인 — append는 O(1) 연장, 그 외 변형은 무효화 후 다음 저장에서 1회 재계산.
   #messagesChain: { count: number; hash: string } | null = null;
+  // 파동 4 샤드 상태 — 완결 청크 해시 캐시(append-only 동안 유효). null이면 다음 저장이 전량 재기록.
+  #messageShardHashes: string[] | null = null;
+  #journalShardHashes: string[] | null = null;
   #alternates: AlternateState[] = [];
   #responseBranches: ResponseBranchSet[] = [];
   #promptRuns: PromptRun[] = [];
@@ -658,6 +679,7 @@ export class PlaySession {
     return this.#journal.stateAt(index);
   }
   async truncateTo(index: number) {
+    this.#journalShardHashes = null; // 이벤트 배열이 잘리므로 청크 캐시 폐기
     const head = this.#journal.truncateTo(index);
     this.#checkpoints = this.#checkpoints.filter(
       (value) => value.journalCursor <= index,
@@ -829,6 +851,7 @@ export class PlaySession {
     if (!text.trim()) throw new Error("message_empty");
     this.#messages[0] = { ...this.#messages[0], content: text.trim() };
     this.#messagesChain = null;
+    this.#messageShardHashes = null;
     this.#notify();
     await this.save();
   }
@@ -889,6 +912,7 @@ export class PlaySession {
     if (!translation) throw new Error("translation_empty");
     this.#messages[index] = { ...message, translation };
     this.#messagesChain = null;
+    this.#messageShardHashes = null;
     await this.save();
     this.#notify();
     return translation;
@@ -910,6 +934,7 @@ export class PlaySession {
     const { translation: _, ...previous } = this.#messages[index]!;
     this.#messages[index] = { ...previous, content };
     this.#messagesChain = null;
+    this.#messageShardHashes = null;
     this.#alternates = [];
     this.#responseBranches = [];
     await this.save();
@@ -926,6 +951,7 @@ export class PlaySession {
       index: messageIndex,
     }));
     this.#messagesChain = null;
+    this.#messageShardHashes = null;
     this.#checkpoints = this.#checkpoints.filter(
       (snapshot) => snapshot.messageCount <= index,
     );
@@ -1466,12 +1492,34 @@ export class PlaySession {
       this.#persistedEpochOffsets.add(offset);
     }
   }
-  // 디스크 로드용 조립: 참조만 든 스냅샷에 봉인 본문 레코드를 붙여 restore 가능한 형태로 만든다.
-  // 본문은 integrity 범위 밖의 sealedEpochBodies에 실리고, 참조의 sealHash가 본문 변조를 잡는다.
+  static async #fetchShards(repository: SessionRepository<SessionSnapshot>, sessionId: string, kind: SessionShardRecord["kind"], info: { chunks: string[]; total: number }) {
+    const items: unknown[] = [];
+    for (let offset = 0; offset < info.chunks.length; offset += 1) {
+      const row = await repository.get(PlaySession.shardRecordId(sessionId, kind, offset)),
+        record = row?.payload as unknown as SessionShardRecord | undefined;
+      if (!record || record.contract !== SESSION_SHARD_CONTRACT || record.kind !== kind || !Array.isArray(record.items))
+        throw new Error(`session_corrupt:shard_missing:${kind}:${offset}`);
+      items.push(...record.items);
+    }
+    if (items.length !== info.total) throw new Error(`session_corrupt:shard_missing:${kind}:total`);
+    return items;
+  }
+  // 디스크 로드용 조립: 샤드 청크(메시지·저널 이벤트)와 봉인 본문 레코드를 합쳐 restore 가능한 형태로
+  // 만든다. 조립물의 위·변조는 restore의 integrity v2 전체 재계산이 잡는다(청크 해시는 쓰기 최적화용).
   static async assembleSnapshot(payload: SessionSnapshot, repository: SessionRepository<SessionSnapshot>): Promise<SessionSnapshot> {
-    const journal = payload.journal;
+    let assembled = payload;
+    const manifest = payload.shardManifest;
+    if (manifest) {
+      const messages = (await PlaySession.#fetchShards(repository, payload.id, "messages", manifest.messages)) as ChatMessage[],
+        events = await PlaySession.#fetchShards(repository, payload.id, "journal-events", manifest.journalEvents),
+        journal = payload.journal && payload.journal.contract === "simbot-event-journal/0.2"
+          ? { ...payload.journal, events: events as EngineJournalDataV02["events"] }
+          : payload.journal;
+      assembled = { ...payload, messages, ...(journal ? { journal } : {}) };
+    }
+    const journal = assembled.journal;
     const refs = journal && journal.contract === "simbot-event-journal/0.2" ? journal.sealedEpochRefs ?? [] : [];
-    if (!refs.length || (journal && journal.contract === "simbot-event-journal/0.2" && journal.sealedEpochs.length)) return payload;
+    if (!refs.length || (journal && journal.contract === "simbot-event-journal/0.2" && journal.sealedEpochs.length)) return assembled;
     const bodies: SealedEngineJournalEpoch[] = [];
     for (const ref of refs) {
       const row = await repository.get(PlaySession.sealedEpochRecordId(payload.id, ref.offset)),
@@ -1482,7 +1530,7 @@ export class PlaySession {
         throw new Error(`journal_corrupt:sealed_epoch_record_${ref.offset}_hash`);
       bodies.push(record.epoch);
     }
-    return { ...payload, sealedEpochBodies: bodies };
+    return { ...assembled, sealedEpochBodies: bodies };
   }
   #effectiveJournal(data: SessionSnapshot): EngineJournalData | undefined {
     const journal = data.journal;
@@ -1498,21 +1546,63 @@ export class PlaySession {
     }
     return { ...journal, sealedEpochs: bodies };
   }
+  static shardRecordId(sessionId: string, kind: "messages" | "journal-events", offset: number) {
+    return `${sessionId}::shard:${kind}:${offset}`;
+  }
+  // append-only 배열을 청크로 나눠 바뀐 꼬리만 다시 쓴다. 완결 청크 해시는 캐시를 신뢰한다
+  // (배열을 자르는 모든 연산이 캐시를 무효화하므로 — 무효화 지점은 #messagesChain과 동일 + truncateTo).
+  async #writeShards(kind: "messages" | "journal-events", items: readonly unknown[], chunkSize: number, previous: string[] | null) {
+    const chunkCount = Math.ceil(items.length / chunkSize) || 0, hashes: string[] = [];
+    for (let offset = 0; offset < chunkCount; offset += 1) {
+      const complete = (offset + 1) * chunkSize <= items.length,
+        cached = previous?.[offset],
+        reusable = !!cached && complete && offset < (previous?.length ?? 0) - 1;
+      if (reusable) { hashes.push(cached); continue; }
+      const chunk = items.slice(offset * chunkSize, (offset + 1) * chunkSize), hash = stableHash(chunk);
+      hashes.push(hash);
+      if (cached === hash && complete) continue; // 내용 동일 — 재기록 불필요
+      await this.#repository!.put({
+        id: PlaySession.shardRecordId(this.id, kind, offset),
+        schemaHash: this.runtime.project.projectId,
+        title: `${this.#card.name} · ${kind} ${offset}`,
+        updatedAt: Date.now(),
+        payload: { contract: SESSION_SHARD_CONTRACT, sessionId: this.id, kind, offset, items: chunk } as unknown as SessionSnapshot,
+      });
+    }
+    for (let orphan = chunkCount; orphan < (previous?.length ?? 0); orphan += 1)
+      await this.#repository!.delete(PlaySession.shardRecordId(this.id, kind, orphan));
+    return hashes;
+  }
   async save() {
     if (!this.#repository) return;
     await this.#persistSealedEpochs();
+    // 원본 배열을 그대로 샤딩한다 — put이 구조적 클론을 뜨므로 여기서 또 클론하지 않는다(파동 4).
+    const rawMessages = this.#messages, rawEvents = this.#journal.rawEvents, shell = this.#journal.toPersistedShell();
+    this.#messageShardHashes = await this.#writeShards("messages", rawMessages, MESSAGE_SHARD_SIZE, this.#messageShardHashes);
+    this.#journalShardHashes = await this.#writeShards("journal-events", rawEvents, JOURNAL_SHARD_SIZE, this.#journalShardHashes);
+    const manifest: SessionShardManifest = {
+      version: 1,
+      messages: { chunkSize: MESSAGE_SHARD_SIZE, total: rawMessages.length, chunks: this.#messageShardHashes },
+      journalEvents: { chunkSize: JOURNAL_SHARD_SIZE, total: rawEvents.length, chunks: this.#journalShardHashes },
+    };
+    const core = this.#snapshotWith(shell, []); // 서명은 논리적 전체 기준(체인 재사용) — 코어의 빈 배열과 무관
     await this.#repository.put({
       id: this.id,
       schemaHash: this.runtime.project.projectId,
       title: this.#card.name,
       updatedAt: Date.now(),
-      payload: this.#snapshotWith(this.#journal.toPersistedJSON()),
+      payload: { ...core, shardManifest: manifest },
     });
   }
   snapshot(): SessionSnapshot {
     return this.#snapshotWith(this.#journal.toJSON()); // 내보내기·백업은 자기완결(본문 인라인)
   }
-  #snapshotWith(journal: EngineJournalData): SessionSnapshot {
+  #ensureMessagesChain(): string {
+    if (!this.#messagesChain || this.#messagesChain.count !== this.#messages.length)
+      this.#messagesChain = { count: this.#messages.length, hash: messagesChainHash(this.messages) };
+    return this.#messagesChain.hash;
+  }
+  #snapshotWith(journal: EngineJournalData, messages: ChatMessage[] = this.messages): SessionSnapshot {
     const patches = this.continuityPatches,
       base = {
         contract: "simbot-play-session/0.1" as const,
@@ -1520,7 +1610,7 @@ export class PlaySession {
         projectId: this.runtime.project.projectId,
         schemaFingerprint: runtimeSchemaFingerprint(this.runtime),
         turn: this.#turn,
-        messages: this.messages,
+        messages,
         engine: this.runtime.snapshot(),
         memory: this.memory.all(),
         ...(patches.length ? { continuityPatches: patches } : {}),
@@ -1549,11 +1639,10 @@ export class PlaySession {
           : {}),
       };
     // v2 서명: 저널은 클래스가 유지한 롤링 체인, 메시지는 세션 롤링 체인을 재사용해 O(변경분)로 서명한다.
-    if (!this.#messagesChain || this.#messagesChain.count !== base.messages.length)
-      this.#messagesChain = { count: base.messages.length, hash: messagesChainHash(base.messages) };
+    // 서명은 '논리적 전체'(조립 후 형태)에 대한 것 — 샤딩 코어의 빈 배열은 서명 재료가 아니다.
     const { integrity } = sessionIntegrityV2(base, {
       journal: this.#journal.currentIntegrityHash(),
-      messages: this.#messagesChain.hash,
+      messages: this.#ensureMessagesChain(),
     });
     return { ...base, integrityVersion: 2, integrity };
   }
@@ -1563,6 +1652,13 @@ export class PlaySession {
       value.projectId !== this.runtime.project.projectId
     )
       throw new Error("session_snapshot_incompatible");
+    // 샤딩 코어를 조립 없이 넣으면 integrity 불일치로 오인되므로 명시적 오류를 먼저 낸다(파동 4).
+    if (
+      value.shardManifest &&
+      (value.messages.length !== value.shardManifest.messages.total ||
+        (value.journal?.contract === "simbot-event-journal/0.2" && value.journal.events.length !== value.shardManifest.journalEvents.total))
+    )
+      throw new Error("session_shards_missing");
     // 무결성 해시는 필수 — 해시 필드를 지우는 것만으로 변조 검증을 우회할 수 있으므로(감사 Critical)
     // 누락도 거부한다. v2(섹션 합성)는 전체 재계산으로 대조하고, 버전 없는 구형은 구 알고리즘으로 검증한다.
     if (value.integrityVersion === 2) {
@@ -1609,6 +1705,9 @@ export class PlaySession {
         ? (data.journal.sealedEpochRefs ?? []).map((ref) => ref.offset)
         : [],
     );
+    // 샤드 청크 캐시 시딩 — integrity 통과한 매니페스트만 신뢰. 인라인(구형·백업)은 null → 전량 재기록.
+    this.#messageShardHashes = data.shardManifest ? [...data.shardManifest.messages.chunks] : null;
+    this.#journalShardHashes = data.shardManifest ? [...data.shardManifest.journalEvents.chunks] : null;
     this.#turn = data.turn;
     this.#messages = data.messages.map((message) => ({
       ...message,
@@ -1616,6 +1715,7 @@ export class PlaySession {
         message.origin ?? (message.role === "assistant" ? "model" : "user"),
     }));
     this.#messagesChain = null;
+    this.#messageShardHashes = null;
     this.#lastLogs = data.lastLogs;
     this.#lastSpeakers = clone(data.lastSpeakers ?? []);
     this.#alternates = clone(data.alternates ?? []);
@@ -1754,6 +1854,7 @@ export class PlaySession {
     this.#turn = value.turn;
     this.#messages = messages;
     this.#messagesChain = null;
+    this.#messageShardHashes = null;
     this.memory.reset(value.memory);
     this.#continuityPatches.reset(value.continuityPatches ?? []);
     this.#lastLogs = clone(value.lastLogs);
@@ -1831,6 +1932,7 @@ export class PlaySession {
   #restoreAlternate(value: AlternateState) {
     this.#messages = clone(value.messages);
     this.#messagesChain = null;
+    this.#messageShardHashes = null;
     this.#lastLogs = clone(value.logs);
     this.#lastSpeakers = clone(value.speakers);
     this.#promptRuns = compactPromptRuns(clone(value.promptRuns ?? []));
@@ -2105,7 +2207,7 @@ export class PlaySession {
     this.#messages.push(message);
     if (this.#messagesChain && this.#messagesChain.count === this.#messages.length - 1)
       this.#messagesChain = { count: this.#messages.length, hash: fnv1a(this.#messagesChain.hash + stableHash(message)) };
-    else this.#messagesChain = null;
+    else { this.#messagesChain = null; this.#messageShardHashes = null; } // append는 청크 캐시를 깨지 않는다 — 체인 이탈 시에만 폐기
     this.#notify();
     return message;
   }

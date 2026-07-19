@@ -172,14 +172,19 @@ describe("봉인 에폭 분리 보관 — 파동 2", () => {
     (body.payload as unknown as { epoch: { sealHash: string } }).epoch.sealHash = "tampered";
     await repository.put(body);
     await expect(PlaySession.assembleSnapshot(hot, repository)).rejects.toThrow("sealed_epoch_record_0");
-    // ② 참조 변조 → integrity 거부
-    const forged = structuredClone(hot);
+    // ② 참조 변조 → integrity 거부 (샤드는 정상 조립 후 참조만 위조)
+    const cleanBody = structuredClone(body); (cleanBody.payload as unknown as { epoch: { sealHash: string } }).epoch.sealHash = String((hot.journal?.contract === "simbot-event-journal/0.2" ? hot.journal.sealedEpochRefs?.[0]?.sealHash : "") ?? "");
+    await repository.put(cleanBody); // 본문 원복
+    const assembled = await PlaySession.assembleSnapshot(hot, repository), forged = structuredClone(assembled);
     if (forged.journal?.contract === "simbot-event-journal/0.2" && forged.journal.sealedEpochRefs)
       (forged.journal.sealedEpochRefs as unknown as Array<{ sealHash: string }>)[0]!.sealHash = "forged";
     const victim = new PlaySession({ id: "epoch-split", runtime: new ProjectRuntime(project(2, 5), 7, new ModuleRegistry().register(module())), preset: defaultCardPreset(), card: { name: "Epoch" }, provider, repository });
-    expect(() => victim.restore({ ...forged, sealedEpochBodies: [] })).toThrow("session_corrupt:integrity");
-    // ③ 조립 없이 restore → 본문 누락 오류
-    expect(() => victim.restore(hot)).toThrow("journal_epoch_bodies_missing");
+    expect(() => victim.restore(forged)).toThrow("session_corrupt:integrity");
+    // ③ 봉인 본문 없이 restore → 본문 누락 오류 (샤드는 조립된 상태)
+    const bodiless = structuredClone(assembled); delete (bodiless as Partial<SessionSnapshot>).sealedEpochBodies;
+    expect(() => victim.restore(bodiless)).toThrow("journal_epoch_bodies_missing");
+    // ④ 샤딩 코어를 조립 없이 restore → 명시적 샤드 누락 오류
+    expect(() => victim.restore(hot)).toThrow("session_shards_missing");
   });
   it("구형 인라인 스냅샷은 그대로 로드되고 다음 save에서 분리형으로 승격된다", async () => {
     const { repository } = await sealedSetup();

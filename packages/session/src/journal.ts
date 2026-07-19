@@ -248,17 +248,25 @@ export class SessionJournal {
     this.#runtime.restore(migratedInitial);
     return clone(epoch);
   }
-  #dataCore() {
+  #coreSansEvents() {
     return {
       contract: "simbot-event-journal/0.2" as const,
       schemaHash: this.#schemaHash,
       baseIndex: this.#baseIndex,
       initial: { state: jsonRecord(clone(this.#initial.state)), rng: this.#initial.rng },
       snapshotInterval: this.#snapshotInterval,
-      events: clone(this.#events),
       cursor: this.#cursor,
       head: this.head(),
     };
+  }
+  #dataCore() {
+    return { ...this.#coreSansEvents(), events: clone(this.#events) };
+  }
+  // 샤딩 저장용 원본 이벤트 — 추가 전용·기록 후 불변이므로 클론 없이 내보낸다. 절대 변형 금지.
+  get rawEvents(): readonly EngineJournalEvent[] { return this.#events; }
+  // 이벤트 없는 셸(파동 4) — 이벤트는 청크 레코드로, 봉인 본문은 sealed-epoch 레코드로 나간다.
+  toPersistedShell(): EngineJournalDataV02 {
+    return { ...this.#coreSansEvents(), events: [], sealedEpochs: [], ...(this.#sealedEpochs.length ? { sealedEpochRefs: this.sealedEpochRefs() } : {}) };
   }
   sealedEpochRefs(): SealedEpochRef[] {
     return this.#sealedEpochs.map((epoch, offset) => ({ offset, sealedIndex: epoch.sealedIndex, sealHash: epoch.sealHash, schemaHash: epoch.schemaHash }));

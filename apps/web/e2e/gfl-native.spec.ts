@@ -224,6 +224,25 @@ test('호감이 앞서가면 승급 대기 배지가 뜨고 대화 성공이 한
   await expect(console.locator('.pending-badge')).toContainText('승급 대기 · 신뢰');
 });
 
+test('연속 엔진 클릭은 채팅에서 접힌 영수증 묶음이 되고 펼치면 전부 보인다',async({page})=>{
+  await page.setViewportSize({width:844,height:720});
+  const simulation=await importGfl(page),console=simulation.getByLabel('소녀전선 지휘 콘솔');
+  await console.getByRole('button',{name:'지휘관으로 시작'}).click();
+  await console.getByRole('button',{name:'인형 고용',exact:true}).click(); await console.getByRole('button',{name:'🎲 오늘의 인형 뽑기'}).click();
+  await console.getByRole('button',{name:'계약',exact:true}).first().click(); await console.getByRole('button',{name:/다음 시간대 · 수송 도착/}).click();
+  await console.getByRole('button',{name:'인형',exact:true}).click();
+  await console.getByRole('button',{name:'기지 대표로 설정'}).click(); // ledger 3연속
+  await console.getByRole('button',{name:'수복 투입'}).click();
+  await console.getByRole('button',{name:'MOD 개조'}).click();
+  await simulation.getByRole('button',{name:'닫기'}).click(); await expect(simulation).toBeHidden();
+  const receipts=page.locator('.list article.message',{hasText:'장부에 반영되었습니다'});
+  const toggle=page.getByRole('button',{name:/엔진 영수증 3건/}).last(); // 준비 클릭 묶음도 접힐 수 있어 마지막 것
+  await expect(toggle).toBeVisible(); // 마지막 3연속 묶음이 접혔다
+  const collapsed=await receipts.count(); // 앞선 준비 클릭 묶음도 각 1건씩만 보인다
+  await toggle.click();
+  await expect(receipts).toHaveCount(collapsed+2); // 이전 2건이 펼쳐진다
+});
+
 test('신뢰 인형과 외출해 시간대를 쓰고 수락한 수복 약속의 이행 영수증을 받는다',async({page})=>{
   await page.goto('/'); await expect(page.getByRole('button',{name:/카드 가져오기/}).first()).toBeVisible({timeout:15_000});
   await page.locator('input[accept=".simpack,.charx,.png,.json"]').setInputFiles({name:'gfl-romance.simpack',mimeType:'application/zip',buffer:romanceSimpack});
@@ -403,6 +422,7 @@ test('채팅 결정 카드에서 게이지·오토런을 직접 다룬다',async
   await expect(mirror).toContainText('지휘 게이지 0/100');
   await mirror.getByRole('button',{name:'자동 진행 · 정지 지점까지'}).click();
   await expect(page.getByText(/자동 진행 · \d+단계/).first()).toBeVisible();
-  await expect(page.locator('.message')).toHaveCount(chatMessagesBefore+2);
+  // 오토런은 채팅에 메시지 2개(사용자 의도+서사)만 더한다 — 표시 병합으로 보이는 수는 그 이하일 수 있다.
+  await expect.poll(async()=>page.locator('.message').count()).toBeLessThanOrEqual(chatMessagesBefore+2);
   await expect(page.locator('.message .meta .model')).toHaveCount(modelMessagesBefore);
 });
