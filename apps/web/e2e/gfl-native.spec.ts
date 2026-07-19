@@ -469,3 +469,16 @@ test('누적 회차에서도 로컬 엔진 버튼의 화면 반영 p95가 100ms 
   expect(totals).toHaveLength(20);
   expect(totals[Math.ceil(totals.length*.95)-1],samples.join('\n')).toBeLessThanOrEqual(100);
 });
+
+test('사람처럼 1초씩 쉬어 눌러도 전체 저장이 다음 엔진 행동을 가로막지 않는다',async({page})=>{
+  await page.setViewportSize({width:844,height:720});
+  const simulation=await importGfl(page),console=simulation.getByLabel('소녀전선 지휘 콘솔');
+  await console.getByRole('button',{name:'지휘관으로 시작'}).click();
+  await console.getByRole('button',{name:'작전',exact:true}).click();
+  const silent=console.getByRole('button',{name:'엔진 전용 · LLM 0회'}),auto=console.getByRole('button',{name:'자동 진행 + AI 서사'});
+  for(let index=0;index<4;index+=1){await new Promise(resolve=>setTimeout(resolve,1_000));await(index%2?silent:auto).click();}
+  const samples=(await console.locator('.performance-diagnostics>details').allTextContents()).slice(0,4),totals=samples.map(text=>Number(text.match(/합계 ([\d,.]+)ms/)?.[1]?.replaceAll(',','')??NaN));
+  expect(totals.every(value=>Number.isFinite(value)&&value<=100),samples.join('\n')).toBe(true);
+  await expect(console.locator('.performance-diagnostics>details').first()).toContainText('background-save-wait-complete');
+  await expect(console.locator('.performance-diagnostics>details').first()).toContainText('wal-build-complete');
+});

@@ -239,6 +239,7 @@ export interface SessionShardManifest {
   messages: { chunkSize: number; total: number; chunks: string[] };
   journalEvents: { chunkSize: number; total: number; chunks: string[] };
 }
+interface SessionSaveBatch{messages:ChatMessage[];events:EngineJournalEvent[];shell:EngineJournalData;core:SessionSnapshot;epochs:Array<{offset:number;epoch:SealedEngineJournalEpoch}>;messageHashes:string[]|null;journalHashes:string[]|null;walCutoff:number;}
 export interface LedgerNarrativeDelta {
   key: string;
   eventId: string;
@@ -599,6 +600,7 @@ export class PlaySession {
   #backgroundSaveError: unknown = null;
   #walPresent = false;
   #pendingWalActions: ActionWalEntry[] = [];
+  #walTail: Promise<void> = Promise.resolve();
   #alternates: AlternateState[] = [];
   #responseBranches: ResponseBranchSet[] = [];
   #promptRuns: PromptRun[] = [];
@@ -1198,7 +1200,8 @@ export class PlaySession {
     traceAction(trace, "session-start");
     try {
       traceAction(trace, "background-save-wait-start");
-      await this.#flushBackgroundSave();
+      // 정본이 한 번 생긴 뒤에는 작은 WAL이 다음 행동을 보호한다. 백그라운드 전체 저장을 기다리지 않는다.
+      if (!this.#persistedIntegrity) await this.#flushBackgroundSave();
       traceAction(trace, "background-save-wait-complete");
       await this.#ensurePersistedBase();
       traceAction(trace, "base-persist-complete");
@@ -1256,7 +1259,7 @@ export class PlaySession {
       stateBefore = this.runtime.snapshot();
     try {
       traceAction(trace, "background-save-wait-start");
-      await this.#flushBackgroundSave();
+      if (!this.#persistedIntegrity) await this.#flushBackgroundSave();
       traceAction(trace, "background-save-wait-complete");
       await this.#ensurePersistedBase();
       traceAction(trace, "base-persist-complete");
@@ -1609,12 +1612,11 @@ export class PlaySession {
     return `${sessionId}::sealed-epoch:${offset}`;
   }
   // 봉인 본문은 불변 — 세션당 1회만 기록하고 이후 save에서는 건드리지 않는다(파동 2).
-  async #persistSealedEpochs() {
+  async #persistSealedEpochs(captured?:Array<{offset:number;epoch:SealedEngineJournalEpoch}>) {
     if (!this.#repository) return;
-    for (let offset = 0; offset < this.#journal.sealedEpochCount; offset += 1) {
+    const entries=captured??Array.from({length:this.#journal.sealedEpochCount},(_,offset)=>({offset,epoch:this.#journal.sealedEpochAt(offset)})).filter((entry):entry is{offset:number;epoch:SealedEngineJournalEpoch}=>!!entry.epoch);
+    for (const {offset,epoch} of entries) {
       if (this.#persistedEpochOffsets.has(offset)) continue;
-      const epoch = this.#journal.sealedEpochAt(offset);
-      if (!epoch) continue;
       await this.#repository.put({
         id: PlaySession.sealedEpochRecordId(this.id, offset),
         schemaHash: this.runtime.project.projectId,
@@ -1731,41 +1733,12 @@ export class PlaySession {
   async #ensurePersistedBase() {
     if (this.#repository && !this.#persistedIntegrity) await this.#saveNow();
   }
+  #withWalLock<T>(work:()=>Promise<T>){const running=this.#walTail.then(work,work);this.#walTail=running.then(()=>{},()=>{});return running;}
+  #walReceipt(actions:ActionWalEntry[],baseIntegrity:string):ActionWalReceipt{const latest=actions.at(-1);if(!latest)throw new Error("action_wal_empty");const unsigned:Omit<ActionWalReceipt,"hash">={contract:ACTION_WAL_CONTRACT,sessionId:this.id,baseIntegrity,mode:latest.mode,events:latest.events,expectedJournalCursor:latest.expectedJournalCursor,expectedStateHash:latest.expectedStateHash,expectedRng:latest.expectedRng,expectedLogsHash:latest.expectedLogsHash,turnAfter:latest.turnAfter,actions};return{...unsigned,hash:actionWalHash(unsigned)};}
+  async #putWal(actions:ActionWalEntry[],baseIntegrity:string){const receipt=this.#walReceipt(actions,baseIntegrity);await this.#repository!.put({id:PlaySession.actionWalRecordId(this.id),schemaHash:this.runtime.project.projectId,title:`${this.#card.name} · action receipt`,updatedAt:Date.now(),payload:receipt as unknown as SessionSnapshot});this.#walPresent=true;}
   async #persistActionReceipt(mode: ActionWalReceipt["mode"], eventOffset: number, logs: Record<string, unknown>[], turnAfter: number, trace?: SessionActionTrace) {
     if (!this.#repository || !this.#persistedIntegrity) return false;
-    const head = this.#journal.head(), action: ActionWalEntry = {
-      mode,
-      events: clone(this.#journal.rawEvents.slice(eventOffset)),
-      expectedJournalCursor: head.index,
-      expectedStateHash: head.stateHash,
-      expectedRng: head.rng,
-      expectedLogsHash: stableHash(logs),
-      turnAfter,
-    }, actions = [...this.#pendingWalActions, action], unsigned: Omit<ActionWalReceipt, "hash"> = {
-      contract: ACTION_WAL_CONTRACT,
-      sessionId: this.id,
-      baseIntegrity: this.#persistedIntegrity,
-      mode,
-      events: action.events,
-      expectedJournalCursor: head.index,
-      expectedStateHash: head.stateHash,
-      expectedRng: head.rng,
-      expectedLogsHash: stableHash(logs),
-      turnAfter,
-      actions,
-    };
-    const receipt: ActionWalReceipt = { ...unsigned, hash: actionWalHash(unsigned) };
-    traceAction(trace, "wal-build-complete");
-    await this.#repository.put({
-      id: PlaySession.actionWalRecordId(this.id),
-      schemaHash: this.runtime.project.projectId,
-      title: `${this.#card.name} · action receipt`,
-      updatedAt: Date.now(),
-      payload: receipt as unknown as SessionSnapshot,
-    });
-    this.#walPresent = true;
-    this.#pendingWalActions = actions;
-    return true;
+    return this.#withWalLock(async()=>{const head=this.#journal.head(),action:ActionWalEntry={mode,events:clone(this.#journal.rawEvents.slice(eventOffset)),expectedJournalCursor:head.index,expectedStateHash:head.stateHash,expectedRng:head.rng,expectedLogsHash:stableHash(logs),turnAfter},actions=[...this.#pendingWalActions,action];traceAction(trace,"wal-build-complete");await this.#putWal(actions,this.#persistedIntegrity!);this.#pendingWalActions=actions;return true;});
   }
   async #flushBackgroundSave() {
     if (this.#backgroundSaveTimer) {
@@ -1789,36 +1762,24 @@ export class PlaySession {
       this.#backgroundSave = queued;
     }, 750);
   }
+  #captureSaveBatch():SessionSaveBatch{const messages=this.messages,events=[...clone(this.#journal.rawEvents)],shell=clone(this.#journal.toPersistedShell()),core=this.#snapshotWith(shell,[]),epochs:Array<{offset:number;epoch:SealedEngineJournalEpoch}>=[];for(let offset=0;offset<this.#journal.sealedEpochCount;offset+=1){const epoch=this.#journal.sealedEpochAt(offset);if(epoch)epochs.push({offset,epoch:clone(epoch)});}return{messages,events,shell,core,epochs,messageHashes:this.#messageShardHashes?[...this.#messageShardHashes]:null,journalHashes:this.#journalShardHashes?[...this.#journalShardHashes]:null,walCutoff:this.#pendingWalActions.length};}
   async #saveNow() {
     if (!this.#repository) return;
-    await this.#persistSealedEpochs();
-    // 원본 배열을 그대로 샤딩한다 — put이 구조적 클론을 뜨므로 여기서 또 클론하지 않는다(파동 4).
-    const rawMessages = this.#messages, rawEvents = this.#journal.rawEvents, shell = this.#journal.toPersistedShell();
-    const messageWrite = await this.#writeShards("messages", rawMessages, MESSAGE_SHARD_SIZE, this.#messageShardHashes),
-      journalWrite = await this.#writeShards("journal-events", rawEvents, JOURNAL_SHARD_SIZE, this.#journalShardHashes);
-    this.#messageShardHashes = messageWrite.hashes;
-    this.#journalShardHashes = journalWrite.hashes;
+    // 비동기 디스크 작업 전에 한 시점의 불변 묶음을 만든다. 이후 엔진 행동은 이 묶음을 바꾸지 않는다.
+    const batch=this.#captureSaveBatch();
+    await this.#persistSealedEpochs(batch.epochs);
+    const messageWrite = await this.#writeShards("messages", batch.messages, MESSAGE_SHARD_SIZE, batch.messageHashes),
+      journalWrite = await this.#writeShards("journal-events", batch.events, JOURNAL_SHARD_SIZE, batch.journalHashes);
     const manifest: SessionShardManifest = {
       version: 1,
-      messages: { chunkSize: MESSAGE_SHARD_SIZE, total: rawMessages.length, chunks: this.#messageShardHashes },
-      journalEvents: { chunkSize: JOURNAL_SHARD_SIZE, total: rawEvents.length, chunks: this.#journalShardHashes },
+      messages: { chunkSize: MESSAGE_SHARD_SIZE, total: batch.messages.length, chunks: messageWrite.hashes },
+      journalEvents: { chunkSize: JOURNAL_SHARD_SIZE, total: batch.events.length, chunks: journalWrite.hashes },
     };
-    const core = this.#snapshotWith(shell, []); // 서명은 논리적 전체 기준(체인 재사용) — 코어의 빈 배열과 무관
-    await this.#repository.put({
-      id: this.id,
-      schemaHash: this.runtime.project.projectId,
-      title: this.#card.name,
-      updatedAt: Date.now(),
-      payload: { ...core, shardManifest: manifest },
-    });
-    this.#persistedIntegrity = core.integrity ?? null;
+    await this.#repository.put({id:this.id,schemaHash:this.runtime.project.projectId,title:this.#card.name,updatedAt:Date.now(),payload:{...batch.core,shardManifest:manifest}});
+    this.#messageShardHashes=messageWrite.hashes;this.#journalShardHashes=journalWrite.hashes;
     // 새 코어가 새 해시 청크를 가리킨 뒤에만 이전 청크를 정리한다. 중간 종료 시에도 옛 코어는 완전하다.
     for (const id of [...messageWrite.obsolete, ...journalWrite.obsolete]) await this.#repository.delete(id);
-    if (this.#walPresent) {
-      await this.#repository.delete(PlaySession.actionWalRecordId(this.id));
-      this.#walPresent = false;
-      this.#pendingWalActions = [];
-    }
+    await this.#withWalLock(async()=>{const integrity=batch.core.integrity??null;if(!integrity)throw new Error("session_integrity_missing");const remaining=this.#pendingWalActions.slice(batch.walCutoff);this.#persistedIntegrity=integrity;this.#pendingWalActions=remaining;if(remaining.length)await this.#putWal(remaining,integrity);else if(this.#walPresent){await this.#repository!.delete(PlaySession.actionWalRecordId(this.id));this.#walPresent=false;}});
   }
   async save() {
     await this.#flushBackgroundSave();
