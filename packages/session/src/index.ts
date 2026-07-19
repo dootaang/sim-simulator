@@ -181,7 +181,8 @@ export interface SessionCheckpoint {
   cbsVariables: Record<string, string>;
   lastSpeakers: SpeakerReference[];
   alternates: AlternateState[];
-  ledgerDeltas: string[];
+  ledgerDeltas?: string[];
+  ledgerNarrativeQueue?: LedgerNarrativeDelta[];
   journalCursor: number;
   cardRuntimeCursor?: number;
   bindings: SessionCheckpointBindings;
@@ -212,6 +213,7 @@ export interface SessionSnapshot {
   history?: SessionHistory;
   bindings?: SessionBindings;
   ledgerDeltas?: string[];
+  ledgerNarrativeQueue?: LedgerNarrativeDelta[];
   integrity?: string;
   // 2 = 섹션 해시 합성(파동 3). 부재 = 구형 전체 직렬화 서명 — restore가 버전별로 검증한다.
   integrityVersion?: number;
@@ -229,6 +231,14 @@ export interface SessionShardManifest {
   version: 1;
   messages: { chunkSize: number; total: number; chunks: string[] };
   journalEvents: { chunkSize: number; total: number; chunks: string[] };
+}
+export interface LedgerNarrativeDelta {
+  key: string;
+  eventId: string;
+  count: number;
+  firstJournalIndex: number;
+  lastJournalIndex: number;
+  summaries: string[];
 }
 interface SessionShardRecord {
   contract: typeof SESSION_SHARD_CONTRACT;
@@ -296,6 +306,7 @@ export function sessionIntegrityV2(
       ...(snapshot.responseBranches ? { responseBranches: snapshot.responseBranches } : {}),
       ...(snapshot.promptRuns ? { promptRuns: snapshot.promptRuns } : {}),
       ...(snapshot.ledgerDeltas ? { ledgerDeltas: snapshot.ledgerDeltas } : {}),
+      ...(snapshot.ledgerNarrativeQueue ? { ledgerNarrativeQueue: snapshot.ledgerNarrativeQueue } : {}),
       lastLogs: snapshot.lastLogs,
     }),
   };
@@ -331,6 +342,7 @@ export function sessionIntegrity(
       ...(snapshot.history ? { history: snapshot.history } : {}),
       ...(snapshot.bindings ? { bindings: snapshot.bindings } : {}),
       ...(snapshot.ledgerDeltas ? { ledgerDeltas: snapshot.ledgerDeltas } : {}),
+      ...(snapshot.ledgerNarrativeQueue ? { ledgerNarrativeQueue: snapshot.ledgerNarrativeQueue } : {}),
     }),
   );
 }
@@ -351,6 +363,10 @@ const MEMORY_ANCHOR_KEYS = [
   "itemId",
   "recipeId",
   "slotId",
+  "dollId",
+  "echelonId",
+  "missionId",
+  "locationId",
 ] as const;
 function engineMemoryAnchor(eventId: string, log: Record<string, unknown>) {
   const parts = [eventId];
@@ -361,6 +377,22 @@ function engineMemoryAnchor(eventId: string, log: Record<string, unknown>) {
     )
       parts.push(`${key}=${String(log[key])}`);
   return `engine:${parts.join(":")}`;
+}
+const MAX_LEDGER_NARRATIVE_GROUPS = 24;
+const MAX_LEDGER_NARRATIVE_SAMPLES = 3;
+function ledgerNarrativeSummary(log: Record<string, unknown>) {
+  const text = stableStringify(log);
+  return text.length > 600 ? `${text.slice(0, 597)}…` : text;
+}
+function legacyLedgerQueue(values: readonly string[]): LedgerNarrativeDelta[] {
+  return values.slice(-MAX_LEDGER_NARRATIVE_GROUPS).map((summary, index) => ({
+    key: `legacy:${index}`,
+    eventId: "legacy",
+    count: 1,
+    firstJournalIndex: -1,
+    lastJournalIndex: -1,
+    summaries: [summary],
+  }));
 }
 // UI가 건네는 값은 프레임워크 프록시($state 등)일 수 있고 structuredClone은 Proxy를 복제하지 못한다.
 // caller 경계에서만 관용적으로 복제한다 — 세션 데이터는 어차피 JSON 직렬화 대상이라 폴백이 안전하다.
@@ -480,6 +512,7 @@ export interface AlternateState {
   speakers: SpeakerReference[];
   promptRuns: PromptRun[];
   ledgerDeltas?: string[];
+  ledgerNarrativeQueue?: LedgerNarrativeDelta[];
   journalCursor?: number;
   cardRuntimeCursor?: number;
   turn?: number;
@@ -530,7 +563,9 @@ export class PlaySession {
   #responseBranches: ResponseBranchSet[] = [];
   #promptRuns: PromptRun[] = [];
   #narrativeIssues: NarrativeIssue[] = [];
-  #ledgerDeltas: string[] = [];
+  // 다음 서사 장면에 아직 전달하지 않은 엔진 사실만 둔다. 원본은 저널에 있으므로 같은 사건은
+  // 식별 앵커별로 접고 최근 표본만 보존한다 — silent 장기 플레이가 이 배열을 무한히 키우지 않는다.
+  #ledgerNarrativeQueue: LedgerNarrativeDelta[] = [];
   #listeners = new Set<() => void>();
   #regexScripts: RegexScript[];
   #cbsVariables: Record<string, string>;
@@ -1128,7 +1163,7 @@ export class PlaySession {
       this.#narrativeIssues = [];
       this.#recordEngineFacts(id, logs, this.#journal.cursor);
       for (const log of logs)
-        if (log.ok) this.#ledgerDeltas.push(`${id}: ${JSON.stringify(log)}`);
+        if (log.ok) this.#enqueueLedgerNarrative(id, log, this.#journal.cursor);
       traceAction(trace, "memory-complete");
       this.#append("assistant", "장부에 반영되었습니다.", "ledger", {
         facts: logs,
@@ -1300,7 +1335,7 @@ export class PlaySession {
             : {}),
         };
       this.#promptRuns = compactPromptRuns([...this.#promptRuns, run]);
-      this.#ledgerDeltas = [];
+      this.#ledgerNarrativeQueue = [];
       this.#turn += 1;
       traceAction(trace, "receipt-complete");
       traceAction(trace, "save-start");
@@ -1657,8 +1692,8 @@ export class PlaySession {
           persona: clone(this.#persona),
           preset: clone(this.#preset),
         },
-        ...(this.#ledgerDeltas.length
-          ? { ledgerDeltas: clone(this.#ledgerDeltas) }
+        ...(this.#ledgerNarrativeQueue.length
+          ? { ledgerNarrativeQueue: clone(this.#ledgerNarrativeQueue) }
           : {}),
         ...(this.#alternates.length
           ? { alternates: clone(this.#alternates) }
@@ -1772,7 +1807,9 @@ export class PlaySession {
         logicalTimeMs: 1_700_000_000_000,
       });
     }
-    this.#ledgerDeltas = clone(data.ledgerDeltas ?? []);
+    this.#ledgerNarrativeQueue = data.ledgerNarrativeQueue
+      ? clone(data.ledgerNarrativeQueue)
+      : legacyLedgerQueue(data.ledgerDeltas ?? []);
     this.#checkpoints = clone(data.history?.undo ?? []).slice(-30);
     this.#redoStack = clone(data.history?.redo ?? []).slice(-30);
     if (epochResult) {
@@ -1872,7 +1909,7 @@ export class PlaySession {
       cbsVariables: clone(this.#cbsVariables),
       lastSpeakers: this.rawLastSpeakers,
       alternates: clone(this.#alternates),
-      ledgerDeltas: clone(this.#ledgerDeltas),
+      ledgerNarrativeQueue: clone(this.#ledgerNarrativeQueue),
       journalCursor: this.#journal.cursor,
       cardRuntimeCursor: this.#cardRuntimeJournal.cursor,
       bindings: { persona: clone(this.#persona), presetRef: { id: this.#preset.id, version: this.#preset.version } },
@@ -1900,7 +1937,9 @@ export class PlaySession {
     } else this.#cbsVariables = clone(value.cbsVariables);
     this.#lastSpeakers = clone(value.lastSpeakers);
     this.#alternates = clone(value.alternates);
-    this.#ledgerDeltas = clone(value.ledgerDeltas ?? []);
+    this.#ledgerNarrativeQueue = value.ledgerNarrativeQueue
+      ? clone(value.ledgerNarrativeQueue)
+      : legacyLedgerQueue(value.ledgerDeltas ?? []);
     this.#persona = clone(value.bindings.persona);
     this.#preset = this.#resolveCheckpointPreset(value.bindings);
     this.#rememberPreset(this.#preset);
@@ -1949,9 +1988,9 @@ export class PlaySession {
           messages.some((message) => run.id.endsWith(`:${message.id}`)) ||
           run.turn < turn,
       ),
-      ledgerDeltas: atHead
-        ? clone(this.#ledgerDeltas)
-        : clone(next?.ledgerDeltas ?? []),
+      ledgerNarrativeQueue: atHead
+        ? clone(this.#ledgerNarrativeQueue)
+        : clone(next?.ledgerNarrativeQueue ?? legacyLedgerQueue(next?.ledgerDeltas ?? [])),
       journalCursor,
       cardRuntimeCursor,
       turn,
@@ -1968,7 +2007,9 @@ export class PlaySession {
     this.#lastLogs = clone(value.logs);
     this.#lastSpeakers = clone(value.speakers);
     this.#promptRuns = compactPromptRuns(clone(value.promptRuns ?? []));
-    this.#ledgerDeltas = clone(value.ledgerDeltas ?? []);
+    this.#ledgerNarrativeQueue = value.ledgerNarrativeQueue
+      ? clone(value.ledgerNarrativeQueue)
+      : legacyLedgerQueue(value.ledgerDeltas ?? []);
     if (value.journalCursor === undefined) {
       this.runtime.restore(value.engine);
       this.#journal.reset(value.engine);
@@ -2081,6 +2122,23 @@ export class PlaySession {
         }
       }
   }
+  #enqueueLedgerNarrative(eventId: string, log: Record<string, unknown>, journalIndex: number) {
+    const key = engineMemoryAnchor(eventId, log), summary = ledgerNarrativeSummary(log),
+      existingIndex = this.#ledgerNarrativeQueue.findIndex((value) => value.key === key),
+      existing = existingIndex >= 0 ? this.#ledgerNarrativeQueue[existingIndex] : undefined;
+    if (existing) {
+      const summaries = existing.summaries.includes(summary)
+        ? existing.summaries
+        : [...existing.summaries, summary].slice(-MAX_LEDGER_NARRATIVE_SAMPLES);
+      const next = { ...existing, count: existing.count + 1, lastJournalIndex: journalIndex, summaries };
+      this.#ledgerNarrativeQueue.splice(existingIndex, 1);
+      this.#ledgerNarrativeQueue.push(next);
+    } else {
+      this.#ledgerNarrativeQueue.push({ key, eventId, count: 1, firstJournalIndex: journalIndex, lastJournalIndex: journalIndex, summaries: [summary] });
+    }
+    if (this.#ledgerNarrativeQueue.length > MAX_LEDGER_NARRATIVE_GROUPS)
+      this.#ledgerNarrativeQueue.splice(0, this.#ledgerNarrativeQueue.length - MAX_LEDGER_NARRATIVE_GROUPS);
+  }
   #sceneId() {
     const state = this.runtime.state as Record<string, unknown>,
       core = state.core as Record<string, unknown> | undefined;
@@ -2156,8 +2214,8 @@ export class PlaySession {
               ? stripPromptImageMarkup(message.content)
               : message.content,
         })),
-      changes = this.#ledgerDeltas.length
-        ? `\n[직전 현장 장면 이후 장부 변화]\n${this.#ledgerDeltas.map((value) => `- ${value}`).join("\n")}`
+      changes = this.#ledgerNarrativeQueue.length
+        ? `\n[직전 현장 장면 이후 장부 변화]\n${this.#ledgerNarrativeQueue.map((value) => `- ${value.eventId}${value.count > 1 ? ` ×${value.count}` : ""}: ${value.summaries.join(" / ")}`).join("\n")}`
         : "",
       persona = this.#persona?.prompt?.trim()
         ? `\n플레이어 페르소나: ${this.#persona.name}\n${this.#persona.prompt}`
