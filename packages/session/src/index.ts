@@ -1909,7 +1909,9 @@ export class PlaySession {
         message.origin ?? (message.role === "assistant" ? "model" : "user"),
     }));
     this.#messagesChain = null;
-    this.#messageShardHashes = null;
+    // 위에서 integrity까지 통과한 매니페스트의 청크 해시는 그대로 재사용한다. 여기서 캐시를
+    // 버리면 장기 회차를 다시 연 직후 저장할 때 과거 메시지 청크 전부를 재해시·재기록한다.
+    // 메시지를 실제로 잘라내거나 분기를 바꾸는 경로는 각자 이 캐시를 명시적으로 폐기한다.
     this.#lastLogs = data.lastLogs;
     this.#lastSpeakers = clone(data.lastSpeakers ?? []);
     this.#alternates = clone(data.alternates ?? []);

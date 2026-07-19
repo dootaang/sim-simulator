@@ -25,6 +25,15 @@ describe('저장 샤딩',()=>{
     expect(restored.turn).toBe(clicks+1);
     expect(restored.runtime.snapshot()).toEqual(session.runtime.snapshot());
     expect(restored.messages).toEqual(session.messages);
+    // 다시 연 장기 회차도 검증된 과거 청크를 재사용한다. 복원 직후 캐시를 잃으면 이 저장이
+    // 완결 첫 청크까지 다시 써서 실회차에서만 수초가 걸리는 회귀가 생긴다.
+    const restoredCore=(await repository.get('shards'))!.payload,
+      restoredFirstHash=restoredCore.shardManifest!.messages.chunks[0]!,
+      restoredFirstId=PlaySession.shardRecordId('shards','messages',0,restoredFirstHash),
+      restoredStamp=(await repository.get(restoredFirstId))!.updatedAt;
+    await new Promise(resolve=>setTimeout(resolve,3));
+    await restored.save();
+    expect((await repository.get(restoredFirstId))!.updatedAt).toBe(restoredStamp);
   });
   it('청크 누락은 조립 오류, 청크 변조는 integrity가 거부한다',async()=>{
     const repository=createMemoryRepository<SessionSnapshot>(),session=make(repository);
