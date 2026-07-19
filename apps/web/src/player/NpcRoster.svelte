@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '@simbot/ui/Icon.svelte';
   import LadderGauge from '@simbot/ui/LadderGauge.svelte';
   import type { RosterRow } from './roster-model';
   let { rows, portraitFor, revealAll, onreveal }: { rows: RosterRow[]; portraitFor: (npcId: string, emotion?: string) => string | null; revealAll: boolean; onreveal: (value: boolean) => void } = $props();
@@ -18,7 +19,7 @@
         </div>
       </button>
       {#if expanded.has(row.id) && row.unlocks.length}
-        <ul class="unlocks">{#each row.unlocks as unlock (unlock.threshold + unlock.label)}<li class:locked={!unlock.unlocked}>{unlock.unlocked ? '🔓' : '🔒'} {unlock.label}{#if !unlock.unlocked}<small> · {unlock.threshold.toLocaleString()} 필요 (+{unlock.remaining.toLocaleString()})</small>{/if}</li>{/each}</ul>
+        <ul class="unlocks">{#each row.unlocks as unlock (unlock.threshold + unlock.label)}<li class:locked={!unlock.unlocked}>{#if unlock.unlocked}<Icon name="unlock" size={11}/>{:else}<Icon name="lock" size={11}/>{/if} {unlock.label}{#if !unlock.unlocked}<small> · {unlock.threshold.toLocaleString()} 필요 (+{unlock.remaining.toLocaleString()})</small>{/if}</li>{/each}</ul>
       {/if}
     </article>
   {/each}

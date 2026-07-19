@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Icon from '@simbot/ui/Icon.svelte';
   import type {ProjectRuntime} from '@simbot/runtime';
   import {yieldForActionPaint,type SimulationActionHandler} from './simulation-action';
 
@@ -32,7 +33,7 @@
 <div class="combat-console" aria-label="전투 콘솔">
   <header><div><h2>전투 콘솔</h2><small>라운드 {model.round}{model.guard?' · 방어 태세':''}</small></div></header>
 
-  <section aria-label="적 목록"><h3>적</h3><div class="enemy-grid">{#each model.enemies as enemy}<article class:dead={enemy.dead}><div class="enemy-title"><b>{enemy.name}</b>{#if enemy.rank}<span>{enemy.rank}</span>{/if}</div><label>HP {enemy.hp.cur} / {enemy.hp.max}<progress value={enemy.hp.cur} max={enemy.hp.max}></progress></label>{#if enemy.dead}<strong class="dead-label">사망</strong>{:else if enemy.intent==='heavy'}<strong class="warning">⚠ 강공 예고</strong>{:else if enemy.intent==='attack'}<small>공격 예고</small>{/if}</article>{/each}</div></section>
+  <section aria-label="적 목록"><h3>적</h3><div class="enemy-grid">{#each model.enemies as enemy}<article class:dead={enemy.dead}><div class="enemy-title"><b>{enemy.name}</b>{#if enemy.rank}<span>{enemy.rank}</span>{/if}</div><label>HP {enemy.hp.cur} / {enemy.hp.max}<progress value={enemy.hp.cur} max={enemy.hp.max}></progress></label>{#if enemy.dead}<strong class="dead-label">사망</strong>{:else if enemy.intent==='heavy'}<strong class="warning"><Icon name="alert" size={12}/> 강공 예고</strong>{:else if enemy.intent==='attack'}<small>공격 예고</small>{/if}</article>{/each}</div></section>
 
   <section aria-label="플레이어 상태"><h3>플레이어</h3><div class="pool-grid">{#each model.pools as pool}<label><span>{pool.id.toLocaleUpperCase()} <b>{pool.cur} / {pool.max}</b></span><progress value={pool.cur} max={pool.max}></progress></label>{/each}</div></section>
 
@@ -42,7 +43,7 @@
     <div class="actions"><button disabled={busy||pending||!model.canAct} onclick={()=>turn({id:'combat_action',params:{action:'defend'}})}>방어</button><button disabled={busy||pending||!model.canAct} onclick={()=>turn({id:'combat_action',params:{action:'flee'}})}>도주 · 성공률 {model.fleeRate}%</button></div>
   </section>
 
-  {#if items.length}<section aria-label="소모품"><h3>소모품 🧪</h3><div class="actions">{#each items as item}<button disabled={busy||pending||!model.canAct} onclick={()=>turn({id:'use_item',params:{itemId:item.id}})}>{String(item.label??item.id)} · 보유 {item.owned}{#if item.effect} · {String(item.effect.pool??'')} +{String(item.effect.amount??'')}{/if}</button>{/each}</div></section>{/if}
+  {#if items.length}<section aria-label="소모품"><h3><Icon name="flask" size={13}/> 소모품</h3><div class="actions">{#each items as item}<button disabled={busy||pending||!model.canAct} onclick={()=>turn({id:'use_item',params:{itemId:item.id}})}>{String(item.label??item.id)} · 보유 {item.owned}{#if item.effect} · {String(item.effect.pool??'')} +{String(item.effect.amount??'')}{/if}</button>{/each}</div></section>{/if}
 
   {#if model.end.available}<section class="ending"><button disabled={busy||pending} onclick={finish}>{endLabel(model.end.outcome)}</button></section>{/if}
   {#if status}<p class:failed={lastLog.some(row=>row.ok===false)} class="status" aria-live="polite">{status}</p>{/if}

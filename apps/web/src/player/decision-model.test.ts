@@ -7,13 +7,13 @@ describe('결정 카드 모델', () => {
   it('전술 교전의 전술 3택과 개입 옵션을 채팅 카드에 직접 노출한다', () => {
     const sortie = { active: true, missionId: 'alpha', echelonId: 'e1', power: 1800, engagementMode: 'tactical', command: 68, current: 1, stages: [{type:'recon',completed:true},{type:'battle'},{type:'boss'}] };
     const cards = buildDecisionCards((id) => id === 'gfl/status' ? { sortie } : null);
-    expect(cards[0]).toMatchObject({ key: 'gfl-sortie:alpha:e1:1', title: '다음 단계 진행 · 2/3 ⚔', more: '지휘 게이지 68/100' });
+    expect(cards[0]).toMatchObject({ key: 'gfl-sortie:alpha:e1:1', title: '다음 단계 진행 · 2/3 · 교전', more: '지휘 게이지 68/100' });
     expect(cards[0]!.options.map((option) => `${option.label}:${String(option.params.tactic)}`)).toEqual(['집중 사격:focus', '균형 전술:balanced', '엄폐 전진:cover']);
     const charged = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { ...sortie, command: 100 } } : null);
     expect(charged[0]!.options).toHaveLength(6);
     expect(charged[0]!.options[3]).toMatchObject({ id: 'gfl/sortie/engage', params: { tactic: 'balanced', intervention: { round: 1, type: 'focus' } }, kind: 'ghost' });
     const recon = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { active: true, missionId: 'alpha', echelonId: 'e1', engagementMode: 'tactical', current: 0, stages: [{type:'recon'},{type:'battle'}] } } : null);
-    expect(recon[0]).toMatchObject({ title: '다음 단계 진행 · 1/2 🔍', options: [{ label: '단계 진행', id: 'gfl/sortie/stage' }] });
+    expect(recon[0]).toMatchObject({ title: '다음 단계 진행 · 1/2 · 정찰', options: [{ label: '단계 진행', id: 'gfl/sortie/stage' }] });
   });
   it('quick 작전은 오토런을 기본으로, each 설정·보스 단계는 단계별로 제시한다', () => {
     const base = { active: true, missionId: 'alpha', echelonId: 'e1', engagementMode: 'quick', command: 0, current: 0, stages: [{type:'battle'},{type:'boss'}] };
@@ -23,7 +23,7 @@ describe('결정 카드 모델', () => {
     const each = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: base, settings: { stageNarration: 'each' } } : null);
     expect(each[0]!.options).toEqual([expect.objectContaining({ label: '단계 진행', id: 'gfl/sortie/stage' })]);
     const boss = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: { ...base, current: 1 } } : null);
-    expect(boss[0]!.options).toEqual([expect.objectContaining({ label: '👑 보스 교전', id: 'gfl/sortie/stage' })]);
+    expect(boss[0]!.options).toEqual([expect.objectContaining({ label: '보스 교전', id: 'gfl/sortie/stage' })]);
     const silent = buildDecisionCards((id) => id === 'gfl/status' ? { sortie: base, settings: { stageNarration: 'silent' } } : null);
     expect(silent[0]!.options.every(option=>option.mode==='ledger')).toBe(true);
     const silentTactical=buildDecisionCards((id)=>id==='gfl/status'?{sortie:{...base,engagementMode:'tactical'},settings:{stageNarration:'silent'}}:null);

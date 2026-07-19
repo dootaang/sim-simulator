@@ -114,7 +114,7 @@
   {#each messages as message,index(message.id)}
     {@const run=ledgerRuns[index]}
     {#if run&&run.size>1&&index===run.end}
-      <button class="ledger-run-toggle" aria-expanded={!!expandedLedgerRuns[run.key]} onclick={()=>expandedLedgerRuns[run.key]=!expandedLedgerRuns[run.key]}>🧾 엔진 영수증 {run.size}건 · 이전 {run.size-1}건 {expandedLedgerRuns[run.key]?'접기':'펼치기'}</button>
+      <button class="ledger-run-toggle" aria-expanded={!!expandedLedgerRuns[run.key]} onclick={()=>expandedLedgerRuns[run.key]=!expandedLedgerRuns[run.key]}><Icon name="receipt" size={12}/> 엔진 영수증 {run.size}건 · 이전 {run.size-1}건 {expandedLedgerRuns[run.key]?'접기':'펼치기'}</button>
     {/if}
     {#if !(run&&run.size>1&&index<run.end&&!expandedLedgerRuns[run.key])}
     <article class="message" class:user={message.role==='user'} use:captureMessage={message.id}>

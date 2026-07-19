@@ -105,7 +105,7 @@ export function buildDecisionCards(select: (id: string) => unknown, context: Dec
     cards.push({
       key: `gfl-boss-recruit:${String(bossRecruit.bossId)}`,
       icon: 'star',
-      title: `⚠ ${name} · 구속 완료 — 영입하시겠습니까?`,
+      title: `${name} · 구속 완료 — 영입하시겠습니까?`,
       desc: '첫 격파한 보스를 전술인형으로 편입할 수 있습니다. 숙소 자리 하나를 사용합니다.',
       more: '6성 · BOSS 병과',
       dismissible: true,
@@ -174,12 +174,12 @@ export function buildDecisionCards(select: (id: string) => unknown, context: Dec
     const stages = arr(sortie.stages), current = num(sortie.current), stage = stages[current] ?? { type: 'battle' },
       type = String(stage.type ?? 'battle'), combat = type === 'battle' || type === 'boss', total = Math.max(1, stages.length),
       quick = String(sortie.engagementMode) === 'quick', gauge = num(sortie.command),
-      icons: Record<string, string> = { battle: '⚔', boss: '👑', recon: '🔍', other: '🚩', mystery: '❓' };
+      icons: Record<string, string> = { battle: '교전', boss: 'BOSS', recon: '정찰', other: '돌발', mystery: '???' };
     // 전투의 결정권을 채팅으로 — 전술 3택·개입·오토런이 관리창 없이도 이 카드에서 끝난다.
     const options: DecisionOption[] = [];
     const narration=String(rec(gflStatus.settings).stageNarration),eachStage=narration==='each',combatMode:DecisionOption['mode']=narration==='silent'?'ledger':'narrated';
     if (quick) {
-      if (type === 'boss') options.push({ label: '👑 보스 교전', id: 'gfl/sortie/stage', params: {}, mode: combatMode, kind: 'primary' });
+      if (type === 'boss') options.push({ label: '보스 교전', id: 'gfl/sortie/stage', params: {}, mode: combatMode, kind: 'primary' });
       else if (eachStage) options.push({ label: '단계 진행', id: 'gfl/sortie/stage', params: {}, mode: combatMode, kind: 'primary' });
       else {
         options.push({ label: '자동 진행 · 정지 지점까지', id: 'gfl/sortie/auto', params: {}, mode: combatMode, kind: 'primary' });
@@ -189,7 +189,7 @@ export function buildDecisionCards(select: (id: string) => unknown, context: Dec
       options.push({ label: '집중 사격', id: 'gfl/sortie/engage', params: { tactic: 'focus' }, mode: combatMode, kind: 'primary' });
       options.push({ label: '균형 전술', id: 'gfl/sortie/engage', params: { tactic: 'balanced' }, mode: combatMode, kind: 'primary' });
       options.push({ label: '엄폐 전진', id: 'gfl/sortie/engage', params: { tactic: 'cover' }, mode: combatMode, kind: 'primary' });
-      if (gauge >= 100) for (const [kind2, label] of [['focus', '📣 집중사격 지시'], ['brace', '📣 긴급 엄폐'], ['barrage', '📣 탄막 요청']] as const)
+      if (gauge >= 100) for (const [kind2, label] of [['focus', '지휘 개입 · 집중사격'], ['brace', '지휘 개입 · 긴급 엄폐'], ['barrage', '지휘 개입 · 탄막 요청']] as const)
         options.push({ label: `${label} + 균형 전술 · 1라운드`, id: 'gfl/sortie/engage', params: { tactic: 'balanced', intervention: { round: 1, type: kind2 } }, mode: combatMode, kind: 'ghost' });
     } else {
       options.push({ label: '단계 진행', id: 'gfl/sortie/stage', params: {}, mode: combatMode, kind: 'primary' });
@@ -197,10 +197,10 @@ export function buildDecisionCards(select: (id: string) => unknown, context: Dec
     cards.push({
       key: `gfl-sortie:${String(sortie.missionId)}:${String(sortie.echelonId)}:${current}`,
       icon: 'alert',
-      title: `다음 단계 진행 · ${current + 1}/${total} ${icons[type] ?? '·'}`,
+      title: `다음 단계 진행 · ${current + 1}/${total} · ${icons[type] ?? type}`,
       desc: combat
         ? `제대 ${String(sortie.echelonId)} · 전투력 ${num(sortie.power).toLocaleString()} — 현재 교전을 엔진이 계산합니다.`
-        : `${icons[type] ?? '·'} ${type} 단계 — 전투 없이 현재 상황을 해소합니다.`,
+        : `${icons[type] ?? type} 단계 — 전투 없이 현재 상황을 해소합니다.`,
       more: `지휘 게이지 ${gauge}/100${sortie.scouted ? ' · 정찰 보정 +1 대기' : ''}`,
       options,
     });
