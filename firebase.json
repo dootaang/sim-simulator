@@ -13,8 +13,7 @@
           "source": "/api/ollama/**",
           "function": {
             "functionId": "ollamaProxy",
-            "region": "asia-northeast3",
-            "pinTag": true
+            "region": "asia-northeast3"
           }
         }
       ],
@@ -56,8 +55,7 @@
           "source": "/api/ollama/**",
           "function": {
             "functionId": "ollamaProxy",
-            "region": "asia-northeast3",
-            "pinTag": true
+            "region": "asia-northeast3"
           }
         }
       ],
