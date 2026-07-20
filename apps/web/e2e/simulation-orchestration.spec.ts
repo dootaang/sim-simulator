@@ -28,7 +28,9 @@ async function openCard(page: Page, mobile: boolean) {
 }
 
 for (const item of [{ name: '데스크톱', viewport: { width: 1280, height: 800 }, mobile: false }, { name: '모바일', viewport: { width: 390, height: 844 }, mobile: true }]) test(`${item.name} 현장 행동은 (창 유지 끔 설정에서) 패널을 닫고 채팅 대기와 최신 응답으로 복귀한다`, async ({ page }) => {
-  await page.setViewportSize(item.viewport); await page.addInitScript(()=>localStorage.setItem('simbot.sim.pinned','0')); await seed(page); await openCard(page, item.mobile);
+  await page.setViewportSize(item.viewport); await page.addInitScript(()=>localStorage.setItem('simbot.sim.pinned','0')); await seed(page);
+  await expect.poll(()=>page.evaluate(()=>{const bottom=document.querySelector<HTMLElement>('[data-chat-bottom]');let host=bottom?.parentElement??null;while(host&&host.scrollHeight<=host.clientHeight+1)host=host.parentElement;return host?host.scrollHeight-host.scrollTop-host.clientHeight:0;})).toBeLessThan(160);
+  await openCard(page, item.mobile);
   await page.getByRole('dialog', { name: '시뮬레이션' }).getByRole('button', { name: '점심 영업' }).click();
   await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toBeHidden();
   const typing = page.getByRole('article', { name: '응답 작성 중' }); await expect(typing).toBeVisible(); await expect(typing).not.toContainText('응답을 만들고 있습니다');
