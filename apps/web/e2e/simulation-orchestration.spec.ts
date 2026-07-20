@@ -29,13 +29,13 @@ async function openCard(page: Page, mobile: boolean) {
 
 for (const item of [{ name: '데스크톱', viewport: { width: 1280, height: 800 }, mobile: false }, { name: '모바일', viewport: { width: 390, height: 844 }, mobile: true }]) test(`${item.name} 현장 행동은 (창 유지 끔 설정에서) 패널을 닫고 채팅 대기와 최신 응답으로 복귀한다`, async ({ page }) => {
   await page.setViewportSize(item.viewport); await page.addInitScript(()=>localStorage.setItem('simbot.sim.pinned','0')); await seed(page);
-  await expect.poll(()=>page.evaluate(()=>{const bottom=document.querySelector<HTMLElement>('[data-chat-bottom]');let host=bottom?.parentElement??null;while(host&&host.scrollHeight<=host.clientHeight+1)host=host.parentElement;return host?host.scrollHeight-host.scrollTop-host.clientHeight:0;})).toBeLessThan(160);
+  await expect.poll(()=>page.evaluate(()=>{const host=document.querySelector<HTMLElement>('[data-chat-scroll-host]');return host?host.scrollHeight-host.scrollTop-host.clientHeight:Number.POSITIVE_INFINITY;})).toBeLessThan(160);
   await openCard(page, item.mobile);
   await page.getByRole('dialog', { name: '시뮬레이션' }).getByRole('button', { name: '점심 영업' }).click();
   await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toBeHidden();
   const typing = page.getByRole('article', { name: '응답 작성 중' }); await expect(typing).toBeVisible(); await expect(typing).not.toContainText('응답을 만들고 있습니다');
   const management = page.getByText('점심 영업이 활기차게 이어졌다.'); await expect(management).toBeVisible(); await expect(management).toBeInViewport();
-  const scrollTop = () => page.evaluate(() => { const bottom = document.querySelector<HTMLElement>('[data-chat-bottom]'); let host = bottom?.parentElement ?? null; while (host && host.scrollHeight <= host.clientHeight + 1) host = host.parentElement; if (host) host.scrollTop = 0; });
+  const scrollTop = async() => { const host=page.locator('[data-chat-scroll-host]'); const box=await host.boundingBox(); if(box)await page.mouse.move(box.x+Math.min(40,box.width/2),box.y+Math.min(40,box.height/2)); await page.mouse.wheel(0,-10_000); await expect.poll(()=>host.evaluate(node=>node.scrollTop)).toBeLessThan(2); };
   await scrollTop(); await page.getByRole('textbox', { name: '메시지를 입력하세요' }).fill('새 사용자 입력'); await page.getByRole('button', { name: '보내기', exact: true }).click(); await expect(typing).toBeVisible(); await expect(page.getByText('새 사용자 입력')).toBeInViewport();
   await scrollTop(); await expect(management).toHaveCount(2); await expect(management.last()).not.toBeInViewport(); await openCard(page, item.mobile);
   const dialog = page.getByRole('dialog', { name: '시뮬레이션' }); await dialog.getByRole('button', { name: '증축' }).first().click(); await expect(dialog).toBeVisible(); await expect(typing).toHaveCount(0);

@@ -96,6 +96,12 @@ export interface ChatMessage {
   chips?: MessageChip[];
   speakers?: SpeakerReference[];
 }
+export interface MessageOutlineEntry {
+  readonly id: string;
+  readonly index: number;
+  readonly role: ChatMessage["role"];
+  readonly origin: NonNullable<ChatMessage["origin"]>;
+}
 export interface ProposedEvent {
   id: string;
   params?: Record<string, unknown>;
@@ -619,6 +625,9 @@ export class PlaySession {
   // 식별 앵커별로 접고 최근 표본만 보존한다 — silent 장기 플레이가 이 배열을 무한히 키우지 않는다.
   #ledgerNarrativeQueue: LedgerNarrativeDelta[] = [];
   #listeners = new Set<() => void>();
+  #messageRevision = 0;
+  #messageOutlineRevision = -1;
+  #messageOutline: readonly MessageOutlineEntry[] = [];
   #regexScripts: RegexScript[];
   #cbsVariables: Record<string, string>;
   #assets: Array<Pick<AssetMacroAsset,"name"|"type"|"mime"|"moduleNamespace">> = [];
@@ -635,6 +644,10 @@ export class PlaySession {
   }
   #notify() {
     for (const listener of this.#listeners) listener();
+  }
+  #messagesChanged() {
+    this.#messageRevision += 1;
+    this.#messageOutlineRevision = -1;
   }
   constructor(options: PlaySessionOptions) {
     this.id = options.id;
@@ -675,6 +688,35 @@ export class PlaySession {
   }
   get messages() {
     return this.#messages.map((value) => ({
+      ...value,
+      origin: value.origin ?? (value.role === "assistant" ? "model" : "user"),
+    }));
+  }
+  get messageCount() {
+    return this.#messages.length;
+  }
+  get messageRevision() {
+    return this.#messageRevision;
+  }
+  get messageOutline(): readonly MessageOutlineEntry[] {
+    if (this.#messageOutlineRevision !== this.#messageRevision) {
+      this.#messageOutline = Object.freeze(this.#messages.map((value, index) => Object.freeze({
+        id: value.id,
+        index,
+        role: value.role,
+        origin: value.origin ?? (value.role === "assistant" ? "model" : "user"),
+      })));
+      this.#messageOutlineRevision = this.#messageRevision;
+    }
+    return this.#messageOutline;
+  }
+  messageAt(index: number): ChatMessage | null {
+    const value = this.#messages[index];
+    return value ? { ...value, origin: value.origin ?? (value.role === "assistant" ? "model" : "user") } : null;
+  }
+  messageRange(start: number, count: number): ChatMessage[] {
+    const from = Math.max(0, Math.trunc(start)), size = Math.max(0, Math.trunc(count));
+    return this.#messages.slice(from, from + size).map((value) => ({
       ...value,
       origin: value.origin ?? (value.role === "assistant" ? "model" : "user"),
     }));
@@ -972,6 +1014,7 @@ export class PlaySession {
       throw new Error("greeting_locked");
     if (!text.trim()) throw new Error("message_empty");
     this.#messages[0] = { ...this.#messages[0], content: text.trim() };
+    this.#messagesChanged();
     this.#messagesChain = null;
     this.#messageShardHashes = null;
     this.#notify();
@@ -1033,6 +1076,7 @@ export class PlaySession {
       translation = response.text.trim();
     if (!translation) throw new Error("translation_empty");
     this.#messages[index] = { ...message, translation };
+    this.#messagesChanged();
     this.#messagesChain = null;
     this.#messageShardHashes = null;
     await this.save();
@@ -1044,6 +1088,9 @@ export class PlaySession {
     if (index < 0) throw new Error(`message_not_found:${id}`);
     const message = this.#messages[index]!;
     delete message.translation;
+    this.#messagesChanged();
+    this.#messagesChain = null;
+    this.#messageShardHashes = null;
     await this.save();
     this.#notify();
   }
@@ -1055,6 +1102,7 @@ export class PlaySession {
     if (index < 0) throw new Error(`message_not_found:${id}`);
     const { translation: _, ...previous } = this.#messages[index]!;
     this.#messages[index] = { ...previous, content };
+    this.#messagesChanged();
     this.#messagesChain = null;
     this.#messageShardHashes = null;
     this.#alternates = [];
@@ -1072,6 +1120,7 @@ export class PlaySession {
       ...message,
       index: messageIndex,
     }));
+    this.#messagesChanged();
     this.#messagesChain = null;
     this.#messageShardHashes = null;
     this.#checkpoints = this.#checkpoints.filter(
@@ -1484,6 +1533,7 @@ export class PlaySession {
         if (appendUser) {
           this.#messages.pop();
           this.#messageSeq -= 1;
+          this.#messagesChanged();
         }
         if (checkpoint) {
           this.#checkpoints.pop();
@@ -1941,6 +1991,7 @@ export class PlaySession {
       origin:
         message.origin ?? (message.role === "assistant" ? "model" : "user"),
     }));
+    this.#messagesChanged();
     this.#messagesChain = null;
     // 위에서 integrity까지 통과한 매니페스트의 청크 해시는 그대로 재사용한다. 여기서 캐시를
     // 버리면 장기 회차를 다시 연 직후 저장할 때 과거 메시지 청크 전부를 재해시·재기록한다.
@@ -2136,6 +2187,7 @@ export class PlaySession {
     this.#journal.moveTo(value.journalCursor);
     this.#turn = value.turn;
     this.#messages = messages;
+    this.#messagesChanged();
     this.#messagesChain = null;
     this.#messageShardHashes = null;
     this.memory.reset(value.memory,value.memoryArchivePages??[]);
@@ -2218,6 +2270,7 @@ export class PlaySession {
   }
   #restoreAlternate(value: AlternateState) {
     this.#messages = clone(value.messages);
+    this.#messagesChanged();
     this.#messagesChain = null;
     this.#messageShardHashes = null;
     this.#lastLogs = clone(value.logs);
@@ -2512,6 +2565,7 @@ export class PlaySession {
         ...normalized,
       };
     this.#messages.push(message);
+    this.#messagesChanged();
     if (this.#messagesChain && this.#messagesChain.count === this.#messages.length - 1)
       this.#messagesChain = { count: this.#messages.length, hash: fnv1a(this.#messagesChain.hash + stableHash(message)) };
     else { this.#messagesChain = null; this.#messageShardHashes = null; } // append는 청크 캐시를 깨지 않는다 — 체인 이탈 시에만 폐기

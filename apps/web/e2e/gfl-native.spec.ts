@@ -320,7 +320,7 @@ test('군수지원 복귀 보상을 수령하고 심야 작전의 실제 명중 
   await console.getByRole('button',{name:'지휘관으로 시작'}).click();
   await console.getByRole('button',{name:'인형 고용',exact:true}).click(); await console.getByRole('button',{name:'오늘의 인형 뽑기'}).click();
   await console.getByRole('button',{name:'계약',exact:true}).first().click(); await console.getByRole('button',{name:/수송 도착/}).click();
-  const reopen=async()=>{const open=page.getByRole('button',{name:'관리 열기'});if(await open.isVisible().catch(()=>false))await open.click(); return page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔');};
+  const reopen=async()=>{const dialog=page.getByRole('dialog',{name:'시뮬레이션'});if(!await dialog.isVisible().catch(()=>false)){const open=page.getByRole('button',{name:'관리 열기'});await expect(open).toBeEnabled();await open.click();await expect(dialog).toBeVisible();}return dialog.getByLabel('소녀전선 지휘 콘솔');};
   console=await reopen(); await console.getByRole('button',{name:'제대',exact:true}).click(); await console.locator('.roster button').first().click(); await expect(console.locator('.slots .remove')).toHaveCount(1);
   await console.getByRole('button',{name:'2시간대 파견'}).click(); await expect(console.locator('.logistics-panel')).toContainText('파견 중 · 2시간대 남음');
   await console.getByRole('button',{name:'기지',exact:true}).click(); await console.getByRole('button',{name:'다음 시간대'}).click();

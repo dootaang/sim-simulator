@@ -77,8 +77,10 @@
   });
   // 아무 데서도 잡지 못한 예외는 화면에 아무 말도 남기지 않는다 — 사용자에겐 "그냥 멈췄어요"가 된다.
   $effect(()=>{
-    const where=()=>({card:profile?.card.name??'(카드 없음)',chat:session?.id??'(세션 없음)',message:session?session.messages.length-1:null,turn:session?.turn??null});
-    const onError=(event:ErrorEvent)=>diagnostics.record({...where(),kind:'card',code:'uncaught_error',summary:`처리되지 않은 오류: ${event.message}`,detail:{'오류':event.message,'위치':`${event.filename??'?'}:${event.lineno??0}`}});
+    const where=()=>({card:profile?.card.name??'(카드 없음)',chat:session?.id??'(세션 없음)',message:session?session.messageCount-1:null,turn:session?.turn??null});
+    // ResizeObserver의 이 문구는 브라우저가 다음 프레임으로 관찰 알림을 미뤘다는 비치명적 통지다.
+    // 실제 앱 오류처럼 진단 배지를 띄우면 사용자가 고장으로 오해하므로 전역 오류 수집에서만 제외한다.
+    const onError=(event:ErrorEvent)=>{if(/^ResizeObserver loop (?:limit exceeded|completed with undelivered notifications)\.?$/.test(event.message))return;diagnostics.record({...where(),kind:'card',code:'uncaught_error',summary:`처리되지 않은 오류: ${event.message}`,detail:{'오류':event.message,'위치':`${event.filename??'?'}:${event.lineno??0}`}});};
     const onRejection=(event:PromiseRejectionEvent)=>{const reason=event.reason;const message=reason instanceof Error?reason.message:String(reason);diagnostics.record({...where(),kind:'card',code:'unhandled_rejection',summary:`처리되지 않은 비동기 오류: ${message}`,detail:{'오류':message,'스택':reason instanceof Error?(reason.stack??'(없음)'):'(없음)'}});};
     addEventListener('error',onError);addEventListener('unhandledrejection',onRejection);
     return()=>{removeEventListener('error',onError);removeEventListener('unhandledrejection',onRejection);};
