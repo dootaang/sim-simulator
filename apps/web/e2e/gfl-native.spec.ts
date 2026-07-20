@@ -50,7 +50,7 @@ async function importGfl(page:import('@playwright/test').Page){
   await expect(page.getByRole('button',{name:/카드 가져오기/}).first()).toBeVisible({timeout:15_000});
   await expect(page.getByText('저장소를 여는 중…')).toHaveCount(0);
   await page.locator('input[accept=".simpack,.charx,.png,.json"]').setInputFiles([{name:'소녀전선_잔불.png',mimeType:'image/png',buffer:Buffer.from(png)},{name:'gfl-sprites.zip',mimeType:'application/zip',buffer:Buffer.from(assetModule)}]);
-  await page.getByLabel('빠른 진행').getByRole('button',{name:'관리 열기'}).click({timeout:15_000});
+  await page.getByRole('button',{name:'기지 열기'}).click({timeout:15_000});
   const simulation=page.getByRole('dialog',{name:'시뮬레이션'});
   await expect(simulation).toBeVisible({timeout:15_000});
   await expect(simulation.getByLabel('소녀전선 지휘 콘솔')).toBeVisible();
@@ -78,8 +78,7 @@ test('소녀전선 PNG를 넣으면 별도 컴파일 질문 없이 네이티브 
   await expect(console).toContainText('현재 위치 · 정비실');
   await simulation.getByRole('button',{name:'닫기'}).click();
   await expect(simulation).toBeHidden();
-  await page.getByRole('button',{name:'현재 봇 메뉴'}).click();
-  await page.locator('aside.side').getByRole('button',{name:'관리 열기'}).click();
+  await page.getByRole('button',{name:'기지 열기'}).click();
   const reopened=page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔');
   await expect(reopened).toContainText('현재 위치 · 정비실');
   await expect(reopened.getByRole('button',{name:'제조·수복'})).toBeEnabled();
@@ -103,12 +102,11 @@ test('소녀전선 PNG를 넣으면 별도 컴파일 질문 없이 네이티브 
   await reopened.getByRole('button',{name:/레드·오렌지 작전구역/}).click();
   await expect(reopened).toContainText('ALPHA');
   await simulation.getByRole('button',{name:'닫기'}).click();
-  await page.getByRole('button',{name:'메뉴 닫기'}).click();
-  await page.getByRole('button',{name:'현재 봇 메뉴'}).click();
+  await page.getByRole('button',{name:'대화 목록'}).click();
   await page.getByRole('button',{name:'전체 설정'}).click();
   const settings=page.getByRole('dialog',{name:'전체 설정'});
   await settings.getByLabel('설정 메뉴').selectOption('chat');
-  await settings.getByRole('button',{name:'작게',exact:true}).click();
+  await settings.getByRole('group',{name:'본문 이미지 크기'}).getByRole('button',{name:'작게',exact:true}).click();
   await expect(settings.getByLabel('본문 이미지 최대 너비')).toHaveValue('16');
   await settings.getByRole('button',{name:'저장'}).click();
   await expect.poll(()=>page.evaluate(()=>JSON.parse(localStorage.getItem('simbot.llm')??'{}').assetWidth)).toBe(16);
@@ -123,12 +121,12 @@ test('기록실 원문을 열람하고 확인 대화상자를 거쳐 인형을 �
   await expect(console).toContainText('첫 번째 기록입니다.'); await expect(console).toContainText('둘째 줄입니다.');
   await console.getByRole('button',{name:'인형 고용',exact:true}).click(); await console.getByRole('button',{name:'오늘의 인형 뽑기'}).click();
   await console.getByRole('button',{name:'계약',exact:true}).first().click(); await console.getByRole('button',{name:/다음 시간대 · 수송 도착/}).click();
-  await simulation.getByRole('button',{name:'닫기'}).click(); await expect(simulation).toBeHidden(); await page.getByLabel('빠른 진행').getByRole('button',{name:'관리 열기'}).click();
+  await simulation.getByRole('button',{name:'닫기'}).click(); await expect(simulation).toBeHidden(); await page.getByRole('button',{name:'기지 열기'}).click();
   const reopened=page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔'); await reopened.getByRole('button',{name:'인형',exact:true}).click();
   await expect(reopened.locator('.doll-grid button')).toHaveCount(1); page.once('dialog',dialog=>dialog.accept());
   await reopened.getByText(/위험 구역/).click(); // 해체는 탭 최하단 접힌 위험 구역 — 펼쳐야 버튼이 보인다
   await reopened.getByRole('button',{name:'인형 해체 · 확인 필요'}).click(); await simulation.getByRole('button',{name:'닫기'}).click(); await expect(simulation).toBeHidden();
-  await page.getByLabel('빠른 진행').getByRole('button',{name:'관리 열기'}).click(); const finalConsole=page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔'); await finalConsole.getByRole('button',{name:'인형',exact:true}).click();
+  await page.getByRole('button',{name:'기지 열기'}).click(); const finalConsole=page.getByRole('dialog',{name:'시뮬레이션'}).getByLabel('소녀전선 지휘 콘솔'); await finalConsole.getByRole('button',{name:'인형',exact:true}).click();
   await expect(finalConsole.locator('.doll-grid button')).toHaveCount(0);
 });
 
@@ -194,7 +192,7 @@ test('임무 유형 선택부터 다단계 진행·전투·루팅 영수증까�
     if(await recruit.isVisible()){await recruit.click();recruited=true;}
     const bossRecruit=page.getByRole('region',{name:'엔진 결정 카드'}).getByRole('button',{name:'영입한다'});
     if(await bossRecruit.isVisible()){await bossRecruit.click();bossRecruited=true;}
-    await page.getByLabel('빠른 진행').getByRole('button',{name:'관리 열기'}).click();
+    await page.getByRole('button',{name:'기지 열기'}).click();
     await console.getByRole('button',{name:'작전',exact:true}).click();
     if(usedThisStep)await expect(console).toContainText(' 지휘 개입');
   }
@@ -240,7 +238,7 @@ test('관계 선택지 캡슐과 1:1 대화 세션이 엔진 상태로 작동한
   await expect(console.getByRole('button',{name:'하루 마감',exact:true})).toBeDisabled();
   await simulation.getByRole('button',{name:'닫기'}).click();
   await dock.getByRole('button',{name:'대화를 마무리한다'}).click();
-  await page.getByLabel('빠른 진행').getByRole('button',{name:'관리 열기'}).click();
+  await page.getByRole('button',{name:'기지 열기'}).click();
   await expect(console.getByRole('button',{name:'다음 시간대',exact:true})).toBeEnabled();
   await console.getByRole('button',{name:'인형',exact:true}).click();
   await expect(console.getByRole('button',{name:/1:1 대화 시작/})).toBeDisabled();
@@ -323,7 +321,7 @@ test('군수지원 복귀 보상을 수령하고 심야 작전의 실제 명중 
   await console.getByRole('button',{name:'지휘관으로 시작'}).click();
   await console.getByRole('button',{name:'인형 고용',exact:true}).click(); await console.getByRole('button',{name:'오늘의 인형 뽑기'}).click();
   await console.getByRole('button',{name:'계약',exact:true}).first().click(); await console.getByRole('button',{name:/수송 도착/}).click();
-  const reopen=async()=>{const dialog=page.getByRole('dialog',{name:'시뮬레이션'});if(!await dialog.isVisible().catch(()=>false)){const open=page.getByLabel('빠른 진행').getByRole('button',{name:'관리 열기'});await expect(open).toBeEnabled();await open.click();await expect(dialog).toBeVisible();}return dialog.getByLabel('소녀전선 지휘 콘솔');};
+  const reopen=async()=>{const dialog=page.getByRole('dialog',{name:'시뮬레이션'});if(!await dialog.isVisible().catch(()=>false)){const open=page.getByRole('button',{name:'기지 열기'});await expect(open).toBeEnabled();await open.click();await expect(dialog).toBeVisible();}return dialog.getByLabel('소녀전선 지휘 콘솔');};
   console=await reopen(); await console.getByRole('button',{name:'제대',exact:true}).click(); await console.locator('.roster button').first().click(); await expect(console.locator('.slots .remove')).toHaveCount(1);
   await console.getByRole('button',{name:'2시간대 파견'}).click(); await expect(console.locator('.logistics-panel')).toContainText('파견 중 · 2시간대 남음');
   await console.getByRole('button',{name:'기지',exact:true}).click(); await console.getByRole('button',{name:'다음 시간대'}).click();
@@ -365,7 +363,7 @@ test('소녀전선 각도괄호 태그를 채팅 본문의 감정 스프라이�
   await page.route('http://127.0.0.1:4173/test-llm',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({choices:[{message:{content:reply}}]})}));
   const simulation=await importGfl(page);
   await simulation.getByRole('button',{name:'닫기'}).click();
-  await expect(page.getByLabel('빠른 진행').getByRole('button',{name:'관리 열기'})).toHaveText('관리 열기');
+  await expect(page.getByRole('button',{name:'기지 열기'})).toHaveText('기지');
   await expect(page.getByRole('region',{name:'소녀전선 장면 음악'})).toHaveCount(0);
   await page.getByPlaceholder('메시지를 입력하세요').fill('FAMAS에게 자기소개를 부탁한다.');
   await page.getByRole('button',{name:'보내기'}).click();

@@ -25,8 +25,8 @@ async function send(page:Page,text:string){await page.getByRole('textbox',{name:
 test('상태 체인은 채팅에서 제거되고 위젯·영수증에 반영되며 다음 응답으로 갱신된다',async({page})=>{
   await page.setViewportSize({ width: 1280, height: 800 }); await page.addInitScript(()=>localStorage.setItem('simbot.sim.pinned','0')); await seed(page);await send(page,'첫 관측');
   const first=page.getByRole('article').filter({hasText:'관측 완료.'}).last();await expect(first).toBeVisible();await expect(first).not.toContainText('이름: 리안 |');await expect(first).toContainText('panel_sync');
-  await page.getByRole('button',{name:'관리 열기'}).click();let dialog=page.getByRole('dialog',{name:'시뮬레이션'});await expect(dialog).toContainText('리안');await expect(dialog).toContainText('경계');await expect(dialog).toContainText('외곽 항로 정상');
+  await page.getByRole('button',{name:/ 열기$/}).click();let dialog=page.getByRole('dialog',{name:'시뮬레이션'});await expect(dialog).toContainText('리안');await expect(dialog).toContainText('경계');await expect(dialog).toContainText('외곽 항로 정상');
   await dialog.getByRole('button',{name:'닫기'}).click();await send(page,'교대');
   const second=page.getByRole('article').filter({hasText:'교대 완료.'}).last();await expect(second).toBeVisible();await expect(second).not.toContainText('상태: 휴식 |');await expect(second).toContainText('panel_sync');
-  await page.getByRole('button',{name:'관리 열기'}).click();dialog=page.getByRole('dialog',{name:'시뮬레이션'});await expect(dialog).toContainText('휴식');await expect(dialog).toContainText('귀환 절차 시작');await expect(dialog).not.toContainText('경계');
+  await page.getByRole('button',{name:/ 열기$/}).click();dialog=page.getByRole('dialog',{name:'시뮬레이션'});await expect(dialog).toContainText('휴식');await expect(dialog).toContainText('귀환 절차 시작');await expect(dialog).not.toContainText('경계');
 });
