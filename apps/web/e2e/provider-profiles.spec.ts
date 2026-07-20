@@ -5,7 +5,7 @@ test('프로바이더를 바꾸면 API 키가 각자 저장·복원된다',async
   await page.goto('/');
   await page.getByRole('button',{name:'전체 설정'}).click();
   const key=page.getByLabel(/API 키|서비스 계정 JSON|GitHub OAuth 토큰/);
-  const provider=page.getByLabel('프로바이더');
+  const provider=page.getByLabel('AI 서비스');
   // Vertex에 서비스 계정 JSON을 넣는다
   await provider.selectOption('vertex');
   await key.fill('{"vertex":"service-account"}');
@@ -26,6 +26,6 @@ test('프로바이더를 바꾸면 API 키가 각자 저장·복원된다',async
   await page.getByRole('button',{name:'저장',exact:true}).click();
   await page.reload();
   await page.getByRole('button',{name:'전체 설정'}).click();
-  await expect(page.getByLabel('프로바이더')).toHaveValue('openai');
+  await expect(page.getByLabel('AI 서비스')).toHaveValue('openai');
   await expect(page.getByLabel(/API 키/)).toHaveValue('sk-openai-test');
 });

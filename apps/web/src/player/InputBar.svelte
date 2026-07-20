@@ -1,7 +1,9 @@
 <script lang="ts">
   import Icon from '@simbot/ui/Icon.svelte';
-  let { busy = false, onsend, onstop }: { busy?: boolean; onsend: (text: string) => Promise<void>; onstop: () => void } = $props();
+  let { busy = false, draft = '', onsend, onstop }: { busy?: boolean; draft?: string; onsend: (text: string) => Promise<void>; onstop: () => void } = $props();
   let text = $state('');
+  // UX-RENEWAL §6.2: AI 연결 시트가 떴다 닫혀도 사용자가 쓴 문장은 사라지지 않는다.
+  $effect(()=>{if(draft)text=draft;});
   async function submit(){const value=text.trim();if(!value||busy)return;text='';await onsend(value);}
 </script>
 

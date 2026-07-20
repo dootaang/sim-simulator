@@ -23,7 +23,7 @@ async function seed(page: Page) {
 async function openCard(page: Page, mobile: boolean) {
   if (mobile) await page.getByRole('button', { name: '현재 봇 메뉴' }).click();
   else if (await page.getByTitle('오케스트레이션 카드').count()) await page.getByTitle('오케스트레이션 카드').click();
-  await page.getByRole('button', { name: '시뮬레이션 열기' }).click();
+  await page.getByRole('button', { name: '관리 열기' }).click();
   await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toBeVisible();
 }
 
@@ -44,12 +44,12 @@ for (const item of [{ name: '데스크톱', viewport: { width: 1280, height: 800
 test('완전 시뮬 카드는 계기판을 표시하고 별도 관리 진입 버튼으로 시뮬레이션을 연다', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 }); await page.addInitScript(()=>localStorage.setItem('simbot.sim.pinned','0')); await seed(page); if (await page.getByTitle('오케스트레이션 카드').count()) await page.getByTitle('오케스트레이션 카드').click();
   const hud = page.getByRole('status', { name: '엔진 계기판' }); await expect(hud).toBeVisible(); await expect(hud).toContainText('일차'); await expect(hud).toContainText('골드'); await expect(hud.getByRole('button', { name: '관리 화면 열기' })).toHaveCount(0);
-  await page.getByRole('button', { name: '시뮬레이션 열기' }).click(); await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toBeVisible();
+  await page.getByRole('button', { name: '관리 열기' }).click(); await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toBeVisible();
 });
 
-test('넓은 화면(≥1200px)은 자동 핀 — 시뮬레이션이 우측 칼럼으로 열리고 해제하면 오버레이로 돌아간다', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 }); await seed(page); if (await page.getByTitle('오케스트레이션 카드').count()) await page.getByTitle('오케스트레이션 카드').click(); await page.getByRole('button', { name: '시뮬레이션 열기' }).click();
-  // 저장된 선호가 없으면 1280px에서 핀이 기본값 — 클릭 없이 곧장 칼럼이어야 한다.
+test('넓은 화면에서 관리를 열면 기본 고정 칼럼(2열)이고 해제하면 오버레이로 돌아간다', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 }); await seed(page); if (await page.getByTitle('오케스트레이션 카드').count()) await page.getByTitle('오케스트레이션 카드').click(); await page.getByRole('button', { name: '관리 열기' }).click();
+  // UX-RENEWAL §4.2: 자동 열림은 폐기됐다. 대신 저장된 선호가 없으면 "열었을 때" 고정 칼럼이 기본값이다.
   const column = page.getByRole('complementary', { name: '시뮬레이션' }); await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toHaveCount(0); await expect(column).toBeVisible(); await expect(page.getByRole('textbox', { name: '메시지를 입력하세요' })).toBeVisible(); await column.getByRole('button', { name: '점심 영업' }).click(); await expect(page.getByText('점심 영업이 활기차게 이어졌다.')).toBeVisible(); await expect(column).toBeVisible();
   await page.getByRole('button', { name: '시뮬레이션 고정 해제' }).click(); await expect(page.getByRole('dialog', { name: '시뮬레이션' })).toBeVisible(); await expect(await page.evaluate(() => localStorage.getItem('simbot.sim.pinned'))).toBe('0');
 });
