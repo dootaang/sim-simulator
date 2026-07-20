@@ -152,7 +152,7 @@
 {#if expandedImage}<button class="image-lightbox" aria-label="확대 이미지 닫기" onclick={()=>expandedImage=''}><img src={expandedImage} alt="확대된 본문 이미지"/></button>{/if}
 
 <style>
-.list{position:relative;overflow-anchor:none}.virtual-space{position:relative;width:100%;overflow-anchor:none}.virtual-row{position:absolute;top:0;left:0;width:100%}.latest-button{position:sticky;z-index:8;bottom:86px;left:50%;transform:translateX(-50%);padding:7px 13px;border:1px solid #6c98f4;border-radius:999px;background:#17233a;color:#cfe0ff;box-shadow:0 4px 18px #0009;cursor:pointer}
+.list{position:relative;overflow-anchor:none}.virtual-space{position:relative;width:100%;overflow-anchor:none}.virtual-row{position:absolute;top:0;left:0;width:100%}.latest-button{position:sticky;z-index:8;bottom:86px;align-self:center;width:max-content;max-width:calc(100% - 24px);box-sizing:border-box;margin-inline:auto;padding:7px 13px;border:1px solid #6c98f4;border-radius:999px;background:#17233a;color:#cfe0ff;box-shadow:0 4px 18px #0009;cursor:pointer}
 .message{content-visibility:auto;contain-intrinsic-size:auto 180px}
 .ledger-run-toggle{justify-self:center;margin:2px 0;padding:4px 12px;border:1px dashed #4a5568;border-radius:999px;background:transparent;color:#8fa0b5;font-size:11px;cursor:pointer}.ledger-run-toggle:hover{border-color:#6c98f4;color:#c6d4ea}
   .image-lightbox{position:fixed;inset:0;z-index:90;display:grid;place-items:center;width:100%;height:100%;padding:24px;border:0;background:#05070add;cursor:zoom-out}.image-lightbox img{max-width:96vw;max-height:94vh;object-fit:contain;box-shadow:0 18px 60px #000}.text :global(img),.response-sprites img{cursor:zoom-in}
