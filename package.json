@@ -1,21 +1,24 @@
 {
-  "name":"simbot-platform",
-  "version":"0.1.0",
-  "private":true,
-  "packageManager":"pnpm@10.34.1",
-  "engines":{"node":">=22"},
-  "scripts":{
-    "baseline":"node scripts/migration/baseline.mjs",
-    "test":"pnpm -r --if-present test",
-    "typecheck":"pnpm -r --if-present typecheck",
-    "build":"pnpm -r --if-present build",
-    "check":"pnpm typecheck && pnpm test && pnpm build",
-    "verify":"pnpm check && pnpm test:e2e",
-    "test:e2e":"pnpm --filter @simbot/web test:e2e",
-    "ai:pair":"node tools/ai-coordination/orchestrate.mjs",
-    "ai:pair:doctor":"node tools/ai-coordination/doctor.mjs",
-    "ai:pair:test":"node --test tools/ai-coordination/*.test.mjs",
-    "dev":"pnpm --filter @simbot/web dev",
-    "deploy":"pnpm --filter @simbot/web build && firebase deploy --only hosting"
+  "name": "simbot-platform",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "baseline": "node scripts/migration/baseline.mjs",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "build": "pnpm -r --if-present build",
+    "check": "pnpm typecheck && pnpm test && pnpm check:ui && pnpm build",
+    "verify": "pnpm check && pnpm test:e2e",
+    "test:e2e": "pnpm --filter @simbot/web test:e2e",
+    "ai:pair": "node tools/ai-coordination/orchestrate.mjs",
+    "ai:pair:doctor": "node tools/ai-coordination/doctor.mjs",
+    "ai:pair:test": "node --test tools/ai-coordination/*.test.mjs",
+    "dev": "pnpm --filter @simbot/web dev",
+    "deploy": "pnpm --filter @simbot/web build && firebase deploy --only hosting",
+    "check:ui": "node scripts/check-ui-hardcodes.mjs"
   }
 }

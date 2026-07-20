@@ -2,6 +2,9 @@
   color-scheme: dark;
   --color-canvas: #11100f; --color-surface: #1b1917; --color-surface-raised: #25211d; --color-inset: #0d0c0b;
   --color-text: #f4eee5; --color-text-muted: #afa69b; --color-line: #3c352e; --color-accent: #e7a84a; --color-danger: #e26767; --color-success: #75c596;
+  --color-warning: #dfae52; --color-info: #6c98f4; --color-focus: #6c98f4; --color-selected: #202633; --color-pressed: #2c313c;
+  --type-caption: .75rem; --type-body: .8125rem; --type-subtitle: .9375rem; --type-title: 1.125rem;
+  --nav-size: 3.5rem; --touch-min: 2.75rem; --bottom-nav-inset: calc(var(--nav-size) + env(safe-area-inset-bottom));
   --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-6: 1.5rem; --space-8: 2rem;
   --radius-sm: .35rem; --radius-md: .65rem; --radius-lg: 1rem; --shadow-panel: 0 16px 48px rgb(0 0 0 / .28);
   --font-body: Inter, Pretendard, system-ui, sans-serif; --font-mono: "JetBrains Mono", ui-monospace, monospace;
